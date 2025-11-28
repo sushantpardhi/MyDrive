@@ -1,0 +1,366 @@
+/* Header Container Styles */
+.headerContainer {
+  background: var(--bg-primary);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-tertiary);
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+/* Header Bar Styles */
+.headerBar {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .headerContainer {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-primary);
+  }
+
+  .headerBar {
+    padding: 12px;
+    gap: 8px;
+  }
+}
+
+/* Menu Button */
+.menuButton {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.menuButton:hover {
+  background: var(--hover-overlay);
+}
+
+@media (max-width: 768px) {
+  .menuButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    order: 1;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .menuButton:active {
+    background: var(--active-overlay);
+    transform: scale(0.95);
+  }
+}
+
+/* Search Bar */
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  flex: 1;
+  max-width: 400px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.searchBar:focus-within {
+  background: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+.searchBar svg {
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+
+.searchIconActive {
+  animation: pulse 1.5s ease-in-out infinite;
+  color: var(--accent-primary) !important;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.clearSearchBtn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.clearSearchBtn:hover {
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+}
+
+.clearSearchBtn:active {
+  transform: scale(0.9);
+}
+
+@media (max-width: 768px) {
+  .searchBar {
+    max-width: none;
+    flex: 1;
+    order: 2;
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+
+  .searchBar input {
+    font-size: 16px;
+  }
+}
+
+.searchBar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.searchBar input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Breadcrumb Navigation */
+.breadcrumbScroll {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  padding: 2px 0;
+  gap: 4px;
+}
+
+.breadcrumbScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.breadcrumbItem {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.breadcrumbLink {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.breadcrumbLink:hover {
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.breadcrumbLink:active {
+  transform: translateY(0);
+}
+
+.breadcrumbCurrent {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+}
+
+.breadcrumbIcon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.breadcrumbLink:hover .breadcrumbIcon {
+  opacity: 1;
+}
+
+.breadcrumbText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.separator {
+  margin: 0 2px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .breadcrumbScroll {
+    display: none;
+  }
+}
+
+/* Breadcrumb tooltip */
+.breadcrumbLink[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1002;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Disable tooltips on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .breadcrumbLink[title]:hover::after {
+    display: none;
+  }
+}
+
+/* Action buttons in header */
+.actionButtons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .actionButtons {
+    display: none;
+  }
+}
+
+/* Action button styles */
+.actionBtn,
+.actionBtnDanger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: var(--hover-overlay);
+}
+
+.actionBtnDanger {
+  background: var(--danger-bg-light);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.actionBtnDanger:hover {
+  background: var(--danger-bg-light);
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .actionBtn span,
+  .actionBtnDanger span {
+    display: none;
+  }
+
+  .actionBtn,
+  .actionBtnDanger {
+    padding: 8px;
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* Info text for shared view */
+.infoText {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Selection count display */
+.selectionCount {
+  font-size: 13px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+}
+
+@media (max-width: 768px) {
+  .selectionCount {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}

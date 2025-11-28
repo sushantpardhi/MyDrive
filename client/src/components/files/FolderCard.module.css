@@ -1,0 +1,764 @@
+.folderCard {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.folderCard.list {
+  overflow: visible;
+}
+
+.folderCard.selected {
+  background: var(--accent-bg-light);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-border), var(--shadow-md);
+}
+
+.folderCard.selected:hover {
+  background: var(--accent-bg-medium);
+  box-shadow: 0 0 0 1px var(--accent-border-hover), var(--shadow-lg);
+}
+
+.checkboxWrapper {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--card-bg);
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.folderCard:hover .checkboxWrapper,
+.folderCard:focus-within .checkboxWrapper,
+.folderCard.selected .checkboxWrapper {
+  opacity: 1;
+}
+
+.checkboxWrapper:hover {
+  background: var(--card-hover-bg);
+  transform: scale(1.05);
+}
+
+.checkbox {
+  color: var(--accent-primary);
+  transition: transform var(--transition-normal);
+}
+
+.folderCard.selected .checkbox {
+  color: var(--accent-active);
+}
+
+.folderCard:hover .checkbox {
+  color: var(--text-tertiary);
+}
+
+/* Grid View Styles */
+.folderCard.grid {
+  width: 100%;
+  height: 100%;
+  max-width: 200px;
+  min-width: 0;
+  padding: 16px 12px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.folderCard.grid:hover,
+.folderCard.grid:focus-within {
+  transform: translateY(-2px);
+}
+
+.folderCard.grid:not(.selected) {
+  border-color: var(--card-border);
+}
+
+.folderCard.grid:hover:not(.selected),
+.folderCard.grid:focus-within:not(.selected) {
+  border-color: var(--border-color);
+  background: var(--card-hover-bg);
+  box-shadow: var(--shadow-md);
+}
+
+.folderCard.grid.selected {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
+  background: var(--accent-bg-light);
+  box-shadow: 0 0 0 1px var(--accent-border), var(--shadow-lg);
+}
+
+.folderCard.grid.selected:hover,
+.folderCard.grid.selected:focus-within {
+  border-color: var(--accent-primary);
+  background: var(--accent-bg-medium);
+  box-shadow: 0 0 0 1px var(--accent-border-hover), var(--shadow-xl);
+}
+
+.grid .folderContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.grid .folderIcon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--folder-bg);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  color: var(--folder-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+  .folderCard.grid {
+    padding: 10px 8px 8px 8px;
+  }
+
+  .grid .folderIcon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+  }
+
+  .grid .folderName {
+    font-size: 12px;
+    min-height: 1.8em;
+    max-height: 1.8em;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .grid .folderDetails {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .folderCard.grid {
+    padding: 8px 6px 6px 6px;
+  }
+
+  .grid .folderIcon {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 6px;
+  }
+
+  .grid .folderName {
+    font-size: 11px;
+    min-height: 1.6em;
+    max-height: 1.6em;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .grid .folderDetails {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .checkboxWrapper {
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+
+  .menuButton {
+    opacity: 1 !important;
+    display: flex !important;
+    background: var(--card-bg) !important;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .folderCard.grid .menuButton {
+    opacity: 1 !important;
+    display: flex !important;
+  }
+
+  .folderCard.list .menuButton {
+    opacity: 1 !important;
+    display: flex !important;
+    background: var(--bg-quaternary) !important;
+    color: var(--text-secondary);
+  }
+
+  .folderCard.grid:hover .menuButton,
+  .folderCard.grid:focus-within .menuButton,
+  .folderCard.list:hover .menuButton,
+  .folderCard.list:focus-within .menuButton,
+  .folderCard:hover .menuButton,
+  .folderCard:focus-within .menuButton,
+  .folderCard.selected .menuButton {
+    opacity: 1 !important;
+  }
+
+  .menuDropdown {
+    z-index: 1001 !important;
+    right: 0;
+    left: auto;
+    min-width: 200px;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .list .menuWrapper {
+    position: relative;
+  }
+
+  .list .menuDropdown {
+    position: fixed;
+    top: auto;
+    bottom: auto;
+    margin-top: 4px;
+  }
+}
+
+.folderCard.grid:hover .folderIcon,
+.folderCard.grid:focus-within .folderIcon {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+/* Keep folder icon lifted when selected */
+.folderCard.grid.selected .folderIcon {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+/* List View Styles */
+.folderCard.list {
+  /* modern table-like row */
+  display: grid;
+  grid-template-columns:
+    48px minmax(200px, 3fr) minmax(80px, 1fr) minmax(120px, 1.2fr)
+    120px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-tertiary);
+  border-radius: 0;
+  box-shadow: none;
+  transition: all 0.15s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.folderCard.list:has(.menuDropdown) {
+  z-index: 100;
+}
+
+.folderCard.list.menuOpen {
+  z-index: 100;
+}
+
+@media (max-width: 1024px) {
+  .folderCard.list {
+    grid-template-columns:
+      48px minmax(150px, 3fr) minmax(70px, 1fr) minmax(100px, 1.2fr)
+      100px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .folderCard.list {
+    grid-template-columns: 32px 1fr 32px;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 0;
+  }
+
+  .folderCard.list:first-child {
+    border-radius: 0;
+  }
+
+  .folderCard.list:last-child {
+    border-radius: 0;
+  }
+
+  .folderSize,
+  .folderMeta {
+    display: none;
+  }
+
+  .list .menuWrapper {
+    gap: 4px;
+    display: flex;
+    justify-content: flex-end;
+    position: relative;
+  }
+
+  .list .actionButton {
+    display: none !important;
+  }
+
+  .list .menuButton {
+    opacity: 1 !important;
+    display: flex !important;
+    width: 32px;
+    height: 32px;
+    background: var(--bg-quaternary);
+    color: var(--text-secondary);
+  }
+
+  .list .menuButton:active {
+    background: var(--bg-tertiary);
+    transform: scale(0.95);
+  }
+}
+
+.folderCard.list:hover:not(.selected),
+.folderCard.list:focus-within:not(.selected) {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.folderCard.list.selected {
+  background: var(--accent-bg-light);
+  border-bottom: 1px solid var(--accent-border);
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
+.folderCard.list.selected:hover,
+.folderCard.list.selected:focus-within {
+  background: var(--accent-bg-medium);
+  border-bottom: 1px solid var(--accent-border-hover);
+}
+
+.list .folderContent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.list .folderIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--folder-color);
+  background: transparent;
+  border-radius: 6px;
+  transition: transform 0.15s ease;
+}
+
+.list:hover .folderIcon {
+  transform: scale(1.08);
+  color: var(--folder-color);
+}
+
+/* Shared Info Styles */
+.folderInfo {
+  min-width: 0;
+}
+
+/* Grid Info Styles */
+.grid .folderInfo {
+  width: 100%;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.grid .folderName {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.3;
+  min-height: 1.3em;
+  max-height: 1.3em;
+  cursor: pointer;
+  max-width: 100%;
+  padding: 0 2px;
+  font-size: 13px;
+  position: relative;
+  transition: color 0.2s ease, text-overflow 0.15s ease;
+}
+
+.grid .folderName:hover {
+  text-overflow: ellipsis;
+}
+
+.grid .folderName[title]:hover::after,
+.grid .folderName[title]:focus::after {
+  content: attr(title);
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1002;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  max-width: 250px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.grid .folderDetails {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: auto;
+}
+
+/* List Info Styles */
+.list .folderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.list .folderName {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  font-size: 14px;
+  transition: color 0.15s ease, text-overflow 0.15s ease;
+  cursor: pointer;
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 1;
+}
+
+.list .folderName:hover {
+  text-overflow: ellipsis;
+}
+
+.list .folderName[title]:hover::after,
+.list .folderName[title]:focus::after {
+  content: attr(title);
+  position: fixed;
+  left: var(--mouse-x, 0);
+  top: var(--mouse-y, 0);
+  transform: translate(10px, -50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1002;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  max-width: 300px;
+  word-wrap: break-word;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.list:hover .folderName {
+  color: #2563eb;
+}
+
+.list .folderDetails {
+  display: none;
+}
+
+/* Folder metadata columns */
+.folderSize {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.folderMeta {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+.folderCard.list .checkboxWrapper {
+  position: static;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 0;
+  border-radius: 5px;
+}
+
+.folderCard.list:hover .checkboxWrapper,
+.folderCard.list:focus-within .checkboxWrapper,
+.folderCard.list.selected .checkboxWrapper {
+  opacity: 1;
+}
+
+.folderCard.list .checkboxWrapper:hover {
+  background: rgba(59, 130, 246, 0.08);
+  transform: scale(1.1);
+}
+
+.folderCard.list .checkbox {
+  width: 18px;
+  height: 18px;
+  color: #3b82f6;
+}
+
+.list .folderDetails {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Menu styles */
+.menuWrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+/* Grid view menu positioning */
+.grid .menuWrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+}
+
+/* List view menu positioning */
+.list .menuWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  z-index: 10;
+}
+
+.menuButton {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.folderCard:hover .menuButton,
+.folderCard:focus-within .menuButton,
+.folderCard.selected .menuButton {
+  opacity: 1;
+}
+
+.menuButton:hover {
+  background: #f3f4f6;
+  color: #111827;
+  transform: scale(1.05);
+}
+
+/* Action buttons for list view */
+.actionButton {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  display: none !important;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.actionButton:hover {
+  background: #f3f4f6;
+  color: #111827;
+  transform: scale(1.05);
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 6px;
+  min-width: 180px;
+  z-index: 1001;
+  border: 1px solid #e5e7eb;
+}
+
+/* Grid view dropdown positioning */
+.grid .menuDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  z-index: 1001;
+}
+
+@media (max-width: 768px) {
+  .menuDropdown {
+    min-width: 200px;
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+}
+
+.menuItem,
+.menuItemDanger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+@media (max-width: 768px) {
+  .menuItem,
+  .menuItemDanger {
+    padding: 12px 14px;
+    font-size: 15px;
+    gap: 12px;
+  }
+
+  .menuItem svg,
+  .menuItemDanger svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.menuItem:hover {
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+}
+
+.menuItemDanger {
+  color: var(--error-color);
+}
+
+.menuItemDanger:hover {
+  background: var(--error-bg);
+  color: var(--error-color);
+}
+
+.menuDivider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 6px 0;
+}
+
+.card:hover {
+  background: #fafafa;
+  border-color: #d6d6d6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.iconWrap {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+  background: #fff9e5;
+}
+
+.icon {
+  color: #f7b500;
+}
+
+.name {
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Disable hover tooltips on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .grid .folderName[title]:hover::after,
+  .grid .folderName[title]:focus::after,
+  .list .folderName[title]:hover::after,
+  .list .folderName[title]:focus::after {
+    display: none;
+  }
+}

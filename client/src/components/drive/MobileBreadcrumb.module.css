@@ -1,0 +1,57 @@
+/* Mobile breadcrumb bar */
+.mobileBreadcrumb {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobileBreadcrumb {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 8px;
+  }
+
+  .mobileBreadcrumb::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobileBreadcrumbLink {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 0;
+    flex-shrink: 0;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+  }
+
+  .mobileBreadcrumbLink:active {
+    color: var(--accent-hover);
+  }
+
+  .mobileBreadcrumbSeparator {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+
+  .mobileBreadcrumbCurrent {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+}

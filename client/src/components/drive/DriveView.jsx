@@ -1,0 +1,467 @@
+import { useEffect, useRef, useCallback, useMemo } from "react";
+import { toast } from "react-toastify";
+
+// Components
+import Header from "./Header";
+import LocationHeader from "./LocationHeader";
+import MobileBreadcrumb from "./MobileBreadcrumb";
+import DriveContent from "./DriveContent";
+import FloatingActionButton from "./FloatingActionButton";
+import ShareDialog from "../files/ShareDialog";
+import RenameDialog from "../files/RenameDialog";
+import CopyMoveDialog from "../files/CopyMoveDialog";
+import UploadProgressToast from "../files/UploadProgressToast";
+
+// Hooks
+import { useFileOperations } from "../../hooks/useFileOperations";
+import { useSearch } from "../../hooks/useSearch";
+import { useSelection } from "../../hooks/useSelection";
+import { useUserSettings } from "../../hooks/useUserSettings";
+import { useBreadcrumbs } from "../../hooks/useBreadcrumbs";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { useUploadProgress } from "../../hooks/useUploadProgress";
+import { useUploadWarning } from "../../hooks/useUploadWarning";
+
+// Contexts
+import { useDriveContext } from "../../contexts/DriveContext";
+import { useSelectionContext } from "../../contexts/SelectionContext";
+import { useUIContext } from "../../contexts/UIContext";
+
+// Services
+import api from "../../services/api";
+
+// Styles
+import styles from "./DriveView.module.css";
+
+const DriveView = ({ type = "drive", onMenuClick }) => {
+  // Context data
+  const {
+    folders,
+    files,
+    loading,
+    loadingMore,
+    currentPage,
+    hasMore,
+    setFolders,
+    setFiles,
+    setLoading,
+    setLoadingMore,
+    setCurrentPage,
+    setHasMore,
+    currentFolderId,
+  } = useDriveContext();
+
+  const { selectedItems, toggleSelection, selectAll, clearSelection } =
+    useSelectionContext();
+
+  const {
+    actionsMenuOpen,
+    setActionsMenuOpen,
+    shareDialogOpen,
+    shareItem,
+    shareItemType,
+    openShareDialog,
+    closeShareDialog,
+    renameDialogOpen,
+    renameItem,
+    renameItemType,
+    openRenameDialog,
+    closeRenameDialog,
+    copyMoveDialogOpen,
+    copyMoveItem,
+    copyMoveItemType,
+    copyMoveOperation,
+    openCopyMoveDialog,
+    closeCopyMoveDialog,
+  } = useUIContext();
+
+  // Refs
+  const fileInputRef = useRef(null);
+  const driveViewRef = useRef(null);
+
+  // Custom hooks
+  const { viewMode, changeViewMode } = useUserSettings();
+  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type);
+
+  const loadFolderContents = useCallback(
+    async (folderId = "root", page = 1, append = false) => {
+      try {
+        if (page === 1) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        let response;
+        if (type === "shared" && folderId === "root") {
+          response = await api.getSharedItems(page, 50);
+        } else {
+          response = await api.getFolderContents(
+            folderId,
+            type === "trash",
+            page,
+            50
+          );
+        }
+
+        if (append) {
+          setFolders((prev) => {
+            const existingIds = new Set(prev.map((f) => f._id));
+            const newFolders = (response.data.folders || []).filter(
+              (f) => !existingIds.has(f._id)
+            );
+            return [...prev, ...newFolders];
+          });
+          setFiles((prev) => {
+            const existingIds = new Set(prev.map((f) => f._id));
+            const newFiles = (response.data.files || []).filter(
+              (f) => !existingIds.has(f._id)
+            );
+            return [...prev, ...newFiles];
+          });
+        } else {
+          setFolders(response.data.folders || []);
+          setFiles(response.data.files || []);
+        }
+
+        setHasMore(response.data.pagination?.hasMore || false);
+        setCurrentPage(page);
+      } catch (error) {
+        toast.error("Failed to load folder contents");
+        console.error(error);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [
+      type,
+      setLoading,
+      setLoadingMore,
+      setFolders,
+      setFiles,
+      setHasMore,
+      setCurrentPage,
+    ]
+  );
+
+  // Upload progress management
+  const uploadProgressHook = useUploadProgress();
+
+  // Warn user before leaving page during active uploads
+  useUploadWarning(uploadProgressHook.uploading);
+
+  const {
+    createFolder,
+    uploadFiles,
+    deleteItem,
+    handleDownload,
+    restoreItem,
+    emptyTrash,
+    renameItem: renameItemOperation,
+    copyItem,
+    moveItem,
+  } = useFileOperations(api, loadFolderContents, uploadProgressHook);
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearching,
+    searchResults,
+    clearSearch,
+    loadMoreSearchResults,
+    hasMore: searchHasMore,
+  } = useSearch(api, loadFolderContents);
+
+  const { bulkDelete, bulkRestore, bulkShare, bulkDownload } = useSelection(
+    api,
+    folders,
+    files,
+    type
+  );
+
+  // Get current data to display (search results or regular folder contents)
+  const displayFolders = searchQuery.trim() ? searchResults.folders : folders;
+  const displayFiles = searchQuery.trim() ? searchResults.files : files;
+  const allItemIds = useMemo(
+    () => [
+      ...displayFolders.map((f) => f._id),
+      ...displayFiles.map((f) => f._id),
+    ],
+    [displayFolders, displayFiles]
+  );
+
+  // Infinite scroll
+  useInfiniteScroll({
+    containerRef: driveViewRef,
+    loading,
+    loadingMore,
+    hasMore,
+    searchHasMore,
+    currentPage,
+    currentFolderId,
+    searchQuery,
+    loadFolderContents,
+    loadMoreSearchResults,
+  });
+
+  // Load folder contents when currentFolderId changes
+  useEffect(() => {
+    loadFolderContents(currentFolderId);
+    setCurrentPage(1);
+    setHasMore(true);
+  }, [currentFolderId, type, loadFolderContents, setCurrentPage, setHasMore]);
+
+  // Reset selections when changing folders or type
+  useEffect(() => {
+    clearSelection();
+  }, [currentFolderId, type, clearSelection]);
+
+  // Toggle select all handler
+  const handleToggleSelectAll = useCallback(() => {
+    const allSelected =
+      allItemIds.length > 0 && allItemIds.every((id) => selectedItems.has(id));
+    if (allSelected) {
+      clearSelection();
+    } else {
+      selectAll(allItemIds);
+    }
+  }, [allItemIds, selectedItems, selectAll, clearSelection]);
+
+  // Keyboard shortcuts for selection
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        handleToggleSelectAll();
+      } else if (e.key === "Escape") {
+        clearSelection();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleToggleSelectAll, clearSelection]);
+
+  // Event handlers
+  const handleFileUpload = async (e) => {
+    const uploadedFiles = Array.from(e.target.files || []);
+    if (!uploadedFiles.length) return;
+
+    const newFiles = await uploadFiles(uploadedFiles);
+    if (newFiles.length > 0) {
+      setFiles((prev) => [...prev, ...newFiles]);
+    }
+    e.target.value = "";
+  };
+
+  const handleCreateFolder = async () => {
+    const newFolder = await createFolder();
+    if (newFolder) {
+      setFolders((prev) => [...prev, newFolder]);
+    }
+  };
+
+  const handleDelete = async (id, itemType) => {
+    const success = await deleteItem(id, itemType, type === "trash");
+    if (success) {
+      await loadFolderContents(currentFolderId, 1, false);
+      clearSelection();
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const success = await bulkDelete(() =>
+      loadFolderContents(currentFolderId, 1, false)
+    );
+    if (success) {
+      clearSelection();
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    const success = await bulkRestore();
+    if (success) {
+      setFiles(files.filter((f) => !selectedItems.has(f._id)));
+      setFolders(folders.filter((f) => !selectedItems.has(f._id)));
+      clearSelection();
+    }
+  };
+
+  const handleEmptyTrash = async () => {
+    const success = await emptyTrash();
+    if (success) {
+      setFiles([]);
+      setFolders([]);
+      clearSelection();
+    }
+  };
+
+  const handleRestore = async (id, itemType) => {
+    const success = await restoreItem(id, itemType);
+    if (success) {
+      if (itemType === "files") {
+        setFiles(files.filter((f) => f._id !== id));
+      } else {
+        setFolders(folders.filter((f) => f._id !== id));
+      }
+      clearSelection();
+    }
+  };
+
+  // Dialog handlers
+  const handleShareDialogClose = () => {
+    closeShareDialog();
+    loadFolderContents(currentFolderId, 1, false);
+  };
+
+  const handleRename = async (id, name, itemType) => {
+    try {
+      const success = await renameItemOperation(id, name, itemType);
+      if (success) {
+        await loadFolderContents(currentFolderId, 1, false);
+      }
+      return success;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleCopyMove = async (
+    id,
+    parent,
+    itemType,
+    operation,
+    name = null
+  ) => {
+    try {
+      let success;
+      if (operation === "copy") {
+        success = await copyItem(id, parent, itemType, name);
+      } else {
+        success = await moveItem(id, parent, itemType);
+      }
+
+      if (success) {
+        await loadFolderContents(currentFolderId, 1, false);
+      }
+      return success;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return (
+    <div className={styles.driveContainer}>
+      <Header
+        onMenuClick={onMenuClick}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        isSearching={isSearching}
+        clearSearch={clearSearch}
+        path={path}
+        navigateTo={navigateTo}
+        type={type}
+        breadcrumbRef={breadcrumbRef}
+        onCreateFolder={handleCreateFolder}
+        onFileUpload={handleFileUpload}
+        onEmptyTrash={handleEmptyTrash}
+        fileInputRef={fileInputRef}
+        onBulkDownload={bulkDownload}
+        onBulkShare={bulkShare}
+        onBulkDelete={handleBulkDelete}
+        onBulkRestore={handleBulkRestore}
+      />
+
+      <LocationHeader
+        type={type}
+        locationName={path[path.length - 1]?.name}
+        viewMode={viewMode}
+        setViewMode={changeViewMode}
+        allItemIds={allItemIds}
+        onSelectAll={handleToggleSelectAll}
+      />
+
+      <MobileBreadcrumb path={path} navigateTo={navigateTo} />
+
+      <DriveContent
+        loading={loading}
+        loadingMore={loadingMore}
+        folders={displayFolders}
+        files={displayFiles}
+        viewMode={viewMode}
+        onFolderClick={openFolder}
+        onFolderDelete={(id) => handleDelete(id, "folders")}
+        onFolderShare={(folder) => openShareDialog(folder, "folders")}
+        onFolderRestore={(id) => handleRestore(id, "folders")}
+        onFolderRename={(folder) => openRenameDialog(folder, "folders")}
+        onFolderCopy={(folder) => openCopyMoveDialog(folder, "folders", "copy")}
+        onFolderMove={(folder) => openCopyMoveDialog(folder, "folders", "move")}
+        onFileDownload={handleDownload}
+        onFileDelete={(id) => handleDelete(id, "files")}
+        onFileShare={(file) => openShareDialog(file, "files")}
+        onFileRestore={(id) => handleRestore(id, "files")}
+        onFileRename={(file) => openRenameDialog(file, "files")}
+        onFileCopy={(file) => openCopyMoveDialog(file, "files", "copy")}
+        onFileMove={(file) => openCopyMoveDialog(file, "files", "move")}
+        onToggleSelection={toggleSelection}
+        onSelectAll={handleToggleSelectAll}
+        type={type}
+        driveViewRef={driveViewRef}
+      />
+
+      <FloatingActionButton
+        type={type}
+        isOpen={actionsMenuOpen}
+        setIsOpen={setActionsMenuOpen}
+        onCreateFolder={handleCreateFolder}
+        onFileUpload={handleFileUpload}
+        onEmptyTrash={handleEmptyTrash}
+        fileInputRef={fileInputRef}
+      />
+
+      {/* Dialogs */}
+      <ShareDialog
+        isOpen={shareDialogOpen}
+        item={shareItem}
+        itemType={shareItemType}
+        onClose={handleShareDialogClose}
+      />
+
+      <RenameDialog
+        isOpen={renameDialogOpen}
+        onClose={closeRenameDialog}
+        onRename={handleRename}
+        item={renameItem}
+        itemType={renameItemType}
+      />
+
+      <CopyMoveDialog
+        isOpen={copyMoveDialogOpen}
+        onClose={closeCopyMoveDialog}
+        onCopyMove={handleCopyMove}
+        item={copyMoveItem}
+        itemType={copyMoveItemType}
+        operation={copyMoveOperation}
+      />
+
+      <UploadProgressToast
+        isOpen={true}
+        uploadProgress={uploadProgressHook.uploadProgress}
+        onClose={uploadProgressHook.resetProgress}
+        onPauseUpload={uploadProgressHook.pauseUpload}
+        onResumeUpload={uploadProgressHook.resumeUpload}
+        onStopUpload={uploadProgressHook.cancelUpload}
+        onPauseAll={uploadProgressHook.pauseAll}
+        onResumeAll={uploadProgressHook.resumeAll}
+        onStopAll={uploadProgressHook.cancelAll}
+      />
+    </div>
+  );
+};
+
+export default DriveView;

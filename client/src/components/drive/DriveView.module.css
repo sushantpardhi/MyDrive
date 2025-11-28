@@ -1,0 +1,16 @@
+/* Main container for DriveView */
+.driveContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background: var(--bg-secondary);
+  overflow-y: auto;
+  height: calc(100vh - 64px);
+  transition: background-color var(--transition-normal);
+}
+
+@media (max-width: 768px) {
+  .driveContainer {
+    height: 100vh;
+  }
+}

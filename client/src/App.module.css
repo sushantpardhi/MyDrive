@@ -1,0 +1,90 @@
+.container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  flex-shrink: 0; /* ✅ Sidebar never collapses */
+  transition: transform 0.3s ease;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* ✅ Allow vertical scrolling */
+  overflow-x: hidden; /* ✅ Prevent horizontal overflow */
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main {
+    width: 100%;
+  }
+
+  body.no-scroll {
+    overflow: hidden;
+  }
+}
+
+/* Overlay for mobile sidebar */
+.overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* React Toastify positioning */
+:global(.react-toast-container) {
+  top: 24px !important;
+  right: 24px !important;
+  width: auto !important;
+}
+
+/* Mobile responsive for react toastify */
+@media (max-width: 768px) {
+  :global(.react-toast-container) {
+    top: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
+    width: calc(100% - 32px) !important;
+    max-width: 380px !important;
+    margin: 0 auto !important;
+  }
+}

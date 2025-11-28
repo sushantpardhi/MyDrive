@@ -1,0 +1,239 @@
+/* Selection actions container */
+.selectionActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  background: var(--accent-bg-light);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 0 16px 12px 16px;
+  animation: slideInUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Inline selection bar specific styles */
+:global(.inlineSelectionBar) .selectionActions {
+  margin: 0 !important;
+  padding: 6px 10px !important;
+  gap: 8px !important;
+  border-radius: 6px;
+  animation: slideInLeft 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: auto;
+  max-width: none;
+  height: 31px !important;
+  min-height: 31px !important;
+  max-height: 31px !important;
+  background: var(--accent-bg-light);
+  border: 1px solid var(--accent-border);
+  flex-wrap: nowrap !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+:global(.inlineSelectionBar) .selectionInfo {
+  gap: 8px;
+}
+
+:global(.inlineSelectionBar) .selectionActionsGroup {
+  gap: 6px;
+}
+
+:global(.inlineSelectionBar) .selectedCount {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:global(.inlineSelectionBar) .actionBtn,
+:global(.inlineSelectionBar) .actionBtnDanger {
+  padding: 6px 8px !important;
+  font-size: 11px !important;
+  height: 29px !important;
+  min-height: 29px !important;
+}
+
+:global(.inlineSelectionBar) .clearSelectionBtn {
+  width: 18px !important;
+  height: 18px !important;
+  font-size: 14px !important;
+}
+
+/* Mobile specific styles for inline selection bar */
+@media (max-width: 768px) {
+  :global(.inlineSelectionBar) .selectionActions {
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    max-height: 31px !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+  }
+
+  :global(.inlineSelectionBar) .selectionInfo {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  :global(.inlineSelectionBar) .selectionActionsGroup {
+    flex-shrink: 0;
+    gap: 4px;
+  }
+
+  :global(.inlineSelectionBar) .actionBtn,
+  :global(.inlineSelectionBar) .actionBtnDanger {
+    padding: 3px 5px !important;
+    font-size: 9px !important;
+    height: 19px !important;
+    min-height: 19px !important;
+  }
+
+  :global(.inlineSelectionBar) .actionBtn span,
+  :global(.inlineSelectionBar) .actionBtnDanger span {
+    display: none !important;
+  }
+
+  :global(.inlineSelectionBar) .selectedCount {
+    font-size: 10px !important;
+  }
+
+  :global(.inlineSelectionBar) .clearSelectionBtn {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 14px !important;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.selectionInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selectionActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selectedCount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.clearSelectionBtn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.clearSelectionBtn:hover {
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+}
+
+/* Action buttons in selection bar */
+.actionBtn,
+.actionBtnDanger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: var(--hover-overlay);
+}
+
+.actionBtnDanger {
+  background: var(--danger-bg-light);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.actionBtnDanger:hover {
+  background: var(--danger-bg-light);
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .selectionActions {
+    margin: 0 12px 12px 12px;
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .selectionInfo {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .selectionActionsGroup {
+    width: 100%;
+    justify-content: space-around;
+    gap: 6px;
+  }
+
+  .selectionActions .actionBtn,
+  .selectionActions .actionBtnDanger {
+    flex: 1;
+    min-width: auto;
+    padding: 10px 8px;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  .selectionActions .actionBtn span,
+  .selectionActions .actionBtnDanger span {
+    display: none;
+  }
+
+  .selectedCount {
+    font-size: 13px;
+  }
+}

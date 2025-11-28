@@ -1,0 +1,76 @@
+/* Drive view container */
+.driveView {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding: 16px 0;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Empty folder state */
+.emptyFolder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 180px);
+  padding: 20px;
+}
+
+.emptyContent {
+  text-align: center;
+  transform: translateY(-10%);
+}
+
+.emptyFolder svg {
+  color: var(--text-quaternary);
+  margin-bottom: 24px;
+}
+
+.emptyFolder h3 {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.emptyFolder p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .emptyFolder svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .emptyFolder h3 {
+    font-size: 18px;
+  }
+
+  .emptyFolder p {
+    font-size: 14px;
+    padding: 0 20px;
+  }
+}
+
+/* Loading more indicator */
+.loadingMore {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}

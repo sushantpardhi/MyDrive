@@ -1,0 +1,144 @@
+/* Location header styles */
+.locationHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 32px 12px 32px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+.locationIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-quaternary);
+  border-radius: 8px;
+  padding: 6px;
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--transition-normal);
+}
+
+.locationName {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  margin-left: 2px;
+  flex: 1;
+  transition: color var(--transition-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  position: relative;
+}
+
+.locationControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-size: 14px;
+  min-width: 40px;
+}
+
+.controlBtn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.controlBtn.active {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
+  border-color: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+}
+
+@media (max-width: 768px) {
+  .locationHeader {
+    padding: 14px 16px 10px 16px;
+  }
+
+  .locationName {
+    font-size: 1.1rem;
+  }
+
+  .controlBtn {
+    padding: 6px 10px;
+    min-width: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .locationControls {
+    gap: 4px;
+  }
+
+  .controlBtn {
+    padding: 6px 8px;
+    min-width: 32px;
+  }
+}
+
+/* Location name tooltip */
+.locationName[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 8px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1002;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  max-width: 300px;
+  word-wrap: break-word;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Disable tooltips on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .locationName[title]:hover::after {
+    display: none;
+  }
+}

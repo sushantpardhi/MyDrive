@@ -1,0 +1,118 @@
+/* Mobile actions menu */
+.mobileActionsMenu {
+  display: none;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .mobileActionsMenu {
+    display: block;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+  }
+}
+
+.mobileActionsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+}
+
+.mobileActionsToggle:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 10px 32px rgba(102, 126, 234, 0.5);
+  transform: scale(1.05);
+}
+
+.mobileActionsToggle:active {
+  transform: scale(0.95);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+}
+
+.mobileActionsToggle.open {
+  transform: rotate(45deg);
+}
+
+.mobileActionsDropdown {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  background: var(--modal-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  padding: 8px;
+  min-width: 200px;
+  z-index: 1000;
+  border: 1px solid var(--modal-border);
+}
+
+.mobileMenuItem,
+.mobileMenuItemDanger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.mobileMenuItem:hover {
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+}
+
+.mobileMenuItemDanger {
+  color: var(--danger-color);
+}
+
+.mobileMenuItemDanger:hover {
+  background: var(--danger-bg-light);
+  color: var(--danger-color-dark);
+}
+
+/* Backdrop for mobile FAB menu */
+.fabBackdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fabBackdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 999;
+    animation: fadeIn 0.2s ease;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
