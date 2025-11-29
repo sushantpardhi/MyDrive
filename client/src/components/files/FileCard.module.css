@@ -111,6 +111,11 @@
   overflow: visible;
 }
 
+/* Elevate card when menu is open to prevent dropdown from going under other cards */
+.fileCard.grid.menuOpen {
+  z-index: 100;
+}
+
 .fileCard.grid:hover,
 .fileCard.grid:focus-within {
   transform: translateY(-2px);
@@ -727,11 +732,20 @@
   z-index: 10;
 }
 
+/* Keep menuWrapper above other cards when menu is open */
+.menuWrapper:has(.menuDropdown) {
+  z-index: 1002;
+}
+
 /* Grid Menu Position */
 .grid .menuWrapper {
   top: 8px;
   right: 8px;
   z-index: 1000;
+}
+
+.grid .menuWrapper:has(.menuDropdown) {
+  z-index: 1002;
 }
 
 /* List Menu Position */
@@ -742,6 +756,10 @@
   gap: 6px;
   justify-content: flex-end;
   z-index: 10;
+}
+
+.list .menuWrapper:has(.menuDropdown) {
+  z-index: 1002;
 }
 
 .menuButton {
@@ -760,7 +778,9 @@
 }
 
 .fileCard:hover .menuButton,
-.fileCard:focus-within .menuButton {
+.fileCard:focus-within .menuButton,
+.menuWrapper:hover .menuButton,
+.menuWrapper:focus-within .menuButton {
   opacity: 1;
   background: var(--bg-tertiary);
 }
@@ -769,6 +789,12 @@
 .fileCard.selected .menuButton {
   opacity: 1;
   background: var(--bg-tertiary);
+}
+
+/* Keep menu button visible when menu is open */
+.menuButton[aria-expanded="true"] {
+  opacity: 1 !important;
+  background: var(--bg-quaternary) !important;
 }
 
 .menuButton:hover {

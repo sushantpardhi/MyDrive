@@ -96,28 +96,20 @@ export const useSelection = (api, folders, files, type) => {
     }
   }, [selectedItems, files, api, clearSelection]);
 
-  const bulkShare = useCallback(async () => {
-    if (!selectedItems.size) return false;
+  const bulkShare = useCallback(() => {
+    if (!selectedItems.size) return [];
 
-    const userEmail = prompt("Enter user email to share with:");
-    if (!userEmail?.trim()) return false;
+    // Return selected items for the parent component to handle with ShareDialog
+    const itemsList = [...selectedItems]
+      .map((id) => {
+        const file = files.find((f) => f._id === id);
+        const folder = folders.find((f) => f._id === id);
+        return file || folder;
+      })
+      .filter(Boolean);
 
-    try {
-      const promises = [...selectedItems].map((id) => {
-        const itemType = files.find((f) => f._id === id) ? "files" : "folders";
-        return api.shareItem(itemType, id, userEmail);
-      });
-
-      await Promise.all(promises);
-      toast.success("Items shared successfully");
-      return true;
-    } catch (error) {
-      const errorMsg = error.response?.data?.error || "Bulk share failed";
-      toast.error(errorMsg);
-      console.error(error);
-      return false;
-    }
-  }, [selectedItems, files, api]);
+    return itemsList;
+  }, [selectedItems, files, folders]);
 
   const bulkDownload = useCallback(async () => {
     const selectedFiles = files.filter((f) => selectedItems.has(f._id));

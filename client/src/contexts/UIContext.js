@@ -17,6 +17,7 @@ export const UIProvider = ({ children }) => {
   // Dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareItem, setShareItem] = useState(null);
+  const [shareItems, setShareItems] = useState([]); // For bulk operations
   const [shareItemType, setShareItemType] = useState(null);
 
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -42,13 +43,22 @@ export const UIProvider = ({ children }) => {
 
   const openShareDialog = useCallback((item, itemType) => {
     setShareItem(item);
+    setShareItems([]); // Clear bulk items for single item share
     setShareItemType(itemType);
+    setShareDialogOpen(true);
+  }, []);
+
+  const openBulkShareDialog = useCallback((items) => {
+    setShareItem(null); // Clear single item for bulk share
+    setShareItems(items);
+    setShareItemType("bulk");
     setShareDialogOpen(true);
   }, []);
 
   const closeShareDialog = useCallback(() => {
     setShareDialogOpen(false);
     setShareItem(null);
+    setShareItems([]);
     setShareItemType(null);
   }, []);
 
@@ -108,8 +118,10 @@ export const UIProvider = ({ children }) => {
     // Dialog states and handlers
     shareDialogOpen,
     shareItem,
+    shareItems,
     shareItemType,
     openShareDialog,
+    openBulkShareDialog,
     closeShareDialog,
 
     renameDialogOpen,

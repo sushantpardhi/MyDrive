@@ -130,6 +130,9 @@ const api = {
   shareItem: (type, id, email) =>
     axios.post(`${API_URL}/${type}/${id}/share`, { email }),
 
+  bulkShareItems: (email, items) =>
+    axios.post(`${API_URL}/shared/bulk-share`, { email, items }),
+
   unshareItem: (type, id, userId) =>
     axios.delete(`${API_URL}/${type}/${id}/share/${userId}`),
 

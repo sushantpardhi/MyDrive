@@ -60,8 +60,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setActionsMenuOpen,
     shareDialogOpen,
     shareItem,
+    shareItems,
     shareItemType,
     openShareDialog,
+    openBulkShareDialog,
     closeShareDialog,
     renameDialogOpen,
     renameItem,
@@ -332,6 +334,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Dialog handlers
   const handleShareDialogClose = () => {
+    // Clear selection if it was a bulk share operation
+    if (shareItems && shareItems.length > 0) {
+      clearSelection();
+    }
     closeShareDialog();
     loadFolderContents(currentFolderId, 1, false);
   };
@@ -406,6 +412,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     openBulkCopyMoveDialog(selectedItemsList, "move");
   };
 
+  const handleBulkShare = () => {
+    const selectedItemsList = bulkShare();
+    if (selectedItemsList.length > 0) {
+      openBulkShareDialog(selectedItemsList);
+    }
+  };
+
   return (
     <div className={styles.driveContainer}>
       <Header
@@ -423,7 +436,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onEmptyTrash={handleEmptyTrash}
         fileInputRef={fileInputRef}
         onBulkDownload={bulkDownload}
-        onBulkShare={bulkShare}
+        onBulkShare={handleBulkShare}
         onBulkDelete={handleBulkDelete}
         onBulkRestore={handleBulkRestore}
         onBulkCopy={handleBulkCopy}
@@ -481,6 +494,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       <ShareDialog
         isOpen={shareDialogOpen}
         item={shareItem}
+        items={shareItems}
         itemType={shareItemType}
         onClose={handleShareDialogClose}
       />

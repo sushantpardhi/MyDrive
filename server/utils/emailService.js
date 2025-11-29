@@ -327,6 +327,160 @@ class EmailService {
   }
 
   /**
+   * Send bulk file/folder shared email notification
+   * @param {Object} recipient - User who will receive the shared items
+   * @param {Object} sharer - User who is sharing the items
+   * @param {Array} items - Array of items being shared [{name, type}]
+   */
+  async sendBulkShareEmail(recipient, sharer, items) {
+    const itemCount = items.length;
+    const fileCount = items.filter((item) => item.type === "file").length;
+    const folderCount = items.filter((item) => item.type === "folder").length;
+
+    let itemSummary = "";
+    if (fileCount > 0 && folderCount > 0) {
+      itemSummary = `${fileCount} file${
+        fileCount > 1 ? "s" : ""
+      } and ${folderCount} folder${folderCount > 1 ? "s" : ""}`;
+    } else if (fileCount > 0) {
+      itemSummary = `${fileCount} file${fileCount > 1 ? "s" : ""}`;
+    } else {
+      itemSummary = `${folderCount} folder${folderCount > 1 ? "s" : ""}`;
+    }
+
+    const subject = `${sharer.name} shared ${itemCount} items with you`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          .item-box { background: white; padding: 20px; border-radius: 5px; border-left: 4px solid #667eea; margin: 20px 0; }
+          .item-list { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; }
+          .item-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; }
+          .item-list li:last-child { border-bottom: none; }
+          .item-icon { margin-right: 10px; font-size: 18px; }
+          .summary-box { background: #e8eaf6; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: center; }
+          .count-badge { display: inline-block; background: #667eea; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 0 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔗 Multiple Items Shared</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${recipient.name}! 👋</h2>
+            <p><strong>${sharer.name}</strong> (${
+      sharer.email
+    }) has shared <strong>${itemCount} items</strong> with you.</p>
+            
+            <div class="summary-box">
+              <p style="margin: 5px 0; font-size: 18px;">
+                ${
+                  fileCount > 0
+                    ? `<span class="count-badge">${fileCount} 📄 File${
+                        fileCount > 1 ? "s" : ""
+                      }</span>`
+                    : ""
+                }
+                ${
+                  folderCount > 0
+                    ? `<span class="count-badge">${folderCount} 📁 Folder${
+                        folderCount > 1 ? "s" : ""
+                      }</span>`
+                    : ""
+                }
+              </p>
+            </div>
+            
+            <div class="item-box">
+              <h3 style="margin-top: 0;">Shared Items:</h3>
+              <ul class="item-list">
+                ${items
+                  .slice(0, 10)
+                  .map(
+                    (item) => `
+                  <li>
+                    <span class="item-icon">${
+                      item.type === "file" ? "📄" : "📁"
+                    }</span>
+                    <span>${item.name}</span>
+                  </li>
+                `
+                  )
+                  .join("")}
+                ${
+                  items.length > 10
+                    ? `<li style="text-align: center; color: #667eea; font-weight: bold;">+ ${
+                        items.length - 10
+                      } more items...</li>`
+                    : ""
+                }
+              </ul>
+            </div>
+            
+            <p>You can now access these items in your MyDrive account under the "Shared with me" section.</p>
+            
+            <div style="text-align: center;">
+              <a href="${
+                process.env.CLIENT_URL || "http://localhost:3000"
+              }/shared" class="button">View Shared Items</a>
+            </div>
+            
+            <p>Enjoy collaborating! 🚀</p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} MyDrive. All rights reserved.</p>
+            <p>This is an automated email, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      Multiple Items Shared
+      
+      Hi ${recipient.name},
+      
+      ${sharer.name} (${sharer.email}) has shared ${itemCount} items with you.
+      
+      Summary: ${itemSummary}
+      
+      Shared items:
+      ${items
+        .slice(0, 10)
+        .map(
+          (item, i) =>
+            `${i + 1}. ${item.type === "file" ? "📄" : "📁"} ${item.name}`
+        )
+        .join("\n      ")}
+      ${
+        items.length > 10 ? `      ... and ${items.length - 10} more items` : ""
+      }
+      
+      You can now access these items in your MyDrive account under the "Shared with me" section.
+      
+      View at: ${process.env.CLIENT_URL || "http://localhost:3000"}/shared
+      
+      © ${new Date().getFullYear()} MyDrive. All rights reserved.
+    `;
+
+    return await this.sendMail({
+      to: recipient.email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
    * Send storage limit warning
    */
   async sendStorageWarningEmail(

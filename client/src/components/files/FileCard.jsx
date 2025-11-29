@@ -372,6 +372,7 @@ const FileCard = ({
           <button
             className={styles.menuButton}
             aria-label="File actions"
+            aria-expanded={menuOpen}
             title="More actions"
             onClick={(e) => {
               e.stopPropagation();

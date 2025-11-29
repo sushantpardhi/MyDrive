@@ -4,7 +4,7 @@ import styles from "./ShareDialog.module.css";
 import api from "../../services/api";
 import { toast } from "react-toastify";
 
-const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
+const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -13,8 +13,16 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const searchTimeoutRef = useRef(null);
 
+  const isBulkOperation = items.length > 0;
+  const itemCount = isBulkOperation ? items.length : 1;
+
   // Remove sharing handler
   const handleRemoveShare = async (userId) => {
+    if (isBulkOperation) {
+      toast.info("Remove sharing not available for bulk operations");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const response = await api.unshareItem(itemType, item._id, userId);
@@ -39,6 +47,15 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
     const fetchItemDetails = async () => {
       try {
         setLoading(true);
+
+        // For bulk operations, don't load shared users
+        if (isBulkOperation) {
+          setSharedWith([]);
+          setLoading(false);
+          return;
+        }
+
+        // For single item, fetch details
         let response;
         if (itemType === "files") {
           response = await api.getFileDetails(item._id);
@@ -58,10 +75,14 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
       }
     };
 
-    if (item?._id) {
-      fetchItemDetails();
+    if (isOpen) {
+      if (isBulkOperation) {
+        fetchItemDetails();
+      } else if (item?._id) {
+        fetchItemDetails();
+      }
     }
-  }, [item, itemType]);
+  }, [item, items, itemType, isBulkOperation, isOpen]);
 
   useEffect(() => {
     // Clear previous timeout
@@ -99,14 +120,52 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
   const handleShare = async (userEmail) => {
     try {
       setIsSubmitting(true);
-      const response = await api.shareItem(itemType, item._id, userEmail);
-      toast.success(`Shared with ${userEmail}`);
-      // Update shared users list
-      if (response.data?.item?.shared) {
-        setSharedWith(response.data.item.shared);
+
+      if (isBulkOperation) {
+        // Bulk share - share all selected items with the user using bulk API
+        const itemsToShare = items.map((itm) => {
+          // Determine item type based on the item structure
+          const itemType =
+            itm.size !== undefined || itm.type || itm.path ? "file" : "folder";
+          return {
+            id: itm._id,
+            type: itemType,
+          };
+        });
+
+        console.log("Bulk sharing items:", itemsToShare);
+        const response = await api.bulkShareItems(userEmail, itemsToShare);
+
+        if (response.data.errorCount > 0) {
+          toast.warning(
+            `${response.data.sharedCount} items shared, ${response.data.errorCount} failed`
+          );
+        } else {
+          toast.success(
+            `${response.data.sharedCount} item${
+              response.data.sharedCount > 1 ? "s" : ""
+            } shared with ${userEmail}`
+          );
+        }
+
+        setSearchQuery("");
+        setSearchResults([]);
+
+        // Close dialog after bulk share
+        setTimeout(() => {
+          onClose();
+        }, 500);
+      } else {
+        // Single item share
+        const response = await api.shareItem(itemType, item._id, userEmail);
+        toast.success(`Shared with ${userEmail}`);
+        // Update shared users list
+        if (response.data?.item?.shared) {
+          setSharedWith(response.data.item.shared);
+        }
+        setSearchQuery("");
+        setSearchResults([]);
       }
-      setSearchQuery("");
-      setSearchResults([]);
     } catch (error) {
       const errorMsg =
         error.response?.data?.error || error.message || "Failed to share item";
@@ -127,7 +186,14 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h3>Share {itemType === "folders" ? "Folder" : "File"}</h3>
+          <h3>
+            Share{" "}
+            {isBulkOperation
+              ? `${itemCount} Items`
+              : itemType === "folders"
+              ? "Folder"
+              : "File"}
+          </h3>
           <button
             className={styles.closeButton}
             onClick={onClose}
@@ -139,9 +205,29 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
         </div>
 
         <div className={styles.form}>
-          <div className={styles.itemInfo}>
-            <label>Sharing "{item?.name}"</label>
-          </div>
+          {!isBulkOperation && (
+            <div className={styles.itemInfo}>
+              <label>Sharing "{item?.name}"</label>
+            </div>
+          )}
+
+          {isBulkOperation && (
+            <div className={styles.itemInfo}>
+              <label>Sharing {itemCount} selected items</label>
+              <div className={styles.bulkItemsList}>
+                {items.slice(0, 3).map((itm) => (
+                  <div key={itm._id} className={styles.bulkItemName}>
+                    • {itm.name}
+                  </div>
+                ))}
+                {items.length > 3 && (
+                  <div className={styles.bulkItemName}>
+                    • and {items.length - 3} more...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Search Users */}
           <div className={styles.inputGroup}>
@@ -207,12 +293,12 @@ const ShareDialog = ({ item, itemType, onClose, isOpen }) => {
           </div>
 
           {/* Currently Shared With */}
-          {loading ? (
+          {!isBulkOperation && loading ? (
             <div className={styles.inputGroup}>
               <label>Shared with</label>
               <div className={styles.loading}>Loading shared users...</div>
             </div>
-          ) : sharedWith.length > 0 ? (
+          ) : !isBulkOperation && sharedWith.length > 0 ? (
             <div className={styles.inputGroup}>
               <label>Shared with</label>
               <div className={styles.sharedList}>

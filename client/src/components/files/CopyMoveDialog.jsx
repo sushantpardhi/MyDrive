@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styles from "./CopyMoveDialog.module.css";
-import { X, Folder, ChevronRight, Home } from "lucide-react";
+import { X, Folder, ChevronRight, Home, FolderPlus } from "lucide-react";
 import api from "../../services/api";
 
 const CopyMoveDialog = ({
@@ -18,6 +18,9 @@ const CopyMoveDialog = ({
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [createFolderError, setCreateFolderError] = useState("");
 
   const isBulkOperation = items.length > 0;
   const itemCount = isBulkOperation ? items.length : 1;
@@ -31,6 +34,9 @@ const CopyMoveDialog = ({
           ? `Copy of ${item?.name || ""}`
           : ""
       );
+      setIsCreatingFolder(false);
+      setNewFolderName("");
+      setCreateFolderError("");
       loadFolders("root");
     }
   }, [isOpen, operation, item, isBulkOperation]);
@@ -69,6 +75,9 @@ const CopyMoveDialog = ({
 
     setCurrentFolder(folder._id);
     setPath([...path, { id: folder._id, name: folder.name }]);
+    setIsCreatingFolder(false);
+    setNewFolderName("");
+    setCreateFolderError("");
     await loadFolders(folder._id);
   };
 
@@ -77,7 +86,44 @@ const CopyMoveDialog = ({
     const folderId = newPath[newPath.length - 1].id;
     setPath(newPath);
     setCurrentFolder(folderId);
+    setIsCreatingFolder(false);
+    setNewFolderName("");
+    setCreateFolderError("");
     await loadFolders(folderId);
+  };
+
+  const handleCreateFolder = async (e) => {
+    e.preventDefault();
+
+    const trimmedName = newFolderName.trim();
+    if (!trimmedName) {
+      setCreateFolderError("Folder name cannot be empty");
+      return;
+    }
+
+    setLoading(true);
+    setCreateFolderError("");
+
+    try {
+      await api.createFolder(trimmedName, currentFolder);
+      setIsCreatingFolder(false);
+      setNewFolderName("");
+      // Reload folders to show the newly created one
+      await loadFolders(currentFolder);
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+      setCreateFolderError(
+        error.response?.data?.error || "Failed to create folder"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelCreateFolder = () => {
+    setIsCreatingFolder(false);
+    setNewFolderName("");
+    setCreateFolderError("");
   };
 
   const handleSubmit = async (e) => {
@@ -256,31 +302,89 @@ const CopyMoveDialog = ({
             </div>
           </div>
 
+          {/* Create new folder section */}
+          {isCreatingFolder && (
+            <div className={styles.createFolderSection}>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                className={styles.createFolderInput}
+                autoFocus
+                disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleCreateFolder(e);
+                  } else if (e.key === "Escape") {
+                    cancelCreateFolder();
+                  }
+                }}
+              />
+              <div className={styles.createFolderActions}>
+                <button
+                  type="button"
+                  onClick={cancelCreateFolder}
+                  className={styles.createFolderCancel}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateFolder}
+                  className={styles.createFolderConfirm}
+                  disabled={loading || !newFolderName.trim()}
+                >
+                  {loading ? "Creating..." : "Create"}
+                </button>
+              </div>
+              {createFolderError && (
+                <div className={styles.createFolderError}>
+                  {createFolderError}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className={styles.actions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={styles.actionButton}
-              disabled={
-                isSubmitting ||
-                isCurrentLocation ||
-                isSelfFolder ||
-                allItemsInCurrentLocation
-              }
-            >
-              {isSubmitting
-                ? `${operation === "copy" ? "Copying" : "Moving"}...`
-                : operation === "copy"
-                ? `Copy Here${isBulkOperation ? ` (${itemCount})` : ""}`
-                : `Move Here${isBulkOperation ? ` (${itemCount})` : ""}`}
-            </button>
+            {!isCreatingFolder && (
+              <button
+                type="button"
+                onClick={() => setIsCreatingFolder(true)}
+                className={styles.newFolderButton}
+                disabled={isSubmitting || loading}
+              >
+                <FolderPlus size={18} />
+                <span>New Folder</span>
+              </button>
+            )}
+            <div className={styles.actionButtons}>
+              <button
+                type="button"
+                onClick={onClose}
+                className={styles.cancelButton}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={styles.actionButton}
+                disabled={
+                  isSubmitting ||
+                  isCurrentLocation ||
+                  isSelfFolder ||
+                  allItemsInCurrentLocation
+                }
+              >
+                {isSubmitting
+                  ? `${operation === "copy" ? "Copying" : "Moving"}...`
+                  : operation === "copy"
+                  ? `Copy Here${isBulkOperation ? ` (${itemCount})` : ""}`
+                  : `Move Here${isBulkOperation ? ` (${itemCount})` : ""}`}
+              </button>
+            </div>
           </div>
         </form>
       </div>

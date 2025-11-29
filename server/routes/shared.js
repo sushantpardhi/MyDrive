@@ -2,7 +2,12 @@ const express = require("express");
 const fs = require("fs");
 const File = require("../models/File");
 const Folder = require("../models/Folder");
-const { deletePhysicalFilesRecursively } = require("../utils/shareHelpers");
+const User = require("../models/User");
+const {
+  deletePhysicalFilesRecursively,
+  shareContentsRecursively,
+} = require("../utils/shareHelpers");
+const emailService = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -179,4 +184,86 @@ router.delete("/trash/empty", async (req, res) => {
   }
 });
 
+// Bulk share items
+router.post("/bulk-share", async (req, res) => {
+  try {
+    const { email, items } = req.body; // items: [{id, type: 'file'|'folder'}]
+
+    if (!email || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Email and items array required" });
+    }
+
+    // Find user by email
+    const userToShareWith = await User.findOne({ email });
+    if (!userToShareWith) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Don't share with yourself
+    if (userToShareWith._id.toString() === req.user.id) {
+      return res.status(400).json({ error: "Cannot share with yourself" });
+    }
+
+    const sharedItems = [];
+    const errors = [];
+
+    // Process each item
+    for (const itemData of items) {
+      try {
+        const Model = itemData.type === 'file' ? File : Folder;
+        const item = await Model.findById(itemData.id);
+
+        if (!item) {
+          errors.push({ id: itemData.id, error: "Item not found" });
+          continue;
+        }
+
+        // Verify ownership
+        if (item.owner.toString() !== req.user.id) {
+          errors.push({ id: itemData.id, error: "Not authorized" });
+          continue;
+        }
+
+        // Add user to shared array if not already shared
+        if (!item.shared.includes(userToShareWith._id)) {
+          item.shared.push(userToShareWith._id);
+          await item.save();
+
+          // If it's a folder, recursively share its contents
+          if (itemData.type === 'folder') {
+            await shareContentsRecursively(item._id, userToShareWith._id);
+          }
+
+          sharedItems.push({
+            name: item.name,
+            type: itemData.type
+          });
+        }
+      } catch (error) {
+        errors.push({ id: itemData.id, error: error.message });
+      }
+    }
+
+    // Send bulk share email if any items were shared
+    if (sharedItems.length > 0) {
+      const owner = await User.findById(req.user.id);
+      emailService
+        .sendBulkShareEmail(userToShareWith, owner, sharedItems)
+        .catch((err) => {
+          console.error("Failed to send bulk share email:", err.message);
+        });
+    }
+
+    res.json({
+      message: `${sharedItems.length} items shared successfully`,
+      sharedCount: sharedItems.length,
+      errorCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
+

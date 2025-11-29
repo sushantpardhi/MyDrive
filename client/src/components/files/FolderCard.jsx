@@ -116,6 +116,7 @@ const FolderCard = ({
               <button
                 className={styles.menuButton}
                 aria-label="Folder actions"
+                aria-expanded={menuOpen}
                 title="More actions"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -230,6 +231,7 @@ const FolderCard = ({
               <button
                 className={styles.menuButton}
                 aria-label="Folder actions"
+                aria-expanded={menuOpen}
                 title="More actions"
                 onClick={(e) => {
                   e.stopPropagation();
