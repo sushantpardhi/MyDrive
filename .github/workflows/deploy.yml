@@ -25,22 +25,11 @@ jobs:
         working-directory: ./server
         run: npm install --omit=dev
       
-      - name: Check .env file
-        working-directory: ./server
-        run: |
-          if [ ! -f .env ]; then
-            echo "⚠️  Warning: .env file not found in server directory"
-            echo "Please ensure .env file exists with required variables:"
-            echo "- JWT_SECRET"
-            echo "- MONGODB_URI"
-            echo "- PORT"
-            exit 1
-          fi
       
       - name: Restart backend with PM2
         working-directory: ./server
         run: |
-          pm2 reload mydrive-backend || pm2 start index.js --name mydrive-backend
+          pm2 reload mydrive-backend if ($LASTEXITCODE -ne 0) { pm2 start index.js --name mydrive-backend }
           pm2 save
       
       - name: Check backend status
@@ -66,17 +55,6 @@ jobs:
         working-directory: ./client
         run: npm install --legacy-peer-deps
       
-      - name: Check .env file
-        working-directory: ./client
-        run: |
-          if [ ! -f .env ]; then
-            echo "⚠️  Warning: .env file not found in client directory"
-            echo "Creating .env from .env.example if available..."
-            if [ -f .env.example ]; then
-              cp .env.example .env
-            fi
-          fi
-      
       - name: Build frontend
         working-directory: ./client
         env:
@@ -89,7 +67,7 @@ jobs:
       - name: Restart frontend with PM2
         working-directory: ./client
         run: |
-          pm2 reload mydrive-frontend || pm2 start "serve -s build -l 3000" --name mydrive-frontend
+          pm2 reload mydrive-frontend if ($LASTEXITCODE -ne 0) { pm2 start index.js --name mydrive-frontend }
           pm2 save
       
       - name: Check frontend status
