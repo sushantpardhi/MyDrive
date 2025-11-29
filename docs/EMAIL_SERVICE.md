@@ -30,7 +30,7 @@ EMAIL_FROM_NAME=MyDrive
 EMAIL_FROM=noreply@mydrive.com
 
 # Client URL (for links in emails)
-CLIENT_URL=http://localhost:3000
+CLIENT_URL=http://localhost:5000
 ```
 
 ### Supported Email Services

@@ -179,7 +179,7 @@ router.post(
 
       // Create reset URL
       const resetUrl = `${
-        process.env.CLIENT_URL || "http://localhost:3000"
+        process.env.CLIENT_URL || "http://localhost:5000"
       }/reset-password?token=${resetToken}`;
 
       // Send password reset email

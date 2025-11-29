@@ -119,7 +119,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL || "http://localhost:5000"
               }" class="button">Get Started</a>
             </div>
             
@@ -150,7 +150,7 @@ class EmailService {
       
       Your account email: ${user.email}
       
-      Get started at: ${process.env.CLIENT_URL || "http://localhost:3000"}
+      Get started at: ${process.env.CLIENT_URL || "http://localhost:5000"}
       
       Happy storing!
       
@@ -285,7 +285,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL || "http://localhost:5000"
               }/shared" class="button">View Shared ${
       itemType === "file" ? "File" : "Folder"
     }</a>
@@ -429,7 +429,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL || "http://localhost:5000"
               }/shared" class="button">View Shared Items</a>
             </div>
             
@@ -467,7 +467,7 @@ class EmailService {
       
       You can now access these items in your MyDrive account under the "Shared with me" section.
       
-      View at: ${process.env.CLIENT_URL || "http://localhost:3000"}/shared
+      View at: ${process.env.CLIENT_URL || "http://localhost:5000"}/shared
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
@@ -537,7 +537,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL || "http://localhost:5000"
               }" class="button">Manage Storage</a>
             </div>
           </div>
@@ -568,7 +568,7 @@ class EmailService {
       - Unshare files that are stored by other users
       
       Manage your storage at: ${
-        process.env.CLIENT_URL || "http://localhost:3000"
+        process.env.CLIENT_URL || "http://localhost:5000"
       }
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
