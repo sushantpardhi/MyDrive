@@ -1,20 +1,20 @@
 module.exports = {
   apps: [
-    // {
-    //   name: "mydrive-backend",
-    //   cwd: "./server",
-    //   script: "index.js",
-    //   env: {
-    //     NODE_ENV: "production",
-    //     PORT: 8080,
-    //   },
-    //   instances: 1,
-    //   exec_mode: "fork",
-    // },
+    {
+      name: "mydrive-backend",
+      cwd: "./server",
+      script: "index.js",
+      env: {
+        NODE_ENV: "production",
+        PORT: 8080,
+      },
+      instances: 1,
+      exec_mode: "fork",
+    },
     {
       name: "mydrive-frontend",
       script: "serve",
-      args: "-s client/build --listen 0.0.0.0:5000 -n",
+      args: "-s client/build",
       env: {
         NODE_ENV: "production",
       },
