@@ -1,61 +1,55 @@
 name: Deploy MyDrive Application
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  deploy-backend:
+  deploy:
     runs-on: self-hosted
     steps:
-      - name: Stop running apps
+      - name: Stop old apps
         shell: powershell
-        run: |
-          pm2 stop all
+        run: pm2 stop all
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: :contentReference[oaicite:0]{index=0}
+        with: { clean: false }
 
       - name: Node 20
-        uses: actions/setup-node@v4
+        uses: :contentReference[oaicite:1]{index=1}
         with: { node-version: 20 }
 
-      - name: PM2
-        run: npm i -g pm2
+      - name: Install globals
+        shell: powershell
+        run: |
+          npm i -g pm2
+          npm i -g serve
 
-      - name: Backend deps
+      - name: Install backend deps
         working-directory: ./server
         run: npm i --omit=dev
 
-      - name: Restart backend with PM2
-        working-directory: ./server
-        shell: powershell
-        run: |
-          pm2 reload mydrive-backend
-          if ($LASTEXITCODE -ne 0) {
-            pm2 start index.js --name mydrive-backend
-          }
-          pm2 save
-
-      - name: Status
-        run: pm2 list
-
-
-  deploy-frontend:
-    runs-on: self-hosted
-    needs: deploy-backend
-    steps:
-      - name: Frontend deps
+      - name: Install frontend deps
         working-directory: ./client
         run: npm i --legacy-peer-deps
 
-      - name: Build
+      - name: Build frontend
         working-directory: ./client
         env: { NODE_OPTIONS: "--max-old-space-size=4096" }
         run: npm run build
 
-      - name: Restart frontend with PM2
+      - name: Start Backend (8080)
+        shell: powershell
+        working-directory: ./server
+        run: |
+          pm2 reload mydrive-backend
+          if ($LASTEXITCODE -ne 0) {
+            pm2 start index.js --name mydrive-backend -- -p 8080
+          }
+          pm2 save
+
+      - name: Start Frontend (3000 from build folder)
         shell: powershell
         run: |
           pm2 reload mydrive-frontend
@@ -64,5 +58,6 @@ jobs:
           }
           pm2 save
 
-      - name: Summary
+      - name: Verify
+        shell: powershell
         run: pm2 status
