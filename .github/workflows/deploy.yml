@@ -49,14 +49,12 @@ jobs:
           }
           pm2 save
 
-      - name: Start Frontend (3000 from build folder)
+      - name: Start Frontend (3000)
         shell: powershell
         run: |
-          pm2 reload mydrive-frontend
-          if ($LASTEXITCODE -ne 0) {
-            pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
-          }
+          pm2 start serve --name mydrive-frontend -- -s ./client/build -l 3000 --spa
           pm2 save
+
 
       - name: Verify
         shell: powershell
