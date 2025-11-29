@@ -13,11 +13,11 @@ jobs:
         run: pm2 stop all
 
       - name: Checkout
-        uses: :contentReference[oaicite:0]{index=0}
+        uses: actions/checkout@v3
         with: { clean: false }
 
       - name: Node 20
-        uses: :contentReference[oaicite:1]{index=1}
+        uses: actions/setup-node@v4
         with: { node-version: 20 }
 
       - name: Install globals
