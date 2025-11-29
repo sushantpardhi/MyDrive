@@ -8,77 +8,60 @@ on:
 jobs:
   deploy-backend:
     runs-on: self-hosted
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Setup Node.js
+
+      - name: Node 20
         uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      
-      - name: Install PM2 globally
-        run: npm install -g pm2
-      
-      - name: Install backend dependencies
+        with: { node-version: 20 }
+
+      - name: PM2
+        run: npm i -g pm2
+
+      - name: Backend deps
         working-directory: ./server
-        run: npm install --omit=dev
-      
-      
-      - name: Restart backend with PM2
+        run: npm i --omit=dev
+
+      - name: Start Backend
         working-directory: ./server
         run: |
-          pm2 reload mydrive-backend if ($LASTEXITCODE -ne 0) { pm2 start index.js --name mydrive-backend }
+          pm2 reload mydrive-backend || pm2 start index.js --name mydrive-backend
           pm2 save
-      
-      - name: Check backend status
+
+      - name: Status
         run: pm2 list
-  
+
+
   deploy-frontend:
     runs-on: self-hosted
     needs: deploy-backend
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Setup Node.js
+
+      - name: Node 20
         uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      
-      - name: Install PM2 globally
-        run: npm install -g pm2
-      
-      - name: Install frontend dependencies
+        with: { node-version: 20 }
+
+      - name: PM2 + Serve
+        run: |
+          npm i -g pm2
+          npm i -g serve
+
+      - name: Frontend deps
         working-directory: ./client
-        run: npm install --legacy-peer-deps
-      
-      - name: Build frontend
+        run: npm i --legacy-peer-deps
+
+      - name: Build
         working-directory: ./client
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
+        env: { NODE_OPTIONS: "--max-old-space-size=4096" }
         run: npm run build
-      
-      - name: Install serve globally
-        run: npm install -g serve
-      
-      - name: Restart frontend with PM2
-        working-directory: ./client
+
+      - name: Start Frontend (Serve Build)
         run: |
-          pm2 reload mydrive-frontend if ($LASTEXITCODE -ne 0) { pm2 start index.js --name mydrive-frontend }
+          pm2 reload mydrive-frontend || pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
           pm2 save
-      
-      - name: Check frontend status
-        run: pm2 list
-      
-      - name: Deployment Summary
-        run: |
-          echo "✅ MyDrive Deployment Complete"
-          echo "================================"
-          echo "Backend: Running on port 8080"
-          echo "Frontend: Running on port 3000"
-          echo ""
-          echo "PM2 Process Status:"
-          pm2 status
+
+      - name: Summary
+        run: pm2 status
