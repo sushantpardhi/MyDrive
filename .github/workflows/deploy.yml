@@ -25,10 +25,6 @@ jobs:
         working-directory: ./server
         run: npm install --omit=dev
       
-      - name: Create necessary directories
-        working-directory: ./server
-        run: mkdir -p uploads/temp uploads/thumbnails
-      
       - name: Check .env file
         working-directory: ./server
         run: |
