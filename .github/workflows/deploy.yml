@@ -23,10 +23,14 @@ jobs:
         working-directory: ./server
         run: npm i --omit=dev
 
-      - name: Start Backend
+      - name: Restart backend with PM2
         working-directory: ./server
+        shell: powershell
         run: |
-          pm2 reload mydrive-backend || pm2 start index.js --name mydrive-backend
+          pm2 reload mydrive-backend
+          if ($LASTEXITCODE -ne 0) {
+            pm2 start index.js --name mydrive-backend
+          }
           pm2 save
 
       - name: Status
@@ -58,9 +62,13 @@ jobs:
         env: { NODE_OPTIONS: "--max-old-space-size=4096" }
         run: npm run build
 
-      - name: Start Frontend (Serve Build)
+      - name: Restart frontend with PM2
+        shell: powershell
         run: |
-          pm2 reload mydrive-frontend || pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
+          pm2 reload mydrive-frontend
+          if ($LASTEXITCODE -ne 0) {
+            pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
+          }
           pm2 save
 
       - name: Summary
