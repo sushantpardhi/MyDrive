@@ -158,6 +158,83 @@
   font-size: 26px;
   transition: all 0.3s ease;
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Thumbnail styles */
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.fileCard:hover .thumbnailImage {
+  transform: scale(1.05);
+}
+
+.thumbnailLoading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-bg-subtle);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fileTypePreview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-bg-subtle) 0%, var(--card-bg) 100%);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.typeIcon {
+  color: var(--accent-primary);
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.fileCard:hover .typeIcon {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.emojiIcon {
+  font-size: 26px;
+  transition: transform 0.3s ease;
+}
+
+.fileCard:hover .emojiIcon {
+  transform: scale(1.1);
 }
 
 @media (max-width: 768px) {
@@ -170,6 +247,20 @@
     height: 40px;
     font-size: 20px;
     margin-bottom: 8px;
+  }
+
+  .fileCard.grid .fileIcon .typeIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .fileCard.grid .fileIcon .emojiIcon {
+    font-size: 20px;
+  }
+
+  .fileCard.grid .fileIcon .spinner {
+    width: 16px;
+    height: 16px;
   }
 
   .grid .fileName {
@@ -195,6 +286,20 @@
     height: 32px;
     font-size: 16px;
     margin-bottom: 6px;
+  }
+
+  .fileCard.grid .fileIcon .typeIcon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .fileCard.grid .fileIcon .emojiIcon {
+    font-size: 16px;
+  }
+
+  .fileCard.grid .fileIcon .spinner {
+    width: 12px;
+    height: 12px;
   }
 
   .grid .fileName {
@@ -400,6 +505,35 @@
   background: transparent;
   border-radius: 6px;
   transition: transform 0.15s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.list .fileIcon .thumbnail {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.list .fileIcon .thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.list .fileIcon .typeIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.list .fileIcon .emojiIcon {
+  font-size: 16px;
+}
+
+.list .fileIcon .spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
 }
 
 .list:hover .fileIcon {

@@ -7,6 +7,7 @@ const {
   unshareContentsRecursively,
   deleteFilesRecursively,
 } = require("../utils/shareHelpers");
+const emailService = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.get("/:folderId", async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Check if user has access to the parent folder (if not root)
+    let isSharedFolder = false;
     if (folderId !== null && !isTrash) {
       const parentFolder = await Folder.findById(folderId);
       if (!parentFolder) {
@@ -35,17 +37,25 @@ router.get("/:folderId", async (req, res) => {
       if (!hasAccess) {
         return res.status(403).json({ error: "Access denied" });
       }
+
+      // Track if this is a shared folder to adjust query
+      isSharedFolder = parentFolder.shared.includes(req.user.id);
     }
 
+    // Build the query based on whether it's a shared folder or not
     const query = isTrash
       ? { trash: true, owner: req.user.id }
+      : isSharedFolder
+      ? {
+          parent: folderId,
+          trash: { $ne: true },
+          // For shared folders, show items that are shared with the user
+          shared: req.user.id,
+        }
       : {
           parent: folderId,
           trash: { $ne: true },
-          $or: [
-            { owner: req.user.id }, // Items owned by the user
-            { shared: req.user.id }, // Items shared with the user
-          ],
+          owner: req.user.id, // Only show items owned by the user in My Drive
         };
 
     // Get total counts
@@ -167,6 +177,14 @@ router.post("/:id/share", async (req, res) => {
 
       // Recursively share all contents of this folder
       await shareContentsRecursively(item._id, userToShareWith._id);
+
+      // Send email notification to the user (non-blocking)
+      const owner = await User.findById(req.user.id);
+      emailService
+        .sendFileSharedEmail(userToShareWith, owner, item.name, "folder")
+        .catch((err) => {
+          console.error("Failed to send folder shared email:", err.message);
+        });
     }
 
     res.json({

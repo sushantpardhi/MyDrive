@@ -8,14 +8,11 @@ const initializeCleanupScheduler = () => {
   // Run cleanup every hour (0 * * * *)
   cron.schedule("0 * * * *", async () => {
     try {
-      console.log("Running upload session cleanup...");
       await UploadSession.cleanupExpiredSessions();
     } catch (error) {
       console.error("Cleanup scheduler error:", error);
     }
   });
-
-  console.log("Upload session cleanup scheduler initialized");
 };
 
 /**

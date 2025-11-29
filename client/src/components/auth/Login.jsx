@@ -114,6 +114,23 @@ const Login = () => {
               placeholder="Enter your password"
               disabled={loading}
             />
+            <div
+              style={{
+                marginTop: "8px",
+                textAlign: "right",
+                fontSize: "14px",
+              }}
+            >
+              <Link
+                to="/forgot-password"
+                style={{
+                  color: "var(--accent-primary)",
+                  textDecoration: "none",
+                }}
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <button

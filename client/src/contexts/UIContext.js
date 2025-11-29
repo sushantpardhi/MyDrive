@@ -28,6 +28,9 @@ export const UIProvider = ({ children }) => {
   const [copyMoveItemType, setCopyMoveItemType] = useState(null);
   const [copyMoveOperation, setCopyMoveOperation] = useState("copy");
 
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
@@ -74,6 +77,16 @@ export const UIProvider = ({ children }) => {
     setCopyMoveOperation("copy");
   }, []);
 
+  const openPreviewModal = useCallback((file) => {
+    setPreviewFile(file);
+    setPreviewModalOpen(true);
+  }, []);
+
+  const closePreviewModal = useCallback(() => {
+    setPreviewModalOpen(false);
+    setPreviewFile(null);
+  }, []);
+
   const value = {
     sidebarOpen,
     actionsMenuOpen,
@@ -100,6 +113,11 @@ export const UIProvider = ({ children }) => {
     copyMoveOperation,
     openCopyMoveDialog,
     closeCopyMoveDialog,
+
+    previewModalOpen,
+    previewFile,
+    openPreviewModal,
+    closePreviewModal,
   };
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;

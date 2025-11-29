@@ -49,6 +49,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setCurrentPage,
     setHasMore,
     currentFolderId,
+    updateCurrentFolder,
   } = useDriveContext();
 
   const { selectedItems, toggleSelection, selectAll, clearSelection } =
@@ -78,6 +79,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Refs
   const fileInputRef = useRef(null);
   const driveViewRef = useRef(null);
+  const typeRef = useRef(type);
 
   // Custom hooks
   const { viewMode, changeViewMode } = useUserSettings();
@@ -205,12 +207,23 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     loadMoreSearchResults,
   });
 
+  // Reset to root folder when type changes
+  useEffect(() => {
+    // Only reset if type actually changed
+    if (typeRef.current !== type) {
+      typeRef.current = type;
+      updateCurrentFolder("root");
+      // Also reset the breadcrumb path
+      navigateTo(0);
+    }
+  }, [type, updateCurrentFolder, navigateTo]);
+
   // Load folder contents when currentFolderId changes
   useEffect(() => {
     loadFolderContents(currentFolderId);
     setCurrentPage(1);
     setHasMore(true);
-  }, [currentFolderId, type, loadFolderContents, setCurrentPage, setHasMore]);
+  }, [currentFolderId, loadFolderContents, setCurrentPage, setHasMore]);
 
   // Reset selections when changing folders or type
   useEffect(() => {

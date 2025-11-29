@@ -1,198 +1,77 @@
 # MyDrive - Cloud Storage Application
 
-A full-stack cloud storage application built with React and Node.js, featuring file management, sharing capabilities, chunked file uploads, and user authentication.
+A full-stack cloud storage solution with advanced file management, sharing capabilities, and chunked uploads for large files.
 
-## 🚀 Features
+## Features
 
-- **Advanced File Management:** Upload, download, rename, delete files and folders
-- **Chunked File Uploads:** Support for large file uploads with resume capability
-- **File Sharing:** Share files with other users with different permission levels
-- **User Authentication:** Secure JWT-based authentication system
-- **Responsive Design:** Optimized for desktop and mobile devices
-- **Search Functionality:** Find files and folders quickly
-- **Grid/List Views:** Multiple viewing options for file organization
-- **Trash & Recovery:** Soft delete with trash management
-- **User Profiles:** Customizable user preferences and settings
+- File & Folder Management - Organize files in hierarchical folders
+- Chunked File Upload - Support for large files with resume capability
+- Secure Authentication - JWT-based authentication with bcrypt hashing
+- Email Notifications - Welcome emails, password reset, and sharing alerts
+- Password Reset - Secure token-based password recovery
+- File Sharing - Share files/folders with other users via email
+- Trash Management - Soft delete with restore functionality
+- Responsive Design - Optimized for desktop and mobile devices
+- Search - Find files and folders quickly
+- Storage Management - Track storage usage and limits
 
-## 🛠 Technology Stack
+## Tech Stack
 
-- **Frontend:** React 19, React Router, Axios, Lucide React, React Toastify
-- **Backend:** Node.js, Express, MongoDB, JWT, Multer
-- **Database:** MongoDB with Mongoose ODM
-- **File Upload:** Chunked upload with retry logic and progress tracking
+**Frontend:** React 19, React Router, Axios  
+**Backend:** Node.js, Express, MongoDB  
+**Authentication:** JWT, bcryptjs  
+**Email:** Nodemailer (Gmail/SendGrid/SMTP)
 
-## 📋 Prerequisites
+## Quick Start
 
-- Node.js (v14 or higher)
-- MongoDB (v4.4 or higher)
+### Prerequisites
+- Node.js v14+
+- MongoDB v4.4+
 - npm or yarn
 
-## 🔧 Installation & Setup
+### Installation
 
-### 1. Clone the Repository
-
+1. Clone and install dependencies
 ```bash
 git clone <repository-url>
 cd MyDrive
+
+# Backend
+cd server && npm install
+
+# Frontend
+cd client && npm install
 ```
 
-### 2. Environment Configuration
+2. Configure environment (copy .env.example to .env in both directories)
 
-Create `.env` files based on the provided examples:
-
-**Server** (`server/.env`):
-
+3. Run development servers
 ```bash
-cp server/.env.example server/.env
-# Edit server/.env and set your values
+# Terminal 1 - Backend
+cd server && npm run dev
+
+# Terminal 2 - Frontend
+cd client && npm start
 ```
 
-**Client** (`client/.env`):
+Visit: http://localhost:3000
 
-```bash
-cp client/.env.example client/.env
-# Edit client/.env and set your values
-```
+## Documentation
 
-### 3. Backend Setup
+Comprehensive documentation available in `docs/` directory:
 
-```bash
-cd server
-npm install
-npm start
-```
+- **AUTHENTICATION.md** - User authentication, JWT, password reset
+- **FILE_MANAGEMENT.md** - File upload, download, chunked uploads
+- **FOLDER_MANAGEMENT.md** - Folder operations, navigation, trash
+- **FILE_SHARING.md** - Sharing files/folders with permissions
+- **EMAIL_SERVICE.md** - Email configuration and notifications
+- **API_REFERENCE.md** - Complete API documentation
+- **DEPLOYMENT.md** - Production deployment guide
 
-Server will run on: `http://localhost:8080`
+## License
 
-### 4. Frontend Setup
+MIT License
 
-```bash
-cd client
-npm install
-npm start
-```
+---
 
-Client will run on: `http://localhost:3000`
-
-## 📁 Project Structure
-
-```
-MyDrive/
-├── client/                 # React frontend
-│   ├── public/            # Static files
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── contexts/      # React context providers
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── services/      # API services
-│   │   └── utils/         # Utility functions
-│   └── package.json
-│
-├── server/                # Node.js backend
-│   ├── middleware/        # Express middleware
-│   ├── models/            # MongoDB models
-│   ├── routes/            # API routes
-│   ├── utils/             # Helper utilities
-│   └── package.json
-│
-├── .gitignore
-└── README.md
-```
-
-## 🚀 Production Deployment
-
-### Building for Production
-
-**Client:**
-
-```bash
-cd client
-npm run build
-```
-
-**Server:**
-
-```bash
-cd server
-npm start
-```
-
-### Environment Variables for Production
-
-Ensure all environment variables are properly set:
-
-- `MONGODB_URI`: Your production MongoDB connection string
-- `JWT_SECRET`: A strong, unique secret key
-- `PORT`: Server port (default: 8080)
-- `REACT_APP_API_URL`: Your production API URL
-
-### Deployment Platforms
-
-This application can be deployed to:
-
-- **Frontend:** Vercel, Netlify, GitHub Pages
-- **Backend:** Heroku, AWS, DigitalOcean, Railway
-- **Database:** MongoDB Atlas (recommended for production)
-
-## � Security Considerations
-
-- Always use strong `JWT_SECRET` in production
-- Enable HTTPS in production
-- Set proper CORS configuration
-- Keep dependencies updated
-- Never commit `.env` files
-
-## 🧪 API Endpoints
-
-### Authentication
-
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-
-### Files
-
-- `GET /api/files` - Get user files
-- `POST /api/files/upload` - Upload file
-- `DELETE /api/files/:id` - Delete file
-- `POST /api/files/chunked-upload/initiate` - Initiate chunked upload
-- `POST /api/files/chunked-upload/:uploadId/chunk` - Upload chunk
-- `POST /api/files/chunked-upload/:uploadId/complete` - Complete upload
-
-### Folders
-
-- `GET /api/folders` - Get user folders
-- `POST /api/folders` - Create folder
-- `DELETE /api/folders/:id` - Delete folder
-
-### Sharing
-
-- `POST /api/shared/share` - Share file/folder
-- `GET /api/shared/with-me` - Get shared items
-
-## 📝 Scripts
-
-### Client Scripts
-
-- `npm start` - Start development server
-- `npm run build` - Build for production
-
-### Server Scripts
-
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🆘 Support
-
-For issues and questions, please open an issue on the GitHub repository.
+**Built with ❤️ for secure cloud storage**

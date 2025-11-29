@@ -3,10 +3,12 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
+const sharp = require("sharp");
 const File = require("../models/File");
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
 const { ensureUserDir, getUserFilePath } = require("../utils/fileHelpers");
+const emailService = require("../utils/emailService");
 const {
   createTempUploadDir,
   storeChunk,
@@ -73,8 +75,141 @@ router.get("/download/:fileId", async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    res.download(file.path, file.name);
+
+    // Check if conversion to JPEG is requested (for HEIC/HEIF files)
+    const convertToJpeg = req.query.convert === "true";
+    const ext = path.extname(file.name).toLowerCase();
+    const isHeicFormat = [".heic", ".heif"].includes(ext);
+
+    if (convertToJpeg && isHeicFormat) {
+      // Convert HEIC/HEIF to JPEG on the server
+      try {
+        const buffer = await sharp(file.path).jpeg({ quality: 90 }).toBuffer();
+
+        res.set({
+          "Content-Type": "image/jpeg",
+          "Content-Length": buffer.length,
+          "Cache-Control": "public, max-age=31536000",
+        });
+        res.send(buffer);
+      } catch (conversionError) {
+        console.error("Error converting HEIC to JPEG:", conversionError);
+        // Fallback to original file if conversion fails
+        res.download(file.path, file.name);
+      }
+    } else {
+      res.download(file.path, file.name);
+    }
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get thumbnail for preview (optimized with caching)
+router.get("/thumbnail/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    const ext = path.extname(file.name).toLowerCase();
+    const isImage = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".tiff",
+    ].includes(ext);
+
+    const isHeic = [".heic", ".heif"].includes(ext);
+
+    if (!isImage && !isHeic) {
+      return res.status(400).json({ error: "File is not an image" });
+    }
+
+    // For HEIC files, send original file (client will handle conversion)
+    if (isHeic) {
+      res.set({
+        "Content-Type": "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000",
+      });
+      return res.sendFile(path.resolve(file.path));
+    }
+
+    // Verify file exists on disk
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
+    // Create thumbnail cache directory
+    const thumbnailDir = path.join(
+      __dirname,
+      "..",
+      "uploads",
+      "thumbnails",
+      req.user.id
+    );
+
+    if (!fs.existsSync(thumbnailDir)) {
+      fs.mkdirSync(thumbnailDir, { recursive: true });
+    }
+
+    // Generate thumbnail filename based on file ID
+    const thumbnailPath = path.join(
+      thumbnailDir,
+      `${req.params.fileId}-thumb.jpg`
+    );
+
+    // Check if thumbnail already exists
+    if (fs.existsSync(thumbnailPath)) {
+      res.set({
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "public, max-age=31536000",
+      });
+      return res.sendFile(path.resolve(thumbnailPath));
+    }
+
+    // Generate thumbnail (max 400px width, maintaining aspect ratio)
+    try {
+      await sharp(file.path)
+        .rotate() // Auto-rotate based on EXIF
+        .resize(400, 400, {
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85, progressive: true })
+        .toFile(thumbnailPath);
+
+      // Serve the newly created thumbnail
+      res.set({
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "public, max-age=31536000",
+      });
+      res.sendFile(path.resolve(thumbnailPath));
+    } catch (conversionError) {
+      console.error("Error generating thumbnail:", conversionError);
+      // Fallback: send converted JPEG directly without caching
+      try {
+        const buffer = await sharp(file.path)
+          .resize(400, 400, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+
+        res.set({
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=31536000",
+        });
+        res.send(buffer);
+      } catch (fallbackError) {
+        console.error("Fallback conversion failed:", fallbackError);
+        res.status(500).json({ error: "Failed to generate thumbnail" });
+      }
+    }
+  } catch (error) {
+    console.error("Error in thumbnail route:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -127,6 +262,14 @@ router.post("/:id/share", async (req, res) => {
     if (!item.shared.includes(userToShareWith._id)) {
       item.shared.push(userToShareWith._id);
       await item.save();
+
+      // Send email notification to the user (non-blocking)
+      const owner = await User.findById(req.user.id);
+      emailService
+        .sendFileSharedEmail(userToShareWith, owner, item.name, "file")
+        .catch((err) => {
+          console.error("Failed to send file shared email:", err.message);
+        });
     }
 
     res.json({
@@ -193,6 +336,20 @@ router.delete("/:id", async (req, res) => {
       if (fs.existsSync(item.path)) {
         fs.unlinkSync(item.path);
       }
+
+      // Delete cached thumbnail if exists
+      const thumbnailPath = path.join(
+        __dirname,
+        "..",
+        "uploads",
+        "thumbnails",
+        req.user.id,
+        `${id}-thumb.jpg`
+      );
+      if (fs.existsSync(thumbnailPath)) {
+        fs.unlinkSync(thumbnailPath);
+      }
+
       await File.findByIdAndDelete(id);
       res.json({ message: "Permanently deleted" });
     } else {
@@ -736,6 +893,9 @@ router.post(
 
       const uploadedCount = progressData[0]?.uploadedCount || 0;
       const progress = (uploadedCount / session.totalChunks) * 100;
+
+      // Calculate processing time
+      const processingTime = Date.now() - startTime;
 
       res.json({
         message: "Chunk uploaded successfully",

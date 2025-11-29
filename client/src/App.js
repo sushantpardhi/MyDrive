@@ -7,7 +7,10 @@ import Sidebar from "./components/layout/Sidebar.jsx";
 import DriveView from "./components/drive/DriveView.jsx";
 import Register from "./components/auth/Register.jsx";
 import Login from "./components/auth/Login.jsx";
+import ForgotPassword from "./components/auth/ForgotPassword.jsx";
+import ResetPassword from "./components/auth/ResetPassword.jsx";
 import UserProfile from "./components/auth/UserProfile.jsx";
+import PreviewModal from "./components/files/PreviewModal.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DriveProvider } from "./contexts/DriveContext";
 import { SelectionProvider } from "./contexts/SelectionContext";
@@ -70,6 +73,8 @@ const AppLayout = () => {
           <Route path="/profile" element={<UserProfile />} />
         </Routes>
       </div>
+      {/* Global Preview Modal */}
+      <PreviewModal />
     </div>
   );
 };
@@ -101,6 +106,22 @@ const App = () => {
             element={
               <AuthRoute>
                 <Login />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthRoute>
+                <ForgotPassword />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthRoute>
+                <ResetPassword />
               </AuthRoute>
             }
           />

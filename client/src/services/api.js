@@ -53,6 +53,13 @@ const api = {
 
   getCurrentUser: () => axios.get(`${API_URL}/auth/me`),
 
+  // Password reset operations
+  forgotPassword: (email) =>
+    axios.post(`${API_URL}/auth/forgot-password`, { email }),
+
+  resetPassword: (token, newPassword) =>
+    axios.post(`${API_URL}/auth/reset-password`, { token, newPassword }),
+
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -94,6 +101,24 @@ const api = {
 
   downloadFile: (fileId) =>
     axios.get(`${API_URL}/files/download/${fileId}`, { responseType: "blob" }),
+
+  // Get thumbnail for file card previews (optimized, cached)
+  getFileThumbnail: (fileId) =>
+    axios.get(`${API_URL}/files/thumbnail/${fileId}`, {
+      responseType: "blob",
+      headers: {
+        "Cache-Control": "public, max-age=31536000",
+      },
+    }),
+
+  // Get file for preview (returns blob/url for streaming)
+  getFilePreview: (fileId) =>
+    axios.get(`${API_URL}/files/download/${fileId}`, {
+      responseType: "blob",
+      headers: {
+        "Cache-Control": "public, max-age=31536000",
+      },
+    }),
 
   // Get item details with populated shared users
   getFileDetails: (fileId) => axios.get(`${API_URL}/files/${fileId}/details`),

@@ -107,6 +107,27 @@
   margin-bottom: 20px;
 }
 
+.successMessage {
+  background-color: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #2e7d32;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.successMessage strong {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.successMessage p {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
 .registerLink {
   color: #667eea;
   text-decoration: none;

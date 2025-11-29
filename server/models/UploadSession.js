@@ -328,7 +328,6 @@ UploadSessionSchema.statics.cleanupExpiredSessions = async function () {
       status: { $in: ["initiated", "uploading", "failed"] },
     });
 
-    console.log(`Cleaned up ${result.deletedCount} expired upload sessions`);
     return result;
   } catch (error) {
     console.error("Error cleaning up expired sessions:", error);

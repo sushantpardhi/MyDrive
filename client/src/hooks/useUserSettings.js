@@ -17,7 +17,6 @@ export const useUserSettings = () => {
           setViewMode(res.data.preferences.viewMode);
         }
       } catch (err) {
-        console.warn("Failed to sync settings from server:", err);
         // Keep local settings as fallback
       } finally {
         setLoading(false);

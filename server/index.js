@@ -10,6 +10,9 @@ const { authenticateToken } = require("./middleware/auth");
 // Import cleanup scheduler
 const { initializeCleanupScheduler } = require("./utils/cleanupScheduler");
 
+// Import email configuration
+const { verifyEmailConfig } = require("./config/emailConfig");
+
 // Import routes
 const authRouter = require("./routes/auth");
 const filesRouter = require("./routes/files");
@@ -61,11 +64,18 @@ app.use("/api/shared", authenticateToken, sharedRouter);
 app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
 // Initialize cleanup scheduler after database connection
-mongoose.connection.once("open", () => {
-  console.log("Connected to MongoDB");
+mongoose.connection.once("open", async () => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log("Connected to MongoDB");
+  }
   initializeCleanupScheduler();
+
+  // Verify email configuration
+  await verifyEmailConfig();
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  }
 });

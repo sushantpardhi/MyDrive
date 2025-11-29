@@ -92,7 +92,6 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
         const error = new Error(
           `Chunk ${currentChunk} not found at ${chunkPath}`
         );
-        console.error(error.message);
         reject(error);
         return;
       }
@@ -124,10 +123,6 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
         try {
           fs.unlinkSync(chunkPath);
         } catch (cleanupError) {
-          console.warn(
-            `Failed to cleanup chunk ${currentChunk}:`,
-            cleanupError.message
-          );
           // Don't fail the operation for cleanup errors
         }
 
