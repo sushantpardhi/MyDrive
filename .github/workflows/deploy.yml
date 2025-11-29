@@ -6,52 +6,70 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-backend:
     runs-on: self-hosted
     steps:
-      - name: Stop old Node apps
-        shell: powershell
-        run: |
-          pm2 stop all
-          taskkill /F /IM node.exe || echo "No process"
-
       - name: Checkout
-        uses: :contentReference[oaicite:0]{index=0}
-        with: { clean: false }
+        uses: actions/checkout@v3
 
       - name: Node 20
-        uses: :contentReference[oaicite:1]{index=1}
+        uses: actions/setup-node@v4
         with: { node-version: 20 }
 
-      - name: Install globals
+      - name: PM2
+        run: npm i -g pm2
+
+      - name: Backend deps
+        working-directory: ./server
+        run: npm i --omit=dev
+
+      - name: Restart backend with PM2
+        working-directory: ./server
         shell: powershell
+        run: |
+          pm2 reload mydrive-backend
+          if ($LASTEXITCODE -ne 0) {
+            pm2 start index.js --name mydrive-backend
+          }
+          pm2 save
+
+      - name: Status
+        run: pm2 list
+
+
+  deploy-frontend:
+    runs-on: self-hosted
+    needs: deploy-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: PM2 + Serve
         run: |
           npm i -g pm2
           npm i -g serve
 
-      - name: Install backend deps
-        working-directory: ./server
-        run: npm i --omit=dev
+      - name: Frontend deps
+        working-directory: ./client
+        run: npm i --legacy-peer-deps
 
-      - name: Build frontend
+      - name: Build
         working-directory: ./client
         env: { NODE_OPTIONS: "--max-old-space-size=4096" }
         run: npm run build
 
-      - name: Start Backend
-        shell: powershell
-        working-directory: ./server
-        run: |
-          pm2 start index.js --name mydrive-backend -- -p 8080
-          pm2 save
-
-      - name: Start Frontend
+      - name: Restart frontend with PM2
         shell: powershell
         run: |
-          pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
+          pm2 reload mydrive-frontend
+          if ($LASTEXITCODE -ne 0) {
+            pm2 start serve --name mydrive-frontend -- -s ./client/dist -l 3000
+          }
           pm2 save
 
-      - name: Status
-        shell: powershell
+      - name: Summary
         run: pm2 status
-
