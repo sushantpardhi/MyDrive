@@ -46,18 +46,6 @@ jobs:
     runs-on: self-hosted
     needs: deploy-backend
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Node 20
-        uses: actions/setup-node@v4
-        with: { node-version: 20 }
-
-      - name: PM2 + Serve
-        run: |
-          npm i -g pm2
-          npm i -g serve
-
       - name: Frontend deps
         working-directory: ./client
         run: npm i --legacy-peer-deps
