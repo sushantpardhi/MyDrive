@@ -25,6 +25,7 @@ jobs:
         run: |
           npm i -g pm2
           npm i -g serve
+          npm i -g :contentReference[oaicite:1]{index=1}
 
       - name: Install backend deps
         working-directory: ./server
@@ -45,6 +46,7 @@ jobs:
           pm2 delete all
           pm2 start ecosystem.config.js
           pm2 save
+          pm2 restart :contentReference[oaicite:3]{index=3}
 
       - name: Verify
         shell: powershell

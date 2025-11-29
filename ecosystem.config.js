@@ -14,7 +14,7 @@ module.exports = {
     {
       name: "mydrive-frontend",
       script: "serve",
-      args: "-s client/build --listen 0.0.0.0:5000 -n",
+      args: "serve --name frontend -- -s build -l 3000 --single-spa --listen :contentReference[oaicite:2]{index=2}",
       env: {
         NODE_ENV: "production",
       },
