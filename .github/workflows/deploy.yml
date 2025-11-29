@@ -52,7 +52,8 @@ jobs:
       - name: Start Frontend (3000)
         shell: powershell
         run: |
-          pm2 start serve --name mydrive-frontend -- -s ./client/build -l 3000 
+          pm2 delete mydrive-frontend
+          pm2 start npx --name mydrive-frontend -- serve -s client/build -l 3000
           pm2 save
 
       - name: Verify
