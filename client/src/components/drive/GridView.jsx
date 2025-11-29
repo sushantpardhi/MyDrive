@@ -13,6 +13,7 @@ const GridView = ({
   onFolderRename,
   onFolderCopy,
   onFolderMove,
+  onFolderDownload,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -40,6 +41,7 @@ const GridView = ({
           onRename={() => onFolderRename(folder)}
           onCopy={() => onFolderCopy(folder)}
           onMove={() => onFolderMove(folder)}
+          onDownload={() => onFolderDownload(folder._id, folder.name)}
           selected={selectedItems.has(folder._id)}
           onSelect={(e) => onToggleSelection(folder._id, e)}
           viewType="grid"

@@ -14,6 +14,7 @@ const ListView = ({
   onFolderRename,
   onFolderCopy,
   onFolderMove,
+  onFolderDownload,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -64,6 +65,7 @@ const ListView = ({
             onRename={() => onFolderRename(folder)}
             onCopy={() => onFolderCopy(folder)}
             onMove={() => onFolderMove(folder)}
+            onDownload={() => onFolderDownload(folder._id, folder.name)}
             selected={selectedItems.has(folder._id)}
             onSelect={() => onToggleSelection(folder._id)}
             viewType="list"

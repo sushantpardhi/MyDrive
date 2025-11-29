@@ -80,7 +80,7 @@
 .headerText {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .headerContent h4 {
@@ -88,12 +88,47 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .headerText .statusText {
   font-size: 12px;
   color: var(--text-secondary);
   font-weight: normal;
+}
+
+/* Phase badges */
+.preparingBadge,
+.zippingBadge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preparingBadge {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.zippingBadge {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  animation: fadeInUp 0.3s ease-out, pulse 2s ease-in-out infinite 0.3s;
+}
+
+/* Active icon animation */
+.activeIcon {
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .overallStats,
@@ -338,6 +373,23 @@
   background: var(--bg-subtle);
   border-radius: 2px;
   overflow: hidden;
+  position: relative;
+}
+
+.progressBar.indeterminate .progressFill {
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .progressFill {
@@ -345,6 +397,17 @@
   background: var(--accent-primary);
   transition: width 0.3s ease;
   border-radius: 2px;
+}
+
+.progressFill.preparing {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary),
+    var(--accent-secondary, #06b6d4),
+    var(--accent-primary)
+  );
+  background-size: 200% 100%;
+  animation: progressShimmer 1.5s infinite;
 }
 
 .progressFill.completed {
@@ -505,6 +568,103 @@
   color: var(--text-secondary);
 }
 
+/* Status-specific styles */
+.statusLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  padding: 2px 8px;
+  background: var(--accent-bg, rgba(59, 130, 246, 0.1));
+  border-radius: 4px;
+}
+
+.filesInfo {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  padding: 3px 8px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* Animations for status icons */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.pulsing {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.statusIcon {
+  flex-shrink: 0;
+}
+
+/* Preparing/Zipping state styling */
+.uploadItem.preparing {
+  background: linear-gradient(
+    90deg,
+    var(--card-bg) 0%,
+    var(--bg-subtle) 50%,
+    var(--card-bg) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.uploadItem[data-phase="preparing"] .progressFill,
+.uploadItem[data-phase="zipping"] .progressFill {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary),
+    var(--accent-secondary, #06b6d4),
+    var(--accent-primary)
+  );
+  background-size: 200% 100%;
+  animation: progressShimmer 1.5s infinite;
+}
+
+@keyframes progressShimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .toast {
@@ -538,5 +698,10 @@
 
   .footer {
     padding: 10px 16px;
+  }
+
+  .statusLabel,
+  .filesInfo {
+    font-size: 10px;
   }
 }

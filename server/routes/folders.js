@@ -1,4 +1,6 @@
 const express = require("express");
+const archiver = require("archiver");
+const path = require("path");
 const File = require("../models/File");
 const Folder = require("../models/Folder");
 const User = require("../models/User");
@@ -574,6 +576,165 @@ router.put("/:id/move", async (req, res) => {
     res.json({ message: "Folder moved successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Download folder as ZIP
+router.get("/download/:folderId", async (req, res) => {
+  try {
+    const folderId = req.params.folderId;
+
+    // Get the folder
+    const folder = await Folder.findById(folderId);
+    if (!folder) {
+      return res.status(404).json({ error: "Folder not found" });
+    }
+
+    // Check if user has access to the folder
+    const hasAccess =
+      folder.owner.toString() === req.user.id ||
+      folder.shared.includes(req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Helper function to recursively collect all files in a folder
+    const collectFilesRecursively = async (folderId) => {
+      const files = [];
+      const folders = [];
+
+      // Get all files in current folder
+      const currentFiles = await File.find({
+        parent: folderId,
+        trash: false,
+      });
+      files.push(...currentFiles);
+
+      // Get all subfolders
+      const subfolders = await Folder.find({
+        parent: folderId,
+        trash: false,
+      });
+      folders.push(...subfolders);
+
+      // Recursively collect files from subfolders
+      for (const subfolder of subfolders) {
+        const subfolderData = await collectFilesRecursively(subfolder._id);
+        files.push(...subfolderData.files);
+        folders.push(...subfolderData.folders);
+      }
+
+      return { files, folders };
+    };
+
+    // Collect all files recursively
+    const { files } = await collectFilesRecursively(folderId);
+
+    // If folder is empty, return error
+    if (files.length === 0) {
+      return res.status(400).json({ error: "Folder is empty" });
+    }
+
+    // Calculate total size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    // Set response headers for download
+    const zipFilename = `${folder.name}.zip`;
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(zipFilename)}"`
+    );
+    // Add custom header for total files count and size
+    res.setHeader("X-Total-Files", files.length.toString());
+    res.setHeader("X-Total-Size", totalSize.toString());
+
+    // Create archiver instance
+    const archive = archiver("zip", {
+      zlib: { level: 6 }, // Compression level
+    });
+
+    let processedFiles = 0;
+    let processedBytes = 0;
+
+    // Track progress
+    archive.on("entry", (entry) => {
+      processedFiles++;
+      // Note: This fires when a file is added to the archive
+      console.log(`Zipping progress: ${processedFiles}/${files.length} files`);
+    });
+
+    archive.on("progress", (progress) => {
+      processedBytes = progress.fs.processedBytes;
+      console.log(
+        `Archive progress: ${processedBytes} / ${progress.fs.totalBytes} bytes`
+      );
+    });
+
+    // Handle archiver warnings
+    archive.on("warning", (err) => {
+      if (err.code === "ENOENT") {
+        console.warn("Archiver warning:", err);
+      } else {
+        throw err;
+      }
+    });
+
+    // Handle archiver errors
+    archive.on("error", (err) => {
+      console.error("Archiver error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error creating ZIP file" });
+      }
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Helper function to get relative path for a file
+    const getRelativePath = async (file) => {
+      const pathSegments = [];
+      let currentParent = file.parent;
+
+      // Build path from file's parent up to the root folder
+      while (
+        currentParent &&
+        currentParent.toString() !== folderId.toString()
+      ) {
+        const parentFolder = await Folder.findById(currentParent);
+        if (parentFolder) {
+          pathSegments.unshift(parentFolder.name);
+          currentParent = parentFolder.parent;
+        } else {
+          break;
+        }
+      }
+
+      return pathSegments.join("/");
+    };
+
+    // Add files to archive
+    for (const file of files) {
+      try {
+        const relativePath = await getRelativePath(file);
+        const filePathInZip = relativePath
+          ? `${relativePath}/${file.name}`
+          : file.name;
+
+        archive.file(file.path, { name: filePathInZip });
+      } catch (err) {
+        console.error(`Error adding file ${file.name} to archive:`, err);
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+  } catch (error) {
+    console.error("Error downloading folder:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 

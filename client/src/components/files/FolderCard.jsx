@@ -11,6 +11,7 @@ import {
   Edit3,
   Copy,
   Move,
+  Download,
 } from "lucide-react";
 import { formatDate } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
@@ -25,6 +26,7 @@ const FolderCard = ({
   onRename,
   onCopy,
   onMove,
+  onDownload,
   viewType = "grid",
   type = "drive",
 }) => {
@@ -169,6 +171,18 @@ const FolderCard = ({
                     </button>
                     <div className={styles.menuDivider} />
                     <button
+                      onClick={() => {
+                        onDownload?.();
+                        setMenuOpen(false);
+                      }}
+                      className={styles.menuItem}
+                      aria-label="Download folder"
+                      title="Download"
+                    >
+                      <Download size={16} />
+                      <span>Download</span>
+                    </button>
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onShare();
@@ -283,6 +297,18 @@ const FolderCard = ({
                       <span>Move</span>
                     </button>
                     <div className={styles.menuDivider} />
+                    <button
+                      onClick={() => {
+                        onDownload?.();
+                        setMenuOpen(false);
+                      }}
+                      className={styles.menuItem}
+                      aria-label="Download folder"
+                      title="Download"
+                    >
+                      <Download size={16} />
+                      <span>Download</span>
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

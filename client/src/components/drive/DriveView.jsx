@@ -10,7 +10,7 @@ import FloatingActionButton from "./FloatingActionButton";
 import ShareDialog from "../files/ShareDialog";
 import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
-import UploadProgressToast from "../files/UploadProgressToast";
+import TransferProgressToast from "../files/TransferProgressToast";
 
 // Hooks
 import { useFileOperations } from "../../hooks/useFileOperations";
@@ -20,6 +20,7 @@ import { useUserSettings } from "../../hooks/useUserSettings";
 import { useBreadcrumbs } from "../../hooks/useBreadcrumbs";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
+import { useDownloadProgress } from "../../hooks/useDownloadProgress";
 import { useUploadWarning } from "../../hooks/useUploadWarning";
 
 // Contexts
@@ -154,6 +155,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Upload progress management
   const uploadProgressHook = useUploadProgress();
 
+  // Download progress management
+  const downloadProgressHook = useDownloadProgress();
+
   // Warn user before leaving page during active uploads
   useUploadWarning(uploadProgressHook.uploading);
 
@@ -162,12 +166,18 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     uploadFiles,
     deleteItem,
     handleDownload,
+    handleFolderDownload,
     restoreItem,
     emptyTrash,
     renameItem: renameItemOperation,
     copyItem,
     moveItem,
-  } = useFileOperations(api, loadFolderContents, uploadProgressHook);
+  } = useFileOperations(
+    api,
+    loadFolderContents,
+    uploadProgressHook,
+    downloadProgressHook
+  );
 
   const {
     searchQuery,
@@ -467,6 +477,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onFolderRename={(folder) => openRenameDialog(folder, "folders")}
         onFolderCopy={(folder) => openCopyMoveDialog(folder, "folders", "copy")}
         onFolderMove={(folder) => openCopyMoveDialog(folder, "folders", "move")}
+        onFolderDownload={(folderId, folderName) =>
+          handleFolderDownload(folderId, folderName)
+        }
         onFileDownload={handleDownload}
         onFileDelete={(id) => handleDelete(id, "files")}
         onFileShare={(file) => openShareDialog(file, "files")}
@@ -517,13 +530,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         operation={copyMoveOperation}
       />
 
-      <UploadProgressToast
+      <TransferProgressToast
         isOpen={true}
         uploadProgress={uploadProgressHook.uploadProgress}
+        downloadProgress={downloadProgressHook.downloadProgress}
         onClose={uploadProgressHook.resetProgress}
         onPauseUpload={uploadProgressHook.pauseUpload}
         onResumeUpload={uploadProgressHook.resumeUpload}
         onStopUpload={uploadProgressHook.cancelUpload}
+        onCancelDownload={downloadProgressHook.cancelDownload}
         onPauseAll={uploadProgressHook.pauseAll}
         onResumeAll={uploadProgressHook.resumeAll}
         onStopAll={uploadProgressHook.cancelAll}

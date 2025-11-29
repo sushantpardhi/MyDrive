@@ -16,6 +16,7 @@ const DriveContent = ({
   onFolderRename,
   onFolderCopy,
   onFolderMove,
+  onFolderDownload,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -63,6 +64,7 @@ const DriveContent = ({
           onFolderRename={onFolderRename}
           onFolderCopy={onFolderCopy}
           onFolderMove={onFolderMove}
+          onFolderDownload={onFolderDownload}
           onFileDownload={onFileDownload}
           onFileDelete={onFileDelete}
           onFileShare={onFileShare}
@@ -84,6 +86,7 @@ const DriveContent = ({
           onFolderRename={onFolderRename}
           onFolderCopy={onFolderCopy}
           onFolderMove={onFolderMove}
+          onFolderDownload={onFolderDownload}
           onFileDownload={onFileDownload}
           onFileDelete={onFileDelete}
           onFileShare={onFileShare}

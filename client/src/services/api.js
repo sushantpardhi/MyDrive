@@ -102,6 +102,11 @@ const api = {
   downloadFile: (fileId) =>
     axios.get(`${API_URL}/files/download/${fileId}`, { responseType: "blob" }),
 
+  downloadFolder: (folderId) =>
+    axios.get(`${API_URL}/folders/download/${folderId}`, {
+      responseType: "blob",
+    }),
+
   // Get thumbnail for file card previews (optimized, cached)
   getFileThumbnail: (fileId) =>
     axios.get(`${API_URL}/files/thumbnail/${fileId}`, {

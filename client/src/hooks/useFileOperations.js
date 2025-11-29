@@ -10,7 +10,8 @@ import {
 export const useFileOperations = (
   api,
   loadFolderContents,
-  uploadProgressHook = null
+  uploadProgressHook = null,
+  downloadProgressHook = null
 ) => {
   const { currentFolderId } = useDriveContext();
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -282,6 +283,167 @@ export const useFileOperations = (
     [api]
   );
 
+  const handleFolderDownload = useCallback(
+    async (folderId, folderName) => {
+      const downloadId = `download-${Date.now()}-${folderId}`;
+
+      try {
+        // First, get folder info to determine total files
+        let totalFiles = 1;
+        let totalSize = 0;
+
+        // Use XMLHttpRequest for progress tracking
+        const token = localStorage.getItem("token");
+        const API_URL =
+          process.env.REACT_APP_API_URL ||
+          `http://${window.location.hostname}:8080/api`;
+
+        const xhr = new XMLHttpRequest();
+
+        return new Promise((resolve, reject) => {
+          xhr.open("GET", `${API_URL}/folders/download/${folderId}`, true);
+          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.responseType = "blob";
+
+          // Start download progress tracking
+          if (downloadProgressHook) {
+            downloadProgressHook.startDownload(
+              downloadId,
+              `${folderName}.zip`,
+              0,
+              totalFiles
+            );
+          }
+
+          toast.info("Preparing folder for download...");
+
+          // Get total size and files from headers when they arrive
+          xhr.onreadystatechange = () => {
+            if (xhr.readyState === xhr.HEADERS_RECEIVED) {
+              const filesHeader = xhr.getResponseHeader("X-Total-Files");
+              const sizeHeader = xhr.getResponseHeader("X-Total-Size");
+
+              if (filesHeader) totalFiles = parseInt(filesHeader);
+              if (sizeHeader) totalSize = parseInt(sizeHeader);
+
+              // Update with actual file count and size
+              if (downloadProgressHook) {
+                downloadProgressHook.startDownload(
+                  downloadId,
+                  `${folderName}.zip`,
+                  totalSize,
+                  totalFiles
+                );
+              }
+
+              toast.info(
+                `Zipping ${totalFiles} file${totalFiles !== 1 ? "s" : ""}...`
+              );
+            }
+          };
+
+          let lastLoaded = 0;
+          let lastTime = Date.now();
+
+          // Track download progress
+          xhr.onprogress = (event) => {
+            if (downloadProgressHook) {
+              if (event.lengthComputable) {
+                // Calculate speed
+                const now = Date.now();
+                const timeDiff = (now - lastTime) / 1000;
+                const bytesDiff = event.loaded - lastLoaded;
+                const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+
+                lastLoaded = event.loaded;
+                lastTime = now;
+
+                downloadProgressHook.updateProgress(
+                  downloadId,
+                  event.loaded,
+                  event.total,
+                  speed
+                );
+              } else {
+                // If content-length not available, show indeterminate progress
+                downloadProgressHook.updateProgress(
+                  downloadId,
+                  event.loaded,
+                  null,
+                  0
+                );
+              }
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              const blob = xhr.response;
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.setAttribute("download", `${folderName}.zip`);
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              window.URL.revokeObjectURL(url);
+
+              if (downloadProgressHook) {
+                downloadProgressHook.completeDownload(downloadId, true);
+              }
+
+              toast.success(
+                `${folderName}.zip downloaded successfully (${totalFiles} file${
+                  totalFiles !== 1 ? "s" : ""
+                })`
+              );
+              resolve();
+            } else {
+              const errorMsg = xhr.statusText || "Download failed";
+
+              if (downloadProgressHook) {
+                downloadProgressHook.completeDownload(downloadId, false);
+              }
+
+              toast.error(errorMsg);
+              reject(new Error(errorMsg));
+            }
+          };
+
+          xhr.onerror = () => {
+            if (downloadProgressHook) {
+              downloadProgressHook.completeDownload(downloadId, false);
+            }
+
+            toast.error("Download failed");
+            reject(new Error("Download failed"));
+          };
+
+          xhr.onabort = () => {
+            if (downloadProgressHook) {
+              downloadProgressHook.cancelDownload(downloadId);
+            }
+
+            toast.info("Download cancelled");
+            reject(new Error("Download cancelled"));
+          };
+
+          xhr.send();
+        });
+      } catch (error) {
+        const errorMsg = error.response?.data?.error || "Download failed";
+
+        if (downloadProgressHook) {
+          downloadProgressHook.completeDownload(downloadId, false);
+        }
+
+        toast.error(errorMsg);
+        console.error(error);
+      }
+    },
+    [api, downloadProgressHook]
+  );
+
   const restoreItem = useCallback(
     async (id, itemType) => {
       try {
@@ -498,6 +660,7 @@ export const useFileOperations = (
     uploadFiles,
     deleteItem,
     handleDownload,
+    handleFolderDownload,
     restoreItem,
     emptyTrash,
     renameItem,
