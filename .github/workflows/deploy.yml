@@ -39,21 +39,11 @@ jobs:
         env: { NODE_OPTIONS: "--max-old-space-size=4096" }
         run: npm run build
 
-      - name: Start Backend (8080)
-        shell: powershell
-        working-directory: ./server
-        run: |
-          pm2 reload mydrive-backend
-          if ($LASTEXITCODE -ne 0) {
-            pm2 start index.js --name mydrive-backend -- -p 8080
-          }
-          pm2 save
-
-      - name: Start Frontend (3000)
+      - name: Start Applications
         shell: powershell
         run: |
-          pm2 delete mydrive-frontend
-          pm2 start npx --name mydrive-frontend -- serve -s client/build -l 3000
+          pm2 delete all
+          pm2 start ecosystem.config.js
           pm2 save
 
       - name: Verify
