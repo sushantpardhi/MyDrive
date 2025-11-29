@@ -14,7 +14,7 @@ module.exports = {
     {
       name: "mydrive-frontend",
       script: "serve",
-      args: "-s client/build -listen 0.0.0.0:3000 -n --spa",
+      args: "-s client/build --listen 0.0.0.0:3000 -n",
       env: {
         NODE_ENV: "production",
       },
