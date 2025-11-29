@@ -42,7 +42,7 @@ jobs:
       - name: Start Applications
         shell: powershell
         run: |
-          serve -s client/build --listen 0.0.0.0:5000 -n
+          serve -s client/build
           # pm2 delete all
           # pm2 start ecosystem.config.js
           # pm2 save
