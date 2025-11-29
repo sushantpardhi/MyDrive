@@ -25,6 +25,7 @@ export const UIProvider = ({ children }) => {
 
   const [copyMoveDialogOpen, setCopyMoveDialogOpen] = useState(false);
   const [copyMoveItem, setCopyMoveItem] = useState(null);
+  const [copyMoveItems, setCopyMoveItems] = useState([]); // For bulk operations
   const [copyMoveItemType, setCopyMoveItemType] = useState(null);
   const [copyMoveOperation, setCopyMoveOperation] = useState("copy");
 
@@ -65,7 +66,16 @@ export const UIProvider = ({ children }) => {
 
   const openCopyMoveDialog = useCallback((item, itemType, operation) => {
     setCopyMoveItem(item);
+    setCopyMoveItems([]); // Clear bulk items when opening for single item
     setCopyMoveItemType(itemType);
+    setCopyMoveOperation(operation);
+    setCopyMoveDialogOpen(true);
+  }, []);
+
+  const openBulkCopyMoveDialog = useCallback((items, operation) => {
+    setCopyMoveItem(null); // Clear single item when opening for bulk
+    setCopyMoveItems(items);
+    setCopyMoveItemType("bulk"); // Special type for bulk operations
     setCopyMoveOperation(operation);
     setCopyMoveDialogOpen(true);
   }, []);
@@ -73,6 +83,7 @@ export const UIProvider = ({ children }) => {
   const closeCopyMoveDialog = useCallback(() => {
     setCopyMoveDialogOpen(false);
     setCopyMoveItem(null);
+    setCopyMoveItems([]);
     setCopyMoveItemType(null);
     setCopyMoveOperation("copy");
   }, []);
@@ -109,9 +120,11 @@ export const UIProvider = ({ children }) => {
 
     copyMoveDialogOpen,
     copyMoveItem,
+    copyMoveItems,
     copyMoveItemType,
     copyMoveOperation,
     openCopyMoveDialog,
+    openBulkCopyMoveDialog,
     closeCopyMoveDialog,
 
     previewModalOpen,

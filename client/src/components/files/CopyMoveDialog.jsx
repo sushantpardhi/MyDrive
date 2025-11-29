@@ -8,6 +8,7 @@ const CopyMoveDialog = ({
   onClose,
   onCopyMove,
   item,
+  items = [], // For bulk operations
   itemType,
   operation, // "copy" or "move"
 }) => {
@@ -18,14 +19,21 @@ const CopyMoveDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
 
+  const isBulkOperation = items.length > 0;
+  const itemCount = isBulkOperation ? items.length : 1;
+
   useEffect(() => {
     if (isOpen) {
       setCurrentFolder("root");
       setPath([{ id: "root", name: "My Drive" }]);
-      setName(operation === "copy" ? `Copy of ${item?.name || ""}` : "");
+      setName(
+        operation === "copy" && !isBulkOperation
+          ? `Copy of ${item?.name || ""}`
+          : ""
+      );
       loadFolders("root");
     }
-  }, [isOpen, operation, item]);
+  }, [isOpen, operation, item, isBulkOperation]);
 
   const loadFolders = async (folderId) => {
     setLoading(true);
@@ -46,9 +54,17 @@ const CopyMoveDialog = ({
   };
 
   const navigateToFolder = async (folder) => {
-    // Prevent navigating into the item being moved
-    if (operation === "move" && folder._id === item._id) {
+    // Prevent navigating into the item being moved (for single item operations)
+    if (operation === "move" && !isBulkOperation && folder._id === item._id) {
       return;
+    }
+
+    // For bulk operations, prevent navigating into any of the folders being moved
+    if (operation === "move" && isBulkOperation) {
+      const isFolderBeingMoved = items.some((it) => it._id === folder._id);
+      if (isFolderBeingMoved) {
+        return;
+      }
     }
 
     setCurrentFolder(folder._id);
@@ -67,27 +83,47 @@ const CopyMoveDialog = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (operation === "move" && currentFolder === item.parent) {
-      // Can't move to the same location
-      onClose();
-      return;
+    // For single item operations
+    if (!isBulkOperation) {
+      if (operation === "move" && currentFolder === item.parent) {
+        // Can't move to the same location
+        onClose();
+        return;
+      }
+
+      if (operation === "move" && currentFolder === item._id) {
+        // Can't move into itself
+        return;
+      }
     }
 
-    if (operation === "move" && currentFolder === item._id) {
-      // Can't move into itself
-      return;
+    // For bulk operations with move, check if moving to current parent of any item
+    if (isBulkOperation && operation === "move") {
+      const allInSameLocation = items.every(
+        (it) => (it.parent || "root") === currentFolder
+      );
+      if (allInSameLocation) {
+        onClose();
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      const trimmedName = name.trim();
-      await onCopyMove(
-        item._id,
-        currentFolder,
-        itemType,
-        operation,
-        operation === "copy" && trimmedName ? trimmedName : null
-      );
+      if (isBulkOperation) {
+        // Bulk operation
+        await onCopyMove(currentFolder, operation);
+      } else {
+        // Single item operation
+        const trimmedName = name.trim();
+        await onCopyMove(
+          item._id,
+          currentFolder,
+          itemType,
+          operation,
+          operation === "copy" && trimmedName ? trimmedName : null
+        );
+      }
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -97,11 +133,20 @@ const CopyMoveDialog = ({
   if (!isOpen) return null;
 
   const isCurrentLocation =
-    operation === "move" && currentFolder === (item?.parent || "root");
+    operation === "move" &&
+    !isBulkOperation &&
+    currentFolder === (item?.parent || "root");
   const isSelfFolder =
     operation === "move" &&
+    !isBulkOperation &&
     itemType === "folders" &&
     currentFolder === item._id;
+
+  // For bulk operations, check if all items are in the current location
+  const allItemsInCurrentLocation =
+    operation === "move" &&
+    isBulkOperation &&
+    items.every((it) => (it.parent || "root") === currentFolder);
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -109,7 +154,11 @@ const CopyMoveDialog = ({
         <div className={styles.header}>
           <h3>
             {operation === "copy" ? "Copy" : "Move"}{" "}
-            {itemType === "folders" ? "Folder" : "File"}
+            {isBulkOperation
+              ? `${itemCount} Items`
+              : itemType === "folders"
+              ? "Folder"
+              : "File"}
           </h3>
           <button
             onClick={onClose}
@@ -121,7 +170,7 @@ const CopyMoveDialog = ({
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          {operation === "copy" && (
+          {operation === "copy" && !isBulkOperation && (
             <div className={styles.inputGroup}>
               <label htmlFor="itemName">Name (optional)</label>
               <input
@@ -172,11 +221,21 @@ const CopyMoveDialog = ({
                 <div className={styles.emptyState}>No folders available</div>
               ) : (
                 folders.map((folder) => {
-                  const isDisabled =
-                    (operation === "move" && folder._id === item._id) ||
-                    (operation === "move" &&
-                      itemType === "folders" &&
-                      folder._id === item._id);
+                  let isDisabled = false;
+
+                  // For single item operations
+                  if (!isBulkOperation) {
+                    isDisabled =
+                      (operation === "move" && folder._id === item._id) ||
+                      (operation === "move" &&
+                        itemType === "folders" &&
+                        folder._id === item._id);
+                  } else {
+                    // For bulk operations, disable if any of the items match this folder
+                    isDisabled =
+                      operation === "move" &&
+                      items.some((it) => it._id === folder._id);
+                  }
 
                   return (
                     <button
@@ -209,13 +268,18 @@ const CopyMoveDialog = ({
             <button
               type="submit"
               className={styles.actionButton}
-              disabled={isSubmitting || isCurrentLocation || isSelfFolder}
+              disabled={
+                isSubmitting ||
+                isCurrentLocation ||
+                isSelfFolder ||
+                allItemsInCurrentLocation
+              }
             >
               {isSubmitting
                 ? `${operation === "copy" ? "Copying" : "Moving"}...`
                 : operation === "copy"
-                ? "Copy Here"
-                : "Move Here"}
+                ? `Copy Here${isBulkOperation ? ` (${itemCount})` : ""}`
+                : `Move Here${isBulkOperation ? ` (${itemCount})` : ""}`}
             </button>
           </div>
         </form>

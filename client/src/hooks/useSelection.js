@@ -136,6 +136,74 @@ export const useSelection = (api, folders, files, type) => {
     }
   }, [selectedItems, files, api]);
 
+  const bulkCopy = useCallback(
+    async (targetParent, onComplete) => {
+      if (!selectedItems.size) return false;
+
+      try {
+        const promises = [...selectedItems].map((id) => {
+          const file = files.find((f) => f._id === id);
+          const itemType = file ? "files" : "folders";
+          return itemType === "files"
+            ? api.copyFile(id, targetParent, null)
+            : api.copyFolder(id, targetParent, null);
+        });
+
+        await Promise.all(promises);
+
+        if (onComplete) await onComplete();
+        clearSelection();
+
+        toast.success(
+          `${selectedItems.size} item${
+            selectedItems.size > 1 ? "s" : ""
+          } copied successfully`
+        );
+        return true;
+      } catch (error) {
+        const errorMsg = error.response?.data?.error || "Bulk copy failed";
+        toast.error(errorMsg);
+        console.error(error);
+        return false;
+      }
+    },
+    [selectedItems, files, api, clearSelection]
+  );
+
+  const bulkMove = useCallback(
+    async (targetParent, onComplete) => {
+      if (!selectedItems.size) return false;
+
+      try {
+        const promises = [...selectedItems].map((id) => {
+          const file = files.find((f) => f._id === id);
+          const itemType = file ? "files" : "folders";
+          return itemType === "files"
+            ? api.moveFile(id, targetParent)
+            : api.moveFolder(id, targetParent);
+        });
+
+        await Promise.all(promises);
+
+        if (onComplete) await onComplete();
+        clearSelection();
+
+        toast.success(
+          `${selectedItems.size} item${
+            selectedItems.size > 1 ? "s" : ""
+          } moved successfully`
+        );
+        return true;
+      } catch (error) {
+        const errorMsg = error.response?.data?.error || "Bulk move failed";
+        toast.error(errorMsg);
+        console.error(error);
+        return false;
+      }
+    },
+    [selectedItems, files, api, clearSelection]
+  );
+
   return {
     selectedItems,
     toggleSelection,
@@ -145,5 +213,7 @@ export const useSelection = (api, folders, files, type) => {
     bulkRestore,
     bulkShare,
     bulkDownload,
+    bulkCopy,
+    bulkMove,
   };
 };

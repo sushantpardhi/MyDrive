@@ -7,6 +7,8 @@ import {
   Share2,
   RotateCcw,
   Download,
+  Copy,
+  FolderInput,
 } from "lucide-react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import styles from "./Header.module.css";
@@ -31,6 +33,8 @@ const Header = ({
   onBulkShare,
   onBulkDelete,
   onBulkRestore,
+  onBulkCopy,
+  onBulkMove,
 }) => {
   const { selectedItems } = useSelectionContext();
   return (
@@ -190,6 +194,12 @@ const Header = ({
                   </button>
                   <button onClick={onBulkShare} className={styles.actionBtn}>
                     <Share2 size={16} /> <span>Share</span>
+                  </button>
+                  <button onClick={onBulkCopy} className={styles.actionBtn}>
+                    <Copy size={16} /> <span>Copy</span>
+                  </button>
+                  <button onClick={onBulkMove} className={styles.actionBtn}>
+                    <FolderInput size={16} /> <span>Move</span>
                   </button>
                   <button
                     onClick={onBulkDelete}

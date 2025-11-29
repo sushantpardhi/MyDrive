@@ -44,7 +44,7 @@ const FileCard = ({
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   const [thumbnailError, setThumbnailError] = useState(false);
   const menuRef = useRef(null);
-  const { isSelected } = useSelectionContext();
+  const { isSelected, getSelectedCount } = useSelectionContext();
   const { openPreviewModal } = useUIContext();
 
   // Validate file object to prevent crashes and provide defaults
@@ -65,6 +65,8 @@ const FileCard = ({
         };
 
   const selected = isSelected(safeFile._id);
+  const selectedCount = getSelectedCount();
+  const hasMultipleSelections = selectedCount > 1;
 
   // Get file type for preview
   const getFileType = (filename) => {
@@ -366,28 +368,30 @@ const FileCard = ({
 
       {/* Menu and actions */}
       <div className={styles.menuWrapper} ref={menuRef}>
-        <button
-          className={styles.menuButton}
-          aria-label="File actions"
-          title="More actions"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen(!menuOpen);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        {!hasMultipleSelections && (
+          <button
+            className={styles.menuButton}
+            aria-label="File actions"
+            title="More actions"
+            onClick={(e) => {
               e.stopPropagation();
               setMenuOpen(!menuOpen);
-            }
-            if (e.key === "Escape") {
-              setMenuOpen(false);
-            }
-          }}
-        >
-          <MoreVertical size={16} />
-        </button>
-        {menuOpen && (
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+              }
+              if (e.key === "Escape") {
+                setMenuOpen(false);
+              }
+            }}
+          >
+            <MoreVertical size={16} />
+          </button>
+        )}
+        {menuOpen && !hasMultipleSelections && (
           <div
             className={styles.menuDropdown}
             role="menu"
@@ -519,6 +523,7 @@ const FileCard = ({
         )}
         {/* Inline actions for list view only */}
         {viewType === "list" &&
+          !hasMultipleSelections &&
           (type !== "trash" ? (
             <>
               <button

@@ -70,9 +70,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     closeRenameDialog,
     copyMoveDialogOpen,
     copyMoveItem,
+    copyMoveItems,
     copyMoveItemType,
     copyMoveOperation,
     openCopyMoveDialog,
+    openBulkCopyMoveDialog,
     closeCopyMoveDialog,
   } = useUIContext();
 
@@ -175,12 +177,14 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     hasMore: searchHasMore,
   } = useSearch(api, loadFolderContents);
 
-  const { bulkDelete, bulkRestore, bulkShare, bulkDownload } = useSelection(
-    api,
-    folders,
-    files,
-    type
-  );
+  const {
+    bulkDelete,
+    bulkRestore,
+    bulkShare,
+    bulkDownload,
+    bulkCopy,
+    bulkMove,
+  } = useSelection(api, folders, files, type);
 
   // Get current data to display (search results or regular folder contents)
   const displayFolders = searchQuery.trim() ? searchResults.folders : folders;
@@ -344,28 +348,62 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   };
 
-  const handleCopyMove = async (
-    id,
-    parent,
-    itemType,
-    operation,
-    name = null
-  ) => {
+  const handleCopyMove = async (...args) => {
     try {
-      let success;
-      if (operation === "copy") {
-        success = await copyItem(id, parent, itemType, name);
-      } else {
-        success = await moveItem(id, parent, itemType);
-      }
+      // Check if this is a bulk operation (2 parameters) or single operation (5 parameters)
+      const isBulkOperation = args.length === 2;
 
-      if (success) {
-        await loadFolderContents(currentFolderId, 1, false);
+      if (isBulkOperation) {
+        // Bulk operation: handleCopyMove(targetParent, operation)
+        const [targetParent, bulkOperation] = args;
+
+        if (bulkOperation === "copy") {
+          await bulkCopy(targetParent, async () => {
+            await loadFolderContents(currentFolderId, 1, false);
+          });
+        } else {
+          await bulkMove(targetParent, async () => {
+            await loadFolderContents(currentFolderId, 1, false);
+          });
+        }
+        return true;
+      } else {
+        // Single item operation: handleCopyMove(id, parent, itemType, operation, name)
+        const [id, parent, itemType, operation, name = null] = args;
+
+        let success;
+        if (operation === "copy") {
+          success = await copyItem(id, parent, itemType, name);
+        } else {
+          success = await moveItem(id, parent, itemType);
+        }
+
+        if (success) {
+          await loadFolderContents(currentFolderId, 1, false);
+        }
+        return success;
       }
-      return success;
     } catch (error) {
       throw error;
     }
+  };
+
+  const handleBulkCopy = () => {
+    const selectedItemsList = [...selectedItems].map((id) => {
+      const file = files.find((f) => f._id === id);
+      const folder = folders.find((f) => f._id === id);
+      return file || folder;
+    });
+    openBulkCopyMoveDialog(selectedItemsList, "copy");
+  };
+
+  const handleBulkMove = () => {
+    const selectedItemsList = [...selectedItems].map((id) => {
+      const file = files.find((f) => f._id === id);
+      const folder = folders.find((f) => f._id === id);
+      return file || folder;
+    });
+    openBulkCopyMoveDialog(selectedItemsList, "move");
   };
 
   return (
@@ -388,6 +426,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onBulkShare={bulkShare}
         onBulkDelete={handleBulkDelete}
         onBulkRestore={handleBulkRestore}
+        onBulkCopy={handleBulkCopy}
+        onBulkMove={handleBulkMove}
       />
 
       <LocationHeader
@@ -458,6 +498,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onClose={closeCopyMoveDialog}
         onCopyMove={handleCopyMove}
         item={copyMoveItem}
+        items={copyMoveItems}
         itemType={copyMoveItemType}
         operation={copyMoveOperation}
       />

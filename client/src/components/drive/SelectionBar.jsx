@@ -1,4 +1,11 @@
-import { Download, Share2, Trash2, RotateCcw } from "lucide-react";
+import {
+  Download,
+  Share2,
+  Trash2,
+  RotateCcw,
+  Copy,
+  FolderInput,
+} from "lucide-react";
 import styles from "./SelectionBar.module.css";
 
 const SelectionBar = ({
@@ -8,6 +15,8 @@ const SelectionBar = ({
   onBulkShare,
   onBulkDelete,
   onBulkRestore,
+  onBulkCopy,
+  onBulkMove,
   onClearSelection,
 }) => {
   return (
@@ -34,6 +43,12 @@ const SelectionBar = ({
             </button>
             <button onClick={onBulkShare} className={styles.actionBtn}>
               <Share2 size={16} /> <span>Share</span>
+            </button>
+            <button onClick={onBulkCopy} className={styles.actionBtn}>
+              <Copy size={16} /> <span>Copy</span>
+            </button>
+            <button onClick={onBulkMove} className={styles.actionBtn}>
+              <FolderInput size={16} /> <span>Move</span>
             </button>
             <button onClick={onBulkDelete} className={styles.actionBtnDanger}>
               <Trash2 size={16} /> <span>Move to Trash</span>

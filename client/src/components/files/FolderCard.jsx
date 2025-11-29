@@ -30,8 +30,10 @@ const FolderCard = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
-  const { isSelected } = useSelectionContext();
+  const { isSelected, getSelectedCount } = useSelectionContext();
   const selected = isSelected(folder._id);
+  const selectedCount = getSelectedCount();
+  const hasMultipleSelections = selectedCount > 1;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -110,19 +112,21 @@ const FolderCard = ({
       <div className={styles.menuWrapper} ref={menuRef}>
         {viewType === "grid" ? (
           <>
-            <button
-              className={styles.menuButton}
-              aria-label="Folder actions"
-              title="More actions"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
-            >
-              <MoreVertical size={16} />
-            </button>
+            {!hasMultipleSelections && (
+              <button
+                className={styles.menuButton}
+                aria-label="Folder actions"
+                title="More actions"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+              >
+                <MoreVertical size={16} />
+              </button>
+            )}
 
-            {menuOpen && (
+            {menuOpen && !hasMultipleSelections && (
               <div className={styles.menuDropdown} role="menu">
                 {type !== "trash" ? (
                   <>
@@ -222,19 +226,21 @@ const FolderCard = ({
           </>
         ) : (
           <>
-            <button
-              className={styles.menuButton}
-              aria-label="Folder actions"
-              title="More actions"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
-            >
-              <MoreVertical size={16} />
-            </button>
+            {!hasMultipleSelections && (
+              <button
+                className={styles.menuButton}
+                aria-label="Folder actions"
+                title="More actions"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+              >
+                <MoreVertical size={16} />
+              </button>
+            )}
 
-            {menuOpen && (
+            {menuOpen && !hasMultipleSelections && (
               <div className={styles.menuDropdown} role="menu">
                 {type !== "trash" ? (
                   <>
@@ -331,57 +337,58 @@ const FolderCard = ({
                 )}
               </div>
             )}
-            {type !== "trash" ? (
-              <>
-                <button
-                  className={styles.actionButton}
-                  aria-label="Share folder"
-                  title="Share"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onShare();
-                  }}
-                >
-                  <Share2 size={16} />
-                </button>
-                <button
-                  className={styles.actionButton}
-                  aria-label="Delete folder"
-                  title="Move to Trash"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className={styles.actionButton}
-                  aria-label="Restore folder"
-                  title="Restore"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRestore?.();
-                  }}
-                >
-                  <RotateCcw size={16} />
-                </button>
-                <button
-                  className={styles.actionButton}
-                  aria-label="Delete folder permanently"
-                  title="Delete Permanently"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </>
-            )}
+            {!hasMultipleSelections &&
+              (type !== "trash" ? (
+                <>
+                  <button
+                    className={styles.actionButton}
+                    aria-label="Share folder"
+                    title="Share"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare();
+                    }}
+                  >
+                    <Share2 size={16} />
+                  </button>
+                  <button
+                    className={styles.actionButton}
+                    aria-label="Delete folder"
+                    title="Move to Trash"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete();
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className={styles.actionButton}
+                    aria-label="Restore folder"
+                    title="Restore"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRestore?.();
+                    }}
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                  <button
+                    className={styles.actionButton}
+                    aria-label="Delete folder permanently"
+                    title="Delete Permanently"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete();
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              ))}
           </>
         )}
       </div>
