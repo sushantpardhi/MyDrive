@@ -63,6 +63,10 @@ app.use("/api/users", authenticateToken, usersRouter);
 app.use("/api/shared", authenticateToken, sharedRouter);
 app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
+app.get("/", (req, res) => {
+  res.send("MyDrive Backend is running.");
+});
+
 // Initialize cleanup scheduler after database connection
 mongoose.connection.once("open", async () => {
   if (process.env.NODE_ENV !== "production") {
