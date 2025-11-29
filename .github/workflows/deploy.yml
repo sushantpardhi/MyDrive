@@ -9,6 +9,11 @@ jobs:
   deploy-backend:
     runs-on: self-hosted
     steps:
+      - name: Stop running apps
+        shell: powershell
+        run: |
+          pm2 stop all
+
       - name: Checkout
         uses: actions/checkout@v3
 
