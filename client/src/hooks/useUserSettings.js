@@ -5,15 +5,12 @@ import api from "../services/api";
 export const useUserSettings = () => {
   const { user } = useAuth();
 
-  // Load viewMode from localStorage on init
-  const [viewMode, setViewMode] = useState(() => {
-    const saved = localStorage.getItem("viewMode");
-    return saved || "grid";
-  });
-  const [loading, setLoading] = useState(false);
+  // Initialize viewMode as loading state (don't load from localStorage immediately)
+  const [viewMode, setViewMode] = useState("grid");
+  const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
-  // Load user settings from backend and sync viewMode
+  // Load user settings from backend on mount and when user changes
   useEffect(() => {
     async function syncSettings() {
       try {
@@ -24,12 +21,14 @@ export const useUserSettings = () => {
           setViewMode(res.data.preferences.viewMode);
           localStorage.setItem("viewMode", res.data.preferences.viewMode);
         } else {
-          // If no backend preference, reset to default
+          // If no backend preference, use default
           setViewMode("grid");
           localStorage.setItem("viewMode", "grid");
         }
       } catch (err) {
-        // Keep local settings as fallback
+        // On error, try to use localStorage as fallback
+        const saved = localStorage.getItem("viewMode");
+        setViewMode(saved || "grid");
       } finally {
         setLoading(false);
         setInitialized(true);
@@ -41,6 +40,8 @@ export const useUserSettings = () => {
       setInitialized(false);
       syncSettings();
     } else {
+      // No user logged in, reset to default
+      setViewMode("grid");
       setInitialized(true);
       setLoading(false);
     }

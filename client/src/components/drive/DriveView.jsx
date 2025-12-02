@@ -17,7 +17,6 @@ import TransferProgressToast from "../files/TransferProgressToast";
 import { useFileOperations } from "../../hooks/useFileOperations";
 import { useSearch } from "../../hooks/useSearch";
 import { useSelection } from "../../hooks/useSelection";
-import { useUserSettings } from "../../hooks/useUserSettings";
 import { useBreadcrumbs } from "../../hooks/useBreadcrumbs";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
@@ -28,6 +27,7 @@ import { useUploadWarning } from "../../hooks/useUploadWarning";
 import { useDriveContext } from "../../contexts/DriveContext";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts/UIContext";
+import { useUserSettings } from "../../contexts/UserSettingsContext";
 
 // Services
 import api from "../../services/api";

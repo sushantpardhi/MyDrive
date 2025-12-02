@@ -74,13 +74,6 @@ const FolderCard = ({
         )}
       </div>
 
-      {/* Owner avatar for shared items */}
-      {type === "shared" && folder.owner && (
-        <div className={styles.ownerAvatarWrapper}>
-          <OwnerAvatar owner={folder.owner} />
-        </div>
-      )}
-
       <div
         className={styles.folderContent}
         onClick={(e) => {
@@ -115,11 +108,6 @@ const FolderCard = ({
 
       {viewType === "list" && (
         <>
-          {type === "shared" && (
-            <div className={styles.folderOwner}>
-              {folder.owner && <OwnerAvatar owner={folder.owner} />}
-            </div>
-          )}
           <div className={styles.folderSize}>—</div>
           <div className={styles.folderMeta}>
             {formatDate(folder.updatedAt)}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import api from "../../services/api";
-import { useUserSettings } from "../../hooks/useUserSettings";
+import { useUserSettings } from "../../contexts/UserSettingsContext";
 import { useTheme } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./UserProfile.module.css";

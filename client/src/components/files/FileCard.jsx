@@ -304,13 +304,6 @@ const FileCard = ({
         )}
       </div>
 
-      {/* Owner avatar for shared items */}
-      {type === "shared" && safeFile.owner && (
-        <div className={styles.ownerAvatarWrapper}>
-          <OwnerAvatar owner={safeFile.owner} />
-        </div>
-      )}
-
       {/* File content: icon, name, size, date */}
       <div
         className={styles.fileContent}
@@ -369,11 +362,6 @@ const FileCard = ({
       {/* For list view, show size and date in columns for better alignment */}
       {viewType === "list" && (
         <>
-          {type === "shared" && (
-            <div className={styles.fileOwner}>
-              {safeFile.owner && <OwnerAvatar owner={safeFile.owner} />}
-            </div>
-          )}
           <div className={styles.fileSize}>{formatSize(safeFile.size)}</div>
           <div className={styles.fileMeta}>
             {formatDate(safeFile.updatedAt)}

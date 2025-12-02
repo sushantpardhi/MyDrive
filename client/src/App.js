@@ -16,6 +16,7 @@ import { DriveProvider } from "./contexts/DriveContext";
 import { SelectionProvider } from "./contexts/SelectionContext";
 import { UIProvider, useUIContext } from "./contexts/UIContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import styles from "./App.module.css";
 
 // Protected Route Component
@@ -84,69 +85,71 @@ const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Auth Routes */}
-            <Route
-              path="/register"
-              element={
-                <AuthRoute>
-                  <Register />
-                </AuthRoute>
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <AuthRoute>
-                  <Login />
-                </AuthRoute>
-              }
-            />
-            <Route
-              path="/forgot-password"
-              element={
-                <AuthRoute>
-                  <ForgotPassword />
-                </AuthRoute>
-              }
-            />
-            <Route
-              path="/reset-password"
-              element={
-                <AuthRoute>
-                  <ResetPassword />
-                </AuthRoute>
-              }
-            />
+        <UserSettingsProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Auth Routes */}
+              <Route
+                path="/register"
+                element={
+                  <AuthRoute>
+                    <Register />
+                  </AuthRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <AuthRoute>
+                    <Login />
+                  </AuthRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <AuthRoute>
+                    <ForgotPassword />
+                  </AuthRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <AuthRoute>
+                    <ResetPassword />
+                  </AuthRoute>
+                }
+              />
 
-            {/* Protected Routes */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <UIProvider>
-                    <DriveProvider>
-                      <SelectionProvider>
-                        <AppLayout />
-                      </SelectionProvider>
-                    </DriveProvider>
-                  </UIProvider>
-                </ProtectedRoute>
-              }
+              {/* Protected Routes */}
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <UIProvider>
+                      <DriveProvider>
+                        <SelectionProvider>
+                          <AppLayout />
+                        </SelectionProvider>
+                      </DriveProvider>
+                    </UIProvider>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+            <ToastContainer
+              position="top-right"
+              toastStyle={{
+                zIndex: 9999,
+              }}
+              className="react-toast-container"
+              style={{
+                zIndex: 9999,
+              }}
             />
-          </Routes>
-          <ToastContainer
-            position="top-right"
-            toastStyle={{
-              zIndex: 9999,
-            }}
-            className="react-toast-container"
-            style={{
-              zIndex: 9999,
-            }}
-          />
-        </BrowserRouter>
+          </BrowserRouter>
+        </UserSettingsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -96,28 +96,6 @@
   color: var(--text-tertiary);
 }
 
-/* Owner Avatar */
-.ownerAvatarWrapper {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-
-.fileCard:hover .ownerAvatarWrapper,
-.fileCard:focus-within .ownerAvatarWrapper,
-.fileCard.selected .ownerAvatarWrapper {
-  opacity: 1;
-}
-
-/* Always show owner avatar in list view */
-.fileCard.list .ownerAvatarWrapper {
-  opacity: 1;
-  position: static;
-}
-
 /* Grid View Styles */
 .fileCard.grid {
   width: 100%;
@@ -706,12 +684,6 @@
 }
 
 /* File metadata columns */
-.fileOwner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .fileSize {
   font-size: 13px;
   color: var(--text-secondary);
@@ -1027,4 +999,109 @@
   text-align: center;
   font-size: 14px;
   font-weight: 500;
+}
+
+/* Owner Badge Styles */
+.ownerBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.fileCard:hover .ownerBadge {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.3);
+  padding-right: 8px;
+}
+
+/* Owner avatar inside badge */
+.ownerBadge > div {
+  flex-shrink: 0;
+}
+
+.ownerBadge > div .avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Shared label that appears on hover */
+.ownerBadge::after {
+  content: 'Shared';
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fileCard:hover .ownerBadge::after {
+  opacity: 1;
+  max-width: 50px;
+  margin-left: 2px;
+}
+
+/* Grid view badge positioning */
+.fileCard.grid .ownerBadge {
+  top: -6px;
+  right: -6px;
+}
+
+/* List view badge positioning */
+.fileCard.list .ownerBadge {
+  top: -4px;
+  right: -4px;
+}
+
+.fileCard.list .ownerBadge > div .avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+}
+
+.fileCard.list:hover .ownerBadge {
+  padding-right: 6px;
+}
+
+.fileCard.list .ownerBadge::after {
+  font-size: 9px;
+}
+
+@media (max-width: 768px) {
+  .fileCard.grid .ownerBadge {
+    top: -4px;
+    right: -4px;
+  }
+
+  .fileCard.grid .ownerBadge > div .avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 9px;
+  }
+
+  /* Disable hover expansion on mobile */
+  .fileCard:hover .ownerBadge::after {
+    opacity: 0;
+    max-width: 0;
+  }
+
+  .fileCard:hover .ownerBadge {
+    padding-right: 3px;
+  }
 }
