@@ -16,6 +16,7 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+
 // Response interceptor to handle session expiration
 axios.interceptors.response.use(
   (response) => response,
@@ -196,7 +197,7 @@ const api = {
     axios.post(`${API_URL}/files/chunked-upload/initiate`, uploadData),
 
   // Upload a chunk
-  uploadChunk: (uploadId, chunkData) => {
+  uploadChunk: (uploadId, chunkData, abortSignal = null) => {
     const { chunk, index, size, start, end, hash } = chunkData;
 
     const formData = new FormData();
@@ -210,17 +211,24 @@ const api = {
       formData.append("hash", hash);
     }
 
+    const config = {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 30000, // Optimized 30 second timeout for parallel uploads
+      maxContentLength: 20 * 1024 * 1024, // 20MB max chunk size for larger chunks
+      maxBodyLength: 20 * 1024 * 1024, // 20MB max body size
+      maxRedirects: 0, // Disable redirects for performance
+      validateStatus: (status) => status >= 200 && status < 300, // Only accept 2xx responses
+    };
+
+    // Add abort signal if provided
+    if (abortSignal) {
+      config.signal = abortSignal;
+    }
+
     return axios.post(
       `${API_URL}/files/chunked-upload/${uploadId}/chunk`,
       formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 30000, // Optimized 30 second timeout for parallel uploads
-        maxContentLength: 20 * 1024 * 1024, // 20MB max chunk size for larger chunks
-        maxBodyLength: 20 * 1024 * 1024, // 20MB max body size
-        maxRedirects: 0, // Disable redirects for performance
-        validateStatus: (status) => status >= 200 && status < 300, // Only accept 2xx responses
-      }
+      config
     );
   },
 

@@ -72,17 +72,19 @@ export const useUploadProgress = () => {
         if (!current) return prev;
 
         const fileSize = totalBytes || current.fileSize;
-        const progress = Math.min((uploadedBytes / fileSize) * 100, 100);
+        // Ensure uploadedBytes never exceeds fileSize to prevent >100% progress
+        const safeUploadedBytes = Math.min(uploadedBytes, fileSize);
+        const progress = Math.min((safeUploadedBytes / fileSize) * 100, 100);
 
         // Calculate average speed from start
         const totalTime = (currentTime - progressData.startTime) / 1000;
-        const averageSpeed = totalTime > 0 ? uploadedBytes / totalTime : 0;
+        const averageSpeed = totalTime > 0 ? safeUploadedBytes / totalTime : 0;
 
         return {
           ...prev,
           [fileId]: {
             ...current,
-            uploadedBytes,
+            uploadedBytes: safeUploadedBytes,
             progress,
             speed: averageSpeed,
             // Update chunked upload fields if provided
@@ -200,60 +202,95 @@ export const useUploadProgress = () => {
   );
 
   const cancelUpload = useCallback((fileId) => {
-    // Cancel via chunk service if available
-    const chunkService = chunkServicesRef.current[fileId];
-    if (chunkService) {
-      chunkService.cancelUpload(fileId).catch((err) => {
-        console.error("Failed to cancel upload:", err);
-      });
-      delete chunkServicesRef.current[fileId];
-    }
-
+    // Get current upload info for user feedback
     setUploadProgress((prev) => {
       const current = prev[fileId];
       if (current) {
-        // Mark as cancelled instead of removing immediately for chunked uploads
-        if (current.isChunked) {
-          return {
-            ...prev,
-            [fileId]: {
-              ...current,
-              status: "cancelled",
-              completedTime: Date.now(),
-            },
-          };
+        // Show cancelling status immediately
+        return {
+          ...prev,
+          [fileId]: {
+            ...current,
+            status: "cancelling",
+          },
+        };
+      }
+      return prev;
+    });
+
+    // Cancel via chunk service if available
+    const chunkService = chunkServicesRef.current[fileId];
+    if (chunkService) {
+      chunkService
+        .cancelUpload(fileId)
+        .then((success) => {
+          if (success) {
+            console.log(`Upload cancelled successfully: ${fileId}`);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to cancel upload:", err);
+        })
+        .finally(() => {
+          delete chunkServicesRef.current[fileId];
+        });
+    }
+
+    // Clean up upload progress after a short delay to show "cancelling" status
+    setTimeout(() => {
+      setUploadProgress((prev) => {
+        const current = prev[fileId];
+        if (current) {
+          // Mark as cancelled instead of removing immediately for chunked uploads
+          if (current.isChunked) {
+            return {
+              ...prev,
+              [fileId]: {
+                ...current,
+                status: "cancelled",
+                completedTime: Date.now(),
+              },
+            };
+          }
         }
-      }
 
-      // For regular uploads, remove immediately
-      const newProgress = { ...prev };
-      delete newProgress[fileId];
-      return newProgress;
-    });
+        // For regular uploads, remove immediately
+        const newProgress = { ...prev };
+        delete newProgress[fileId];
+        return newProgress;
+      });
 
-    delete progressDataRef.current[fileId];
+      delete progressDataRef.current[fileId];
 
-    // Check if any uploads are still active
-    setUploadProgress((current) => {
-      const hasActiveUploads = Object.values(current).some(
-        (upload) => upload.status === "uploading"
-      );
+      // Check if any uploads are still active
+      setUploadProgress((current) => {
+        const hasActiveUploads = Object.values(current).some(
+          (upload) =>
+            upload.status === "uploading" || upload.status === "cancelling"
+        );
 
-      if (!hasActiveUploads) {
-        setUploading(false);
-      }
+        if (!hasActiveUploads) {
+          setUploading(false);
+        }
 
-      return current;
-    });
+        return current;
+      });
+    }, 300); // Short delay to show cancelling status
   }, []);
 
   const pauseUpload = useCallback((fileId) => {
     // Pause via chunk service if available
     const chunkService = chunkServicesRef.current[fileId];
     if (chunkService) {
-      chunkService.pauseUpload(fileId).catch((err) => {
-        console.error("Failed to pause upload:", err);
-      });
+      chunkService
+        .pauseUpload(fileId)
+        .then(() => {
+          // After pausing, ensure UI reflects accurate paused state
+          // The chunk service will trigger onProgress callback with accurate values
+        })
+        .catch((err) => {
+          console.error("Failed to pause upload:", err);
+        });
     }
 
     setUploadProgress((prev) => {
@@ -266,6 +303,7 @@ export const useUploadProgress = () => {
           ...current,
           status: "paused",
           pausedTime: Date.now(),
+          // Preserve current progress values when pausing
         },
       };
     });
@@ -275,9 +313,15 @@ export const useUploadProgress = () => {
     // Resume via chunk service if available
     const chunkService = chunkServicesRef.current[fileId];
     if (chunkService) {
-      chunkService.resumeUpload(fileId).catch((err) => {
-        console.error("Failed to resume upload:", err);
-      });
+      chunkService
+        .resumeUpload(fileId)
+        .then(() => {
+          // After resuming, the chunk service will trigger onProgress callback
+          // with accurate current values before continuing uploads
+        })
+        .catch((err) => {
+          console.error("Failed to resume upload:", err);
+        });
     }
 
     setUploadProgress((prev) => {
@@ -297,6 +341,7 @@ export const useUploadProgress = () => {
           ...current,
           status: "uploading",
           pausedTime: undefined,
+          // Progress values will be updated by onProgress callback from chunk service
         },
       };
     });
@@ -345,7 +390,30 @@ export const useUploadProgress = () => {
 
   const cancelAll = useCallback(() => {
     const currentTime = Date.now();
+
+    // Get all active upload IDs from current state
     setUploadProgress((prev) => {
+      const activeUploadIds = Object.keys(prev).filter(
+        (fileId) =>
+          prev[fileId].status === "uploading" ||
+          prev[fileId].status === "paused"
+      );
+
+      // Cancel each upload individually for proper cleanup
+      activeUploadIds.forEach((fileId) => {
+        const chunkService = chunkServicesRef.current[fileId];
+        if (chunkService) {
+          chunkService
+            .cancelUpload(fileId)
+            .catch((err) => {
+              console.error(`Failed to cancel upload ${fileId}:`, err);
+            })
+            .finally(() => {
+              delete chunkServicesRef.current[fileId];
+            });
+        }
+      });
+
       const updated = { ...prev };
       Object.keys(updated).forEach((fileId) => {
         if (
@@ -370,7 +438,8 @@ export const useUploadProgress = () => {
     // Check if any uploads are still active
     setUploadProgress((current) => {
       const hasActiveUploads = Object.values(current).some(
-        (upload) => upload.status === "uploading"
+        (upload) =>
+          upload.status === "uploading" || upload.status === "cancelling"
       );
 
       if (!hasActiveUploads) {

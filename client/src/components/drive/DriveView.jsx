@@ -566,12 +566,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         uploadProgress={uploadProgressHook.uploadProgress}
         downloadProgress={downloadProgressHook.downloadProgress}
         onClose={uploadProgressHook.resetProgress}
-        onPauseUpload={uploadProgressHook.pauseUpload}
-        onResumeUpload={uploadProgressHook.resumeUpload}
         onStopUpload={uploadProgressHook.cancelUpload}
         onCancelDownload={downloadProgressHook.cancelDownload}
-        onPauseAll={uploadProgressHook.pauseAll}
-        onResumeAll={uploadProgressHook.resumeAll}
         onStopAll={uploadProgressHook.cancelAll}
       />
     </div>

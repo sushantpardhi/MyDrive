@@ -1,8 +1,6 @@
 import {
   ChevronDown,
   ChevronUp,
-  Pause,
-  Play,
   X,
   CheckCircle,
   AlertCircle,
@@ -21,12 +19,8 @@ const TransferProgressToast = ({
   isOpen,
   uploadProgress,
   downloadProgress = {},
-  onPauseUpload,
-  onResumeUpload,
   onStopUpload,
   onCancelDownload,
-  onPauseAll,
-  onResumeAll,
   onStopAll,
   onClose,
 }) => {
@@ -63,8 +57,10 @@ const TransferProgressToast = ({
     const statusPriority = {
       uploading: 0,
       downloading: 0,
-      completed: 1,
-      error: 2,
+      cancelling: 1,
+      completed: 2,
+      cancelled: 3,
+      error: 4,
     };
     return statusPriority[a.status] - statusPriority[b.status];
   });
@@ -207,6 +203,12 @@ const TransferProgressToast = ({
     }
     if (status === "uploading") {
       return "Uploading...";
+    }
+    if (status === "cancelling") {
+      return "Cancelling...";
+    }
+    if (status === "cancelled") {
+      return "Cancelled";
     }
     if (status === "completed") {
       return "Completed";
@@ -442,6 +444,16 @@ const TransferProgressToast = ({
                             {transfer.status === "paused" && (
                               <span className={styles.pausedText}>Paused</span>
                             )}
+                            {transfer.status === "cancelling" && (
+                              <span className={styles.cancellingText}>
+                                Cancelling...
+                              </span>
+                            )}
+                            {transfer.status === "cancelled" && (
+                              <span className={styles.cancelledText}>
+                                Cancelled
+                              </span>
+                            )}
                             {transfer.status === "completed" && (
                               <>
                                 {transfer.finalSpeed && (
@@ -473,50 +485,30 @@ const TransferProgressToast = ({
                         <div className={styles.uploadItemActions}>
                           {(transfer.status === "uploading" ||
                             transfer.status === "downloading" ||
-                            transfer.status === "paused") && (
-                            <>
-                              {transfer.status === "uploading" &&
-                                !isDownload && (
-                                  <button
-                                    className={styles.actionBtn}
-                                    title="Pause"
-                                    onClick={() =>
-                                      onPauseUpload && onPauseUpload(itemId)
-                                    }
-                                  >
-                                    <Pause size={16} />
-                                  </button>
-                                )}
-                              {transfer.status === "paused" && (
-                                <button
-                                  className={styles.actionBtn}
-                                  title="Resume"
-                                  onClick={() =>
-                                    onResumeUpload && onResumeUpload(itemId)
-                                  }
-                                >
-                                  <Play size={16} />
-                                </button>
-                              )}
-                              <button
-                                className={styles.actionBtn}
-                                title="Cancel"
-                                onClick={() => {
-                                  if (isDownload) {
-                                    onCancelDownload &&
-                                      onCancelDownload(itemId);
-                                  } else {
-                                    onStopUpload && onStopUpload(itemId);
-                                  }
-                                }}
-                              >
-                                <X size={16} />
-                              </button>
-                            </>
+                            transfer.status === "cancelling") && (
+                            <button
+                              className={styles.actionBtn}
+                              title={
+                                transfer.status === "cancelling"
+                                  ? "Cancelling..."
+                                  : "Cancel"
+                              }
+                              onClick={() => {
+                                if (transfer.status === "cancelling") return;
+                                if (isDownload) {
+                                  onCancelDownload && onCancelDownload(itemId);
+                                } else {
+                                  onStopUpload && onStopUpload(itemId);
+                                }
+                              }}
+                              disabled={transfer.status === "cancelling"}
+                            >
+                              <X size={16} />
+                            </button>
                           )}
                           {transfer.status !== "uploading" &&
                             transfer.status !== "downloading" &&
-                            transfer.status !== "paused" && (
+                            transfer.status !== "cancelling" && (
                               <div className={styles.progressPercent}>
                                 {Math.round(transfer.progress)}%
                               </div>
@@ -590,37 +582,6 @@ const TransferProgressToast = ({
                       : ""}
                   </div>
                 )}
-              </div>
-              <div className={styles.collectiveActions}>
-                <button
-                  className={styles.actionBtn}
-                  title="Pause All"
-                  onClick={onPauseAll}
-                  disabled={!hasActiveTransfers}
-                >
-                  <Pause size={16} /> Pause All
-                </button>
-                <button
-                  className={styles.actionBtn}
-                  title="Resume All"
-                  onClick={onResumeAll}
-                  disabled={allTransferItems.every(
-                    ([, u]) => u.status !== "paused"
-                  )}
-                >
-                  <Play size={16} /> Resume All
-                </button>
-                <button
-                  className={styles.actionBtn}
-                  title="Stop All"
-                  onClick={onStopAll}
-                  disabled={
-                    !hasActiveTransfers &&
-                    allTransferItems.every(([, u]) => u.status !== "paused")
-                  }
-                >
-                  <X size={16} /> Stop All
-                </button>
               </div>
             </div>
           )}

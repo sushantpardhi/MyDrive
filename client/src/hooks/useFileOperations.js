@@ -117,6 +117,13 @@ export const useFileOperations = (
                 fileId
               );
 
+              // Check if upload was paused
+              if (result.paused) {
+                // Don't complete or unregister - upload is paused and can be resumed
+                console.log(`Upload paused for ${file.name}`);
+                return null; // Return null to indicate paused, not failed
+              }
+
               if (uploadProgressHook) {
                 uploadProgressHook.completeUpload(
                   fileId,

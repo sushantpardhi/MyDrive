@@ -20,6 +20,9 @@ export class ChunkedUploadService {
 
     // Track upload conflicts for better coordination
     this.conflictStats = new Map();
+
+    // Track abort controllers for each upload
+    this.abortControllers = new Map();
   }
 
   /**
@@ -61,7 +64,7 @@ export class ChunkedUploadService {
   /**
    * Upload a single chunk with enhanced retry logic for parallel uploads
    */
-  async uploadChunk(uploadId, chunkData, fileId) {
+  async uploadChunk(uploadId, chunkData, fileId, abortSignal = null) {
     const { index, chunk, size, start, end } = chunkData;
     let retries = 0;
     const chunkStartTime = Date.now();
@@ -75,15 +78,27 @@ export class ChunkedUploadService {
 
     while (retries <= MAX_RETRIES) {
       try {
+        // Check if upload is paused/cancelled before attempting upload
+        if (abortSignal && abortSignal.aborted) {
+          if (this.onChunkProgress) {
+            this.onChunkProgress(fileId, index, "paused", retries);
+          }
+          return null;
+        }
+
         // Upload the chunk
-        const response = await this.api.uploadChunk(uploadId, {
-          chunk,
-          index,
-          size,
-          start,
-          end,
-          hash,
-        });
+        const response = await this.api.uploadChunk(
+          uploadId,
+          {
+            chunk,
+            index,
+            size,
+            start,
+            end,
+            hash,
+          },
+          abortSignal
+        );
 
         chunkData.uploaded = true;
         chunkData.uploadTime = Date.now() - chunkStartTime;
@@ -95,6 +110,14 @@ export class ChunkedUploadService {
 
         return response;
       } catch (error) {
+        // Check if request was aborted (paused/cancelled)
+        if (error.name === "AbortError" || error.name === "CanceledError") {
+          if (this.onChunkProgress) {
+            this.onChunkProgress(fileId, index, "paused", retries);
+          }
+          return null;
+        }
+
         retries++;
         chunkData.retries = retries;
 
@@ -254,6 +277,10 @@ export class ChunkedUploadService {
       fileId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
+      // Create abort controller for this upload
+      const abortController = new AbortController();
+      this.abortControllers.set(uniqueFileId, abortController);
+
       // Store upload state
       this.activeUploads.set(uniqueFileId, {
         file,
@@ -378,7 +405,8 @@ export class ChunkedUploadService {
           const result = await this.uploadChunk(
             uploadId,
             chunkData,
-            uniqueFileId
+            uniqueFileId,
+            abortController.signal
           );
 
           // Update progress atomically
@@ -450,6 +478,7 @@ export class ChunkedUploadService {
         clearInterval(logInterval);
       }
       this.activeUploads.delete(uniqueFileId);
+      this.abortControllers.delete(uniqueFileId);
       this.conflictStats.delete(uniqueFileId);
 
       // Get conflict statistics
@@ -492,26 +521,55 @@ export class ChunkedUploadService {
   }
 
   /**
-   * Cancel an active upload
+   * Cancel an active upload with enhanced cleanup
    */
   async cancelUpload(fileId) {
     const uploadState = this.activeUploads.get(fileId);
     if (!uploadState) {
+      console.warn(`No active upload found for fileId: ${fileId}`);
       return false;
     }
 
     try {
+      // Mark upload as cancelling to prevent race conditions
+      uploadState.status = "cancelling";
+
+      // Immediately abort all in-flight chunk uploads
+      const abortController = this.abortControllers.get(fileId);
+      if (abortController) {
+        abortController.abort();
+      }
+
       // Cancel on server if upload was initiated
       if (uploadState.uploadId) {
-        await this.api.cancelChunkedUpload(uploadState.uploadId);
+        try {
+          await this.api.cancelChunkedUpload(uploadState.uploadId);
+        } catch (serverError) {
+          // Log but don't fail if server cancellation fails
+          console.warn(
+            `Server cancellation failed for ${uploadState.uploadId}:`,
+            serverError.message
+          );
+        }
       }
 
       // Clean up local state
       this.activeUploads.delete(fileId);
+      this.abortControllers.delete(fileId);
+      this.conflictStats.delete(fileId);
+
+      // Notify completion of cancellation
+      if (this.onProgress) {
+        this.onProgress(fileId, 0, uploadState.file?.size || 0, 0, 0);
+      }
 
       return true;
     } catch (error) {
       console.error("Failed to cancel upload:", error);
+      // Ensure cleanup happens even on error
+      this.activeUploads.delete(fileId);
+      this.abortControllers.delete(fileId);
+      this.conflictStats.delete(fileId);
       return false;
     }
   }
@@ -526,11 +584,34 @@ export class ChunkedUploadService {
     }
 
     try {
+      // Immediately abort all in-flight chunk uploads
+      const abortController = this.abortControllers.get(fileId);
+      if (abortController) {
+        abortController.abort();
+      }
+
       // Pause on server if upload was initiated
       if (uploadState.uploadId) {
         await this.api.pauseChunkedUpload(uploadState.uploadId);
         uploadState.status = "paused";
         uploadState.pausedAt = Date.now();
+
+        // Recalculate and report accurate progress when pausing
+        if (uploadState.chunks && this.onProgress) {
+          uploadState.uploadedBytes = uploadState.chunks
+            .filter((c) => c.uploaded)
+            .reduce((sum, c) => sum + c.size, 0);
+          const uploadedChunks = uploadState.chunks.filter(
+            (c) => c.uploaded
+          ).length;
+          this.onProgress(
+            fileId,
+            uploadState.uploadedBytes,
+            uploadState.file.size,
+            uploadedChunks,
+            uploadState.chunks.length
+          );
+        }
       }
 
       return true;
@@ -550,20 +631,154 @@ export class ChunkedUploadService {
     }
 
     try {
+      // Create new abort controller for resumed upload
+      const newAbortController = new AbortController();
+      this.abortControllers.set(fileId, newAbortController);
+
       // Resume on server if upload was initiated
       if (uploadState.uploadId) {
-        await this.api.resumeChunkedUpload(uploadState.uploadId);
+        const response = await this.api.resumeChunkedUpload(
+          uploadState.uploadId
+        );
         uploadState.status = "uploading";
         const pauseDuration = Date.now() - (uploadState.pausedAt || Date.now());
         uploadState.totalPausedTime =
           (uploadState.totalPausedTime || 0) + pauseDuration;
         delete uploadState.pausedAt;
+
+        // Recalculate uploadedBytes from uploaded chunks to ensure accuracy
+        if (uploadState.chunks) {
+          uploadState.uploadedBytes = uploadState.chunks
+            .filter((c) => c.uploaded)
+            .reduce((sum, c) => sum + c.size, 0);
+        }
+
+        // Get missing chunks and resume uploading them
+        const missingChunks = response.data.missingChunks || [];
+        if (missingChunks.length > 0 && uploadState.chunks) {
+          // Resume upload for missing chunks
+          this.resumeChunkUploads(
+            fileId,
+            uploadState,
+            missingChunks,
+            newAbortController.signal
+          );
+        }
       }
 
       return true;
     } catch (error) {
       console.error("Failed to resume upload:", error);
       return false;
+    }
+  }
+
+  /**
+   * Resume uploading missing chunks after pause
+   */
+  async resumeChunkUploads(
+    fileId,
+    uploadState,
+    missingChunkIndices,
+    abortSignal
+  ) {
+    const { file, uploadId, chunks } = uploadState;
+    if (!chunks) return;
+
+    const missingChunks = chunks.filter(
+      (chunk) => missingChunkIndices.includes(chunk.index) && !chunk.uploaded
+    );
+
+    // Recalculate uploadedBytes from scratch based on chunks marked as uploaded
+    // This prevents double-counting when resuming
+    uploadState.uploadedBytes = chunks
+      .filter((c) => c.uploaded)
+      .reduce((sum, c) => sum + c.size, 0);
+
+    // Calculate optimal concurrency
+    const maxConcurrentUploads = this.calculateOptimalConcurrency(
+      file.size,
+      chunks.length
+    );
+
+    // Simple semaphore for concurrency control
+    class ParallelSemaphore {
+      constructor(count) {
+        this.count = count;
+        this.waiting = [];
+        this.active = 0;
+      }
+
+      async acquire() {
+        return new Promise((resolve) => {
+          if (this.count > 0) {
+            this.count--;
+            this.active++;
+            resolve();
+          } else {
+            this.waiting.push(resolve);
+          }
+        });
+      }
+
+      release() {
+        this.active--;
+        if (this.waiting.length > 0) {
+          const resolve = this.waiting.shift();
+          this.active++;
+          resolve();
+        } else {
+          this.count++;
+        }
+      }
+    }
+
+    const semaphore = new ParallelSemaphore(maxConcurrentUploads);
+
+    // Upload missing chunks
+    const uploadPromises = missingChunks.map(async (chunkData) => {
+      await semaphore.acquire();
+
+      try {
+        if (this.onChunkProgress) {
+          this.onChunkProgress(fileId, chunkData.index, "uploading", 0);
+        }
+
+        const result = await this.uploadChunk(
+          uploadId,
+          chunkData,
+          fileId,
+          abortSignal
+        );
+
+        if (result && this.onProgress) {
+          // Recalculate uploadedBytes from scratch to avoid double-counting
+          uploadState.uploadedBytes = chunks
+            .filter((c) => c.uploaded)
+            .reduce((sum, c) => sum + c.size, 0);
+          const uploadedChunks = chunks.filter((c) => c.uploaded).length;
+          this.onProgress(
+            fileId,
+            uploadState.uploadedBytes,
+            file.size,
+            uploadedChunks,
+            chunks.length
+          );
+        }
+
+        return result;
+      } catch (error) {
+        console.error(`Failed to upload chunk ${chunkData.index}:`, error);
+        throw error;
+      } finally {
+        semaphore.release();
+      }
+    });
+
+    try {
+      await Promise.allSettled(uploadPromises);
+    } catch (error) {
+      console.error("Error resuming chunk uploads:", error);
     }
   }
 
