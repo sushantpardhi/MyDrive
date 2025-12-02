@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useDriveContext } from "../contexts/DriveContext";
 import api from "../services/api";
+import logger from "../utils/logger";
 
 const generateInitialPath = (type) => {
   const baseName =
@@ -36,7 +37,7 @@ const buildPathFromFolder = async (folderId, type) => {
     path.unshift(generateInitialPath(type)[0]);
     return path;
   } catch (error) {
-    console.error("Failed to build folder path:", error);
+    logger.logError(error, "Failed to build folder path", { folderId, type });
     // Return root path as fallback
     return generateInitialPath(type);
   }

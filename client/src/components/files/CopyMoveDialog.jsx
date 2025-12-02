@@ -4,6 +4,7 @@ import { X, Folder, ChevronRight, Home, FolderPlus } from "lucide-react";
 import api from "../../services/api";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useUIContext } from "../../contexts";
+import logger from "../../utils/logger";
 
 const CopyMoveDialog = ({
   isOpen,
@@ -54,7 +55,7 @@ const CopyMoveDialog = ({
       );
       setFolders(ownedFolders);
     } catch (error) {
-      console.error("Failed to load folders:", error);
+      logger.logError(error, "Failed to load folders", { folderId });
       setFolders([]);
     } finally {
       setLoading(false);
@@ -113,7 +114,10 @@ const CopyMoveDialog = ({
       // Reload folders to show the newly created one
       await loadFolders(currentFolder);
     } catch (error) {
-      console.error("Failed to create folder:", error);
+      logger.logError(error, "Failed to create folder", {
+        folderName: trimmedName,
+        currentFolder,
+      });
       setCreateFolderError(
         error.response?.data?.error || "Failed to create folder"
       );

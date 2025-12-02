@@ -29,6 +29,7 @@ import { useUIContext } from "../../contexts";
 import OwnerAvatar from "../common/OwnerAvatar";
 import SearchHighlight from "../common/SearchHighlight";
 import api from "../../services/api";
+import logger from "../../utils/logger";
 
 const FileCard = ({
   file,
@@ -150,7 +151,10 @@ const FileCard = ({
           }
         } catch (error) {
           if (!cancelled) {
-            console.error("Error loading thumbnail:", error);
+            logger.logError(error, "Error loading thumbnail", {
+              fileId: safeFile._id,
+              fileName: safeFile.name,
+            });
             setThumbnailError(true);
           }
         }

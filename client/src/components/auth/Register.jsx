@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Auth.module.css";
+import logger from "../../utils/logger";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -81,6 +82,12 @@ const Register = () => {
 
       // Store token and user info via context
       login(response.data.user, response.data.token);
+      
+      logger.logAuth(
+        "register_success",
+        response.data.user.id,
+        "User registered via Register form"
+      );
 
       // Redirect to drive
       navigate("/drive");
@@ -96,6 +103,13 @@ const Register = () => {
       } else {
         setError(errorMessage || "Registration failed. Please try again.");
       }
+      
+      logger.logError(err, "Registration failed", {
+        email: formData.email,
+        name: formData.name,
+        errorType,
+        errorMessage,
+      });
     } finally {
       setLoading(false);
     }

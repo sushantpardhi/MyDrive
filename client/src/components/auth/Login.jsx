@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Auth.module.css";
+import logger from "../../utils/logger";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -42,6 +43,12 @@ const Login = () => {
 
       // Store token and user info via context
       login(response.data.user, response.data.token);
+      
+      logger.logAuth(
+        "login_success",
+        response.data.user.id,
+        "User logged in via Login form"
+      );
 
       // Redirect to drive
       navigate("/drive");
@@ -63,6 +70,12 @@ const Login = () => {
           errorMessage || "Login failed. Please check your credentials."
         );
       }
+      
+      logger.logError(err, "Login failed", {
+        email: formData.email,
+        errorType,
+        errorMessage,
+      });
     } finally {
       setLoading(false);
     }

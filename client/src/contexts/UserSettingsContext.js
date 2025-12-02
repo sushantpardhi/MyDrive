@@ -8,6 +8,7 @@ import {
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import api from "../services/api";
+import logger from "../utils/logger";
 
 const UserSettingsContext = createContext();
 
@@ -33,7 +34,7 @@ export const UserSettingsProvider = ({ children }) => {
     async function fetchSettings() {
       if (!user) {
         // User logged out, reset to defaults
-        console.log("[UserSettings] User logged out, resetting to defaults");
+        logger.info("UserSettings: User logged out, resetting to defaults");
         setViewMode("grid");
         setTheme("light");
         setLoading(false);
@@ -43,7 +44,9 @@ export const UserSettingsProvider = ({ children }) => {
         return;
       }
 
-      console.log("[UserSettings] Fetching settings for user:", user.id);
+      logger.info("UserSettings: Fetching settings for user", {
+        userId: user.id,
+      });
       try {
         setLoading(true);
         setInitialized(false);
@@ -52,39 +55,41 @@ export const UserSettingsProvider = ({ children }) => {
 
         // Apply theme from settings.theme
         if (res.data?.settings?.theme) {
-          console.log(
-            "[UserSettings] Loaded theme from backend:",
-            res.data.settings.theme
-          );
+          logger.info("UserSettings: Loaded theme from backend", {
+            theme: res.data.settings.theme,
+          });
           setTheme(res.data.settings.theme);
         } else {
-          console.log("[UserSettings] No backend theme, using default: light");
+          logger.debug("UserSettings: No backend theme, using default: light");
           setTheme("light");
         }
 
         // Apply viewMode from preferences.viewMode
         if (res.data?.preferences?.viewMode) {
-          console.log(
-            "[UserSettings] Loaded viewMode from backend:",
-            res.data.preferences.viewMode
-          );
+          logger.info("UserSettings: Loaded viewMode from backend", {
+            viewMode: res.data.preferences.viewMode,
+          });
           setViewMode(res.data.preferences.viewMode);
           localStorage.setItem("viewMode", res.data.preferences.viewMode);
         } else {
           // No backend preference, use default
-          console.log(
-            "[UserSettings] No backend preference, using default: grid"
+          logger.debug(
+            "UserSettings: No backend preference, using default: grid"
           );
           setViewMode("grid");
           localStorage.setItem("viewMode", "grid");
         }
       } catch (err) {
-        console.error("[UserSettings] Failed to fetch user settings:", err);
+        logger.logError(err, "UserSettings: Failed to fetch user settings");
         // On error, try localStorage fallback
         const savedViewMode = localStorage.getItem("viewMode");
         const savedTheme = localStorage.getItem("theme");
         setViewMode(savedViewMode || "grid");
         setTheme(savedTheme || "light");
+        logger.info("UserSettings: Using localStorage fallback", {
+          viewMode: savedViewMode,
+          theme: savedTheme,
+        });
       } finally {
         setLoading(false);
         setInitialized(true);
@@ -104,8 +109,9 @@ export const UserSettingsProvider = ({ children }) => {
           viewMode: newViewMode,
         },
       });
+      logger.info("UserSettings: Updated view mode", { viewMode: newViewMode });
     } catch (err) {
-      console.error("Failed to update settings:", err);
+      logger.logError(err, "UserSettings: Failed to update settings");
     }
   }, []);
 

@@ -6,6 +6,7 @@ import {
   createChunkedUploadService,
   CHUNK_SIZE,
 } from "../services/chunkedUpload";
+import logger from "../utils/logger";
 
 export const useFileOperations = (
   api,
@@ -22,12 +23,19 @@ export const useFileOperations = (
     if (!name?.trim()) return null;
 
     try {
+      logger.logFileOperation("create_folder", name, {
+        parentId: currentFolderId,
+      });
       const response = await api.createFolder(name, currentFolderId);
       toast.success("Folder created successfully");
+      logger.info("Folder created successfully", {
+        folderName: name,
+        folderId: response.data._id,
+      });
       return response.data;
     } catch (error) {
       toast.error("Failed to create folder");
-      console.error(error);
+      logger.logError(error, "Failed to create folder", { folderName: name });
       return null;
     }
   }, [api, currentFolderId]);
@@ -35,6 +43,12 @@ export const useFileOperations = (
   const uploadFiles = useCallback(
     async (files, onSuccess, useChunked = true) => {
       if (!files?.length) return;
+
+      logger.info("Starting file upload", {
+        fileCount: files.length,
+        totalSize: files.reduce((sum, f) => sum + f.size, 0),
+        useChunked,
+      });
 
       setUploadLoading(true);
       const uploadedFiles = [];
@@ -120,7 +134,7 @@ export const useFileOperations = (
               // Check if upload was paused
               if (result.paused) {
                 // Don't complete or unregister - upload is paused and can be resumed
-                console.log(`Upload paused for ${file.name}`);
+                logger.info("Upload paused", { fileName: file.name });
                 return null; // Return null to indicate paused, not failed
               }
 
@@ -140,10 +154,9 @@ export const useFileOperations = (
               const fileData = result.fileData?.file || result.fileData;
 
               if (!fileData || !fileData.name) {
-                console.error(
-                  "Invalid file data received from chunked upload:",
-                  result
-                );
+                logger.error("Invalid file data received from chunked upload", {
+                  result,
+                });
                 throw new Error("Invalid file data received from server");
               }
 
@@ -184,7 +197,10 @@ export const useFileOperations = (
             // Don't add to failed files if paused
             if (!isPausedError) {
               failedFiles.push(file.name);
-              console.error(`Failed to upload ${file.name}:`, error);
+              logger.logError(error, `Failed to upload file`, {
+                fileName: file.name,
+                shouldUseChunked,
+              });
 
               // Show specific error message for chunked uploads
               if (shouldUseChunked) {
@@ -231,7 +247,7 @@ export const useFileOperations = (
         return uploadedFiles;
       } catch (error) {
         toast.error("File upload failed");
-        console.error(error);
+        logger.logError(error, "File upload failed");
         return [];
       } finally {
         setUploadLoading(false);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
+import logger from "../../utils/logger";
 
 // Components
 import Header from "./Header";
@@ -146,7 +147,12 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         setCurrentPage(page);
       } catch (error) {
         toast.error("Failed to load folder contents");
-        console.error(error);
+        logger.logError(error, "Failed to load folder contents", {
+          folderId,
+          page,
+          isInitialLoad,
+          type,
+        });
       } finally {
         setLoading(false);
         setLoadingMore(false);

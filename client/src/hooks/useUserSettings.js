@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts";
 import api from "../services/api";
+import logger from "../utils/logger";
 
 export const useUserSettings = () => {
   const { user } = useAuth();
@@ -58,8 +59,11 @@ export const useUserSettings = () => {
             viewMode: newViewMode || viewMode,
           },
         });
+        logger.info("User settings updated", {
+          viewMode: newViewMode || viewMode,
+        });
       } catch (err) {
-        console.error("Failed to update settings:", err);
+        logger.logError(err, "Failed to update settings");
       }
     },
     [viewMode]

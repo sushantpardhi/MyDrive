@@ -5,6 +5,7 @@ import styles from "./ShareDialog.module.css";
 import api from "../../services/api";
 import { toast } from "react-toastify";
 import { useUIContext } from "../../contexts";
+import logger from "../../utils/logger";
 
 const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,7 +39,11 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
       const errorMsg =
         error.response?.data?.error || "Failed to remove sharing";
       toast.error(errorMsg);
-      console.error(error);
+      logger.logError(error, "Failed to remove sharing", {
+        itemType,
+        itemId: item?._id,
+        userId,
+      });
     } finally {
       hideLoading();
     }
@@ -66,7 +71,10 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
         }
         setSharedWith(response.data.shared || []);
       } catch (error) {
-        console.error("Failed to fetch item details:", error);
+        logger.logError(error, "Failed to fetch item details", {
+          itemType,
+          itemId: item?._id,
+        });
         toast.error("Failed to load sharing information");
         // Fallback to what we have
         if (item?.shared) {
@@ -105,7 +113,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
         const response = await api.searchUsers(searchQuery);
         setSearchResults(response.data || []);
       } catch (error) {
-        console.error("User search failed:", error);
+        logger.logError(error, "User search failed", { searchQuery });
         toast.error("Failed to search users");
       } finally {
         setSearching(false);
@@ -172,7 +180,11 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
       const errorMsg =
         error.response?.data?.error || error.message || "Failed to share item";
       toast.error(errorMsg);
-      console.error(error);
+      logger.logError(error, "Failed to share item", {
+        itemType,
+        isBulkOperation,
+        userId: user._id,
+      });
     } finally {
       hideLoading();
     }

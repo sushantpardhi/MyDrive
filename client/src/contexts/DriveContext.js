@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import logger from "../utils/logger";
 
 const DriveContext = createContext();
 
@@ -36,6 +37,7 @@ export const DriveProvider = ({ children }) => {
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const resetState = useCallback(() => {
+    logger.debug("DriveContext: Resetting state");
     setFolders([]);
     setFiles([]);
     setCurrentPage(1);
@@ -49,6 +51,10 @@ export const DriveProvider = ({ children }) => {
     const checkUserChange = () => {
       const currentUser = localStorage.getItem("user");
       if (currentUser !== currentUserRef.current && currentUser) {
+        const userData = JSON.parse(currentUser);
+        logger.info("DriveContext: User changed, resetting drive state", {
+          userId: userData?.id,
+        });
         currentUserRef.current = currentUser;
         const savedFolderId = localStorage.getItem("lastFolderId");
         setCurrentFolderId(savedFolderId || "root");
@@ -64,10 +70,12 @@ export const DriveProvider = ({ children }) => {
   }, [resetState]);
 
   const updateCurrentFolder = useCallback((folderId) => {
+    logger.info("DriveContext: Navigating to folder", { folderId });
     setCurrentFolderId((prevId) => {
       localStorage.setItem("lastFolderId", folderId);
       // If folder hasn't changed, force a reload
       if (prevId === folderId) {
+        logger.debug("DriveContext: Same folder, forcing reload");
         setReloadTrigger((prev) => prev + 1);
       }
       return folderId;
@@ -83,6 +91,7 @@ export const DriveProvider = ({ children }) => {
 
   const updateDriveType = useCallback(
     (type) => {
+      logger.info("DriveContext: Changing drive type", { driveType: type });
       setDriveType(type);
       resetState();
     },

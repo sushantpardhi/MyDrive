@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import logger from "../utils/logger";
 
 const ThemeContext = createContext(undefined);
 
@@ -14,6 +15,7 @@ export const ThemeProvider = ({ children }) => {
     document.documentElement.setAttribute("data-theme", theme);
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
+    logger.debug("Theme changed", { theme });
   }, [theme]);
 
   const setTheme = (newTheme) => {

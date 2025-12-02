@@ -3,6 +3,8 @@
  * Handles file uploads in chunks with retry functionality
  */
 
+import logger from "../utils/logger";
+
 const CHUNK_SIZE = process.env.REACT_APP_CHUNK_SIZE
   ? parseInt(process.env.REACT_APP_CHUNK_SIZE)
   : 1024 * 1024; // 1MB chunks
@@ -295,6 +297,13 @@ export class ChunkedUploadService {
       const chunks = this.createChunks(file);
       const totalChunks = chunks.length;
 
+      logger.logUpload("initiating", file.name, {
+        fileSize: file.size,
+        totalChunks,
+        chunkSize: CHUNK_SIZE,
+        fileId: uniqueFileId,
+      });
+
       const initiateResponse = await this.api.initiateChunkedUpload({
         fileName: file.name,
         fileSize: file.size,
@@ -305,6 +314,13 @@ export class ChunkedUploadService {
       });
 
       const uploadId = initiateResponse.data.uploadId;
+
+      logger.info("Chunked upload started", {
+        fileName: file.name,
+        uploadId,
+        totalChunks,
+        concurrency: this.calculateOptimalConcurrency(file.size, totalChunks),
+      });
 
       // Update upload state
       const uploadState = this.activeUploads.get(uniqueFileId);
@@ -432,6 +448,12 @@ export class ChunkedUploadService {
 
         if (pausedResults.length > 0) {
           uploadState.status = "paused";
+          logger.logUpload("paused", file.name, {
+            fileId: uniqueFileId,
+            uploadId,
+            uploadedChunks: progress.uploadedChunks,
+            totalChunks,
+          });
           throw new Error("Upload paused by user");
         }
 
@@ -458,6 +480,13 @@ export class ChunkedUploadService {
       // Step 3: Complete the upload
       uploadState.status = "completing";
 
+      logger.info("Completing chunked upload", {
+        fileName: file.name,
+        uploadId,
+        totalChunks,
+        uploadedChunks: progress.uploadedChunks,
+      });
+
       const completeResponse = await this.api.completeChunkedUpload(uploadId, {
         fileName: file.name,
         totalChunks,
@@ -472,6 +501,21 @@ export class ChunkedUploadService {
       uploadState.status = "completed";
       uploadState.completedAt = Date.now();
       uploadState.fileData = completeResponse.data;
+
+      const uploadDuration = Date.now() - uploadState.startTime;
+      const totalRetries = chunks.reduce(
+        (sum, chunk) => sum + chunk.retries,
+        0
+      );
+
+      logger.logUpload("completed", file.name, {
+        fileId: uniqueFileId,
+        uploadId,
+        duration: uploadDuration,
+        totalRetries,
+        fileSize: file.size,
+        totalChunks,
+      });
 
       // Clean up logging and state
       if (logInterval) {
@@ -560,7 +604,7 @@ export class ChunkedUploadService {
 
       return true;
     } catch (error) {
-      console.error("Failed to cancel upload:", error);
+      logger.logError(error, "Failed to cancel upload", { fileId });
       // Ensure cleanup happens even on error
       this.activeUploads.delete(fileId);
       this.abortControllers.delete(fileId);
@@ -763,7 +807,10 @@ export class ChunkedUploadService {
 
         return result;
       } catch (error) {
-        console.error(`Failed to upload chunk ${chunkData.index}:`, error);
+        logger.logError(error, "Failed to upload chunk", {
+          chunkIndex: chunkData.index,
+          fileId,
+        });
         throw error;
       } finally {
         semaphore.release();
@@ -773,7 +820,10 @@ export class ChunkedUploadService {
     try {
       await Promise.allSettled(uploadPromises);
     } catch (error) {
-      console.error("Error resuming chunk uploads:", error);
+      logger.logError(error, "Error resuming chunk uploads", {
+        fileId,
+        uploadId,
+      });
     }
   }
 

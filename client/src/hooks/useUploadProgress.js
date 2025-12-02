@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import logger from "../utils/logger";
 
 export const useUploadProgress = () => {
   const [uploading, setUploading] = useState(false);
@@ -225,11 +226,11 @@ export const useUploadProgress = () => {
         .cancelUpload(fileId)
         .then((success) => {
           if (success) {
-            console.log(`Upload cancelled successfully: ${fileId}`);
+            logger.info("Upload cancelled successfully", { fileId });
           }
         })
         .catch((err) => {
-          console.error("Failed to cancel upload:", err);
+          logger.logError(err, "Failed to cancel upload", { fileId });
         })
         .finally(() => {
           delete chunkServicesRef.current[fileId];
@@ -285,11 +286,12 @@ export const useUploadProgress = () => {
       chunkService
         .pauseUpload(fileId)
         .then(() => {
+          logger.info("Upload paused successfully", { fileId });
           // After pausing, ensure UI reflects accurate paused state
           // The chunk service will trigger onProgress callback with accurate values
         })
         .catch((err) => {
-          console.error("Failed to pause upload:", err);
+          logger.logError(err, "Failed to pause upload", { fileId });
         });
     }
 

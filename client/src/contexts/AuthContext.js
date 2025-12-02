@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import logger from "../utils/logger";
 
 const AuthContext = createContext();
 
@@ -20,8 +21,14 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem("user");
 
     if (storedToken && storedUser) {
+      const userData = JSON.parse(storedUser);
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      setUser(userData);
+      logger.info("User session restored from localStorage", {
+        userId: userData.id,
+      });
+    } else {
+      logger.debug("No stored session found");
     }
     setLoading(false);
   }, []);
@@ -34,14 +41,19 @@ export const AuthProvider = ({ children }) => {
     setToken(userToken);
     localStorage.setItem("token", userToken);
     localStorage.setItem("user", JSON.stringify(userData));
+
+    logger.logAuth("login", userData.id, "User logged in successfully");
   };
 
   const logout = () => {
+    const userId = user?.id;
     setUser(null);
     setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     clearUserSettings();
+
+    logger.logAuth("logout", userId, "User logged out");
   };
 
   const isAuthenticated = () => {

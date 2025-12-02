@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { useDriveContext } from "../contexts/DriveContext";
+import logger from "../utils/logger";
 
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
 const MAX_HISTORY_ITEMS = 10;
@@ -83,14 +84,12 @@ export const useSearch = (api, loadFolderContents) => {
     // Debounce search by 500ms
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        console.log(
-          "Starting search with query:",
-          searchQuery,
-          "filters:",
-          searchFilters
-        );
+        logger.info("Starting search", { searchQuery, searchFilters });
         const response = await api.search(searchQuery, 1, 50, searchFilters);
-        console.log("Search response:", response.data);
+        logger.debug("Search response received", {
+          folderCount: response.data.folders?.length,
+          fileCount: response.data.files?.length,
+        });
         setSearchResults({
           folders: response.data.folders || [],
           files: response.data.files || [],
