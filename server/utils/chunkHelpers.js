@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
+const logger = require("./logger");
 
 /**
  * Create a temporary directory for chunked upload
@@ -35,12 +36,22 @@ const getChunkPath = (tempDir, chunkIndex) => {
  */
 const storeChunk = async (tempDir, chunkIndex, chunkBuffer) => {
   const chunkPath = getChunkPath(tempDir, chunkIndex);
+  const startTime = Date.now();
 
   return new Promise((resolve, reject) => {
     fs.writeFile(chunkPath, chunkBuffer, (err) => {
       if (err) {
+        logger.logError(err, {
+          operation: "storeChunk",
+          additionalInfo: `Chunk ${chunkIndex}`,
+        });
         reject(err);
       } else {
+        logger.debug(
+          `Chunk ${chunkIndex} stored - Size: ${
+            chunkBuffer.length
+          } bytes - Duration: ${Date.now() - startTime}ms`
+        );
         resolve(chunkPath);
       }
     });
@@ -72,6 +83,11 @@ const verifyChunkIntegrity = async (chunkPath, expectedHash) => {
  * Combine chunks into final file with better memory management
  */
 const combineChunks = async (tempDir, totalChunks, outputPath) => {
+  const startTime = Date.now();
+  logger.info(
+    `Starting chunk combination - Total chunks: ${totalChunks} - Output: ${outputPath}`
+  );
+  
   return new Promise((resolve, reject) => {
     const writeStream = fs.createWriteStream(outputPath, {
       highWaterMark: 64 * 1024, // 64KB buffer
@@ -82,6 +98,10 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
     const writeNextChunk = () => {
       if (currentChunk >= totalChunks) {
         writeStream.end();
+        const duration = Date.now() - startTime;
+        logger.info(
+          `Chunk combination completed - Total size: ${totalBytesWritten} bytes - Duration: ${duration}ms`
+        );
         resolve(outputPath);
         return;
       }
@@ -92,6 +112,10 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
         const error = new Error(
           `Chunk ${currentChunk} not found at ${chunkPath}`
         );
+        logger.logError(error, {
+          operation: "combineChunks",
+          additionalInfo: `Missing chunk ${currentChunk}`,
+        });
         reject(error);
         return;
       }
@@ -123,10 +147,22 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
         try {
           fs.unlinkSync(chunkPath);
         } catch (cleanupError) {
-          // Don't fail the operation for cleanup errors
+          logger.debug(
+            `Failed to cleanup chunk ${currentChunk}: ${cleanupError.message}`
+          );
         }
 
         currentChunk++;
+
+        // Log progress every 50 chunks
+        if (currentChunk % 50 === 0) {
+          logger.debug(
+            `Chunk combination progress: ${currentChunk}/${totalChunks} (${(
+              (currentChunk / totalChunks) *
+              100
+            ).toFixed(1)}%)`
+          );
+        }
 
         // Add small delay to prevent overwhelming the file system
         if (currentChunk % 100 === 0) {
@@ -137,6 +173,10 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
       });
 
       readStream.on("error", (error) => {
+        logger.logError(error, {
+          operation: "combineChunks",
+          additionalInfo: `Failed reading chunk ${currentChunk}`,
+        });
         reject(
           new Error(`Failed to read chunk ${currentChunk}: ${error.message}`)
         );
@@ -144,6 +184,10 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
     };
 
     writeStream.on("error", (error) => {
+      logger.logError(error, {
+        operation: "combineChunks",
+        additionalInfo: "Failed writing combined file",
+      });
       reject(new Error(`Failed to write combined file: ${error.message}`));
     });
 
@@ -183,7 +227,7 @@ const cleanupTempDir = (tempDir) => {
     }
     return true;
   } catch (error) {
-    console.error(`Failed to cleanup temp directory ${tempDir}:`, error);
+    logger.logError(error, `Failed to cleanup temp directory ${tempDir}`);
     return false;
   }
 };

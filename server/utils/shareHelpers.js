@@ -1,11 +1,20 @@
 const File = require("../models/File");
 const Folder = require("../models/Folder");
 const fs = require("fs");
+const logger = require("./logger");
 
 // Helper function to recursively delete physical files in a folder and its subfolders
 // Only deletes files and folders owned by the specified userId for security
 async function deleteFilesRecursively(folderId, ownerId) {
+  const startTime = Date.now();
+  let filesDeleted = 0;
+  let foldersDeleted = 0;
+
   try {
+    logger.debug(
+      `Starting recursive deletion - Folder: ${folderId} - Owner: ${ownerId}`
+    );
+
     // Get all files in this folder that are owned by the user
     const files = await File.find({ parent: folderId, owner: ownerId });
 
@@ -13,6 +22,7 @@ async function deleteFilesRecursively(folderId, ownerId) {
     for (const file of files) {
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
+        filesDeleted++;
       }
     }
 
@@ -22,13 +32,30 @@ async function deleteFilesRecursively(folderId, ownerId) {
     // Get all subfolders owned by the user and recursively delete their contents
     const subfolders = await Folder.find({ parent: folderId, owner: ownerId });
     for (const subfolder of subfolders) {
-      await deleteFilesRecursively(subfolder._id, ownerId);
+      const result = await deleteFilesRecursively(subfolder._id, ownerId);
+      filesDeleted += result.filesDeleted;
+      foldersDeleted += result.foldersDeleted;
     }
 
     // Delete the subfolders from database (only user's own folders)
-    await Folder.deleteMany({ parent: folderId, owner: ownerId });
+    const deletedFolders = await Folder.deleteMany({
+      parent: folderId,
+      owner: ownerId,
+    });
+    foldersDeleted += deletedFolders.deletedCount;
+
+    const duration = Date.now() - startTime;
+    logger.logCleanup(`recursive-delete-folder-${folderId}`, {
+      itemsRemoved: filesDeleted + foldersDeleted,
+      duration,
+    });
+
+    return { filesDeleted, foldersDeleted };
   } catch (error) {
-    console.error("Error deleting files recursively:", error);
+    logger.logError(error, {
+      operation: "deleteFilesRecursively",
+      additionalInfo: `Folder: ${folderId}, Owner: ${ownerId}`,
+    });
     throw error;
   }
 }
@@ -53,13 +80,17 @@ async function deletePhysicalFilesRecursively(folderId, ownerId) {
       await deletePhysicalFilesRecursively(subfolder._id, ownerId);
     }
   } catch (error) {
-    console.error("Error deleting physical files recursively:", error);
+    logger.logError(error, "Error deleting physical files recursively");
     throw error;
   }
 }
 
 // Helper function to recursively share folder contents
 async function shareContentsRecursively(folderId, userId) {
+  const startTime = Date.now();
+  let filesShared = 0;
+  let foldersShared = 0;
+
   try {
     const subfolders = await Folder.find({
       parent: folderId,
@@ -75,6 +106,7 @@ async function shareContentsRecursively(folderId, userId) {
       if (!file.shared.includes(userId)) {
         file.shared.push(userId);
         await file.save();
+        filesShared++;
       }
     }
 
@@ -82,11 +114,26 @@ async function shareContentsRecursively(folderId, userId) {
       if (!subfolder.shared.includes(userId)) {
         subfolder.shared.push(userId);
         await subfolder.save();
+        foldersShared++;
       }
-      await shareContentsRecursively(subfolder._id, userId);
+      const result = await shareContentsRecursively(subfolder._id, userId);
+      filesShared += result.filesShared;
+      foldersShared += result.foldersShared;
     }
+
+    const duration = Date.now() - startTime;
+    logger.logShare("recursive-share", { folderId }, userId, {
+      resourceType: "folder-contents",
+      sharedWith: userId,
+      additionalInfo: `Files: ${filesShared}, Folders: ${foldersShared}, Duration: ${duration}ms`,
+    });
+
+    return { filesShared, foldersShared };
   } catch (error) {
-    console.error("Error sharing folder contents recursively:", error);
+    logger.logError(error, {
+      operation: "shareContentsRecursively",
+      additionalInfo: `Folder: ${folderId}, User: ${userId}`,
+    });
     throw error;
   }
 }
@@ -119,7 +166,7 @@ async function unshareContentsRecursively(folderId, userId) {
       await unshareContentsRecursively(subfolder._id, userId);
     }
   } catch (error) {
-    console.error("Error unsharing folder contents recursively:", error);
+    logger.logError(error, "Error unsharing folder contents recursively");
     throw error;
   }
 }

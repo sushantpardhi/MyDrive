@@ -237,7 +237,7 @@ router.get("/search", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Search error:", error);
+    logger.logError(error, "Search error");
     res.status(500).json({ error: error.message });
   }
 });

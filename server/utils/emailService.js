@@ -3,6 +3,7 @@ const {
   getFromEmail,
   getFromName,
 } = require("../config/emailConfig");
+const logger = require("./logger");
 
 /**
  * Email Service - Handles all email sending functionality
@@ -39,16 +40,29 @@ class EmailService {
    */
   async sendMail(mailOptions) {
     if (!this.isConfigured) {
+      logger.warn("Email send attempted but service not configured");
       return { success: false, message: "Email service not configured" };
     }
 
+    const startTime = Date.now();
     try {
       const info = await this.transporter.sendMail({
         from: `${getFromName()} <${getFromEmail()}>`,
         ...mailOptions,
       });
+
+      const duration = Date.now() - startTime;
+      logger.logEmail("sent", mailOptions.to, mailOptions.subject, {
+        duration,
+      });
+
       return { success: true, messageId: info.messageId };
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.logEmail("failed", mailOptions.to, mailOptions.subject, {
+        error: error.message,
+        duration,
+      });
       return { success: false, error: error.message };
     }
   }

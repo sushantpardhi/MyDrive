@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./CopyMoveDialog.module.css";
 import { X, Folder, ChevronRight, Home, FolderPlus } from "lucide-react";
 import api from "../../services/api";

@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
+const logger = require("../utils/logger");
 const File = require("../models/File");
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
@@ -51,6 +52,7 @@ const upload = multer({ storage });
 
 // Upload file
 router.post("/upload", upload.single("file"), async (req, res) => {
+  const startTime = Date.now();
   try {
     const { parent } = req.body;
     const file = new File({
@@ -62,17 +64,34 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       owner: req.user.id,
     });
     await file.save();
+
+    logger.logFileOperation("upload", file, req.user.id, {
+      fileSize: file.size,
+      mimeType: req.file.mimetype,
+      duration: Date.now() - startTime,
+      ip: req.ip,
+    });
+
     res.json(file);
   } catch (error) {
+    logger.logError(error, {
+      operation: "upload",
+      userId: req.user.id,
+      ip: req.ip,
+    });
     res.status(500).json({ error: error.message });
   }
 });
 
 // Download file
 router.get("/download/:fileId", async (req, res) => {
+  const startTime = Date.now();
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) {
+      logger.warn(
+        `Download failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`
+      );
       return res.status(404).json({ error: "File not found" });
     }
 
@@ -91,16 +110,39 @@ router.get("/download/:fileId", async (req, res) => {
           "Content-Length": buffer.length,
           "Cache-Control": "public, max-age=31536000",
         });
+
+        logger.logFileOperation("download-converted", file, req.user.id, {
+          fileSize: buffer.length,
+          mimeType: "image/jpeg",
+          duration: Date.now() - startTime,
+          ip: req.ip,
+        });
+
         res.send(buffer);
       } catch (conversionError) {
-        console.error("Error converting HEIC to JPEG:", conversionError);
+        logger.logError(conversionError, {
+          operation: "HEIC-conversion",
+          userId: req.user.id,
+          additionalInfo: file.name,
+        });
         // Fallback to original file if conversion fails
         res.download(file.path, file.name);
       }
     } else {
+      logger.logFileOperation("download", file, req.user.id, {
+        fileSize: file.size,
+        duration: Date.now() - startTime,
+        ip: req.ip,
+      });
       res.download(file.path, file.name);
     }
   } catch (error) {
+    logger.logError(error, {
+      operation: "download",
+      userId: req.user.id,
+      ip: req.ip,
+      additionalInfo: req.params.fileId,
+    });
     res.status(500).json({ error: error.message });
   }
 });
@@ -190,7 +232,7 @@ router.get("/thumbnail/:fileId", async (req, res) => {
       });
       res.sendFile(path.resolve(thumbnailPath));
     } catch (conversionError) {
-      console.error("Error generating thumbnail:", conversionError);
+      logger.logError(conversionError, "Error generating thumbnail");
       // Fallback: send converted JPEG directly without caching
       try {
         const buffer = await sharp(file.path)
@@ -204,12 +246,12 @@ router.get("/thumbnail/:fileId", async (req, res) => {
         });
         res.send(buffer);
       } catch (fallbackError) {
-        console.error("Fallback conversion failed:", fallbackError);
+        logger.logError(fallbackError, "Fallback conversion failed");
         res.status(500).json({ error: "Failed to generate thumbnail" });
       }
     }
   } catch (error) {
-    console.error("Error in thumbnail route:", error);
+    logger.logError(error, "Error in thumbnail route");
     res.status(500).json({ error: error.message });
   }
 });
@@ -672,7 +714,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error initiating chunked upload:", error);
+    logger.logError(error, "Error initiating chunked upload");
     res.status(500).json({ error: error.message });
   }
 });
@@ -747,14 +789,14 @@ router.post(
         chunkIndex < 0 ||
         chunkIndex >= session.totalChunks
       ) {
-        console.error(
+        logger.error(
           `Invalid chunk index ${chunkIndex} for session ${uploadId}`
         );
         return res.status(400).json({ error: "Invalid chunk index" });
       }
 
       if (chunkSize !== chunkFile.buffer.length) {
-        console.error(
+        logger.error(
           `Chunk size mismatch. Expected: ${chunkSize}, Got: ${chunkFile.buffer.length}`
         );
         return res.status(400).json({ error: "Chunk size mismatch" });
@@ -786,7 +828,7 @@ router.post(
           chunkFile.buffer
         );
       } catch (storageError) {
-        console.error(`Failed to store chunk ${chunkIndex}:`, storageError);
+        logger.logError(storageError, `Failed to store chunk ${chunkIndex}`);
         return res.status(500).json({ error: "Failed to store chunk" });
       }
 
@@ -797,7 +839,7 @@ router.post(
           if (!isValid) {
             // Remove invalid chunk
             fs.unlinkSync(chunkPath);
-            console.error(
+            logger.error(
               `Chunk integrity verification failed for chunk ${chunkIndex}`
             );
             return res
@@ -805,9 +847,9 @@ router.post(
               .json({ error: "Chunk integrity verification failed" });
           }
         } catch (verificationError) {
-          console.error(
-            `Chunk verification error for chunk ${chunkIndex}:`,
-            verificationError
+          logger.logError(
+            verificationError,
+            `Chunk verification error for chunk ${chunkIndex}`
           );
           // Continue without verification if verification fails
         }
@@ -827,9 +869,8 @@ router.post(
         // No need for post-verification query - trust the atomic operation
         // If addResult.success is true, the chunk was added or already existed
       } catch (dbError) {
-        console.error(
-          `Failed to add chunk ${chunkIndex} to session:`,
-          dbError.message
+        logger.error(
+          `Failed to add chunk ${chunkIndex} to session: ${dbError.message}`
         );
 
         // Clean up stored chunk on database error
@@ -837,9 +878,9 @@ router.post(
           try {
             fs.unlinkSync(chunkPath);
           } catch (unlinkError) {
-            console.error(
-              `Failed to cleanup chunk file ${chunkPath}:`,
-              unlinkError
+            logger.logError(
+              unlinkError,
+              `Failed to cleanup chunk file ${chunkPath}`
             );
           }
         }
@@ -875,7 +916,7 @@ router.post(
           );
           session.status = "uploading";
         } catch (saveError) {
-          console.error(`Failed to update session status:`, saveError.message);
+          logger.error(`Failed to update session status: ${saveError.message}`);
           // Don't fail the request for this error
         }
       }
@@ -908,7 +949,10 @@ router.post(
       });
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      console.error(`Error uploading chunk (${processingTime}ms):`, error);
+      logger.error(
+        `Error uploading chunk (${processingTime}ms): ${error.message}`
+      );
+      if (error.stack) logger.debug(error.stack);
 
       // Send appropriate error response based on error type
       if (error.message === "Session lookup timeout") {
@@ -1034,7 +1078,7 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       throw combineError;
     }
   } catch (error) {
-    console.error("Error completing chunked upload:", error);
+    logger.logError(error, "Error completing chunked upload");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1099,7 +1143,7 @@ router.get("/chunked-upload/:uploadId/status", async (req, res) => {
       expiresAt: data.expiresAt,
     });
   } catch (error) {
-    console.error("Error getting upload status:", error);
+    logger.logError(error, "Error getting upload status");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1127,7 +1171,7 @@ router.delete("/chunked-upload/:uploadId", async (req, res) => {
 
     res.json({ message: "Upload cancelled successfully" });
   } catch (error) {
-    console.error("Error cancelling upload:", error);
+    logger.logError(error, "Error cancelling upload");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1159,7 +1203,7 @@ router.post("/chunked-upload/:uploadId/pause", async (req, res) => {
       status: "paused",
     });
   } catch (error) {
-    console.error("Error pausing upload:", error);
+    logger.logError(error, "Error pausing upload");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1199,7 +1243,7 @@ router.post("/chunked-upload/:uploadId/resume", async (req, res) => {
         ) / 100,
     });
   } catch (error) {
-    console.error("Error resuming upload:", error);
+    logger.logError(error, "Error resuming upload");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1228,7 +1272,7 @@ router.get("/chunked-upload/sessions", async (req, res) => {
 
     res.json({ sessions: sessionData });
   } catch (error) {
-    console.error("Error listing upload sessions:", error);
+    logger.logError(error, "Error listing upload sessions");
     res.status(500).json({ error: error.message });
   }
 });
@@ -1257,7 +1301,7 @@ router.get("/chunked-upload/health", async (req, res) => {
       uptime: Math.round(process.uptime()),
     });
   } catch (error) {
-    console.error("Health check error:", error);
+    logger.logError(error, "Health check error");
     res.status(500).json({
       status: "unhealthy",
       error: error.message,

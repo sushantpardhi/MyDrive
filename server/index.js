@@ -4,8 +4,12 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 dotenv.config();
 
+// Import logger
+const logger = require("./utils/logger");
+
 // Import middleware
 const { authenticateToken } = require("./middleware/auth");
+const { requestLogger, errorLogger } = require("./middleware/requestLogger");
 
 // Import cleanup scheduler
 const { initializeCleanupScheduler } = require("./utils/cleanupScheduler");
@@ -37,6 +41,9 @@ app.use(
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Request logging middleware
+app.use(requestLogger);
+
 // Set server timeout for long-running operations
 app.use((req, res, next) => {
   // Set timeout for chunked upload operations
@@ -66,17 +73,34 @@ app.get("/", (req, res) => {
 
 // Initialize cleanup scheduler after database connection
 mongoose.connection.once("open", async () => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Connected to MongoDB");
-  }
+  logger.info(`Connected to MongoDB - Database: ${MONGODB_URI}`);
   initializeCleanupScheduler();
 
   // Verify email configuration
   await verifyEmailConfig();
 });
 
+// Error logging middleware (should be after routes)
+app.use(errorLogger);
+
+// Handle MongoDB connection errors
+mongoose.connection.on("error", (error) => {
+  logger.logError(error, { operation: "MongoDB Connection", additionalInfo: MONGODB_URI });
+});
+
+mongoose.connection.on("disconnected", () => {
+  logger.warn("MongoDB disconnected. Attempting to reconnect...");
+});
+
+mongoose.connection.on("reconnected", () => {
+  logger.info("MongoDB reconnected successfully");
+});
+
 app.listen(PORT, "0.0.0.0", () => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  }
+  logger.info(
+    `🚀 Server started - Port: ${PORT} - Environment: ${
+      process.env.NODE_ENV || "development"
+    } - CORS: ${CORS_ORIGIN}`
+  );
+  logger.info(`📦 Upload timeout: ${UPLOAD_TIMEOUT}ms - JSON limit: 10mb`);
 });

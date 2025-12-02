@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const logger = require("../utils/logger");
 
 /**
  * Email configuration and transporter setup
@@ -48,13 +49,19 @@ const createTransporter = () => {
 // Verify email configuration on startup
 const verifyEmailConfig = async () => {
   try {
+    const startTime = Date.now();
     const transporter = createTransporter();
     await transporter.verify();
-    console.log("✅ Email service configured successfully");
+    const duration = Date.now() - startTime;
+    logger.info(
+      `✅ Email service configured - Provider: ${
+        process.env.EMAIL_SERVICE || "gmail"
+      } - Verified in ${duration}ms`
+    );
     return true;
   } catch (error) {
-    console.warn("⚠️  Email service not configured:", error.message);
-    console.warn("   Email notifications will be disabled");
+    logger.warn(`⚠️  Email service not configured: ${error.message}`);
+    logger.warn("📧 Email notifications will be disabled");
     return false;
   }
 };
