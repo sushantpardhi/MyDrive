@@ -203,12 +203,6 @@ const api = {
     }
 
     const searchUrl = `${API_URL}/search`;
-    console.log("=== SEARCH DEBUG ===");
-    console.log("API_URL:", API_URL);
-    console.log("Full URL:", searchUrl);
-    console.log("Search params:", params);
-    console.log("Token present:", !!localStorage.getItem("token"));
-    console.log("==================");
 
     return axios
       .get(searchUrl, {
@@ -216,23 +210,9 @@ const api = {
         timeout: 30000, // 30 second timeout
       })
       .then((response) => {
-        console.log("Search response received:", response.data);
         return response;
       })
       .catch((error) => {
-        console.error("=== SEARCH ERROR ===");
-        console.error("Error type:", error.constructor.name);
-        console.error("Error message:", error.message);
-        console.error("Error code:", error.code);
-        console.error("Response status:", error.response?.status);
-        console.error("Response data:", error.response?.data);
-        console.error("Request config:", {
-          url: error.config?.url,
-          method: error.config?.method,
-          params: error.config?.params,
-          headers: error.config?.headers,
-        });
-        console.error("==================");
         throw error;
       });
   },

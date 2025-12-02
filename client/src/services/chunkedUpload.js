@@ -526,7 +526,6 @@ export class ChunkedUploadService {
   async cancelUpload(fileId) {
     const uploadState = this.activeUploads.get(fileId);
     if (!uploadState) {
-      console.warn(`No active upload found for fileId: ${fileId}`);
       return false;
     }
 
@@ -545,11 +544,7 @@ export class ChunkedUploadService {
         try {
           await this.api.cancelChunkedUpload(uploadState.uploadId);
         } catch (serverError) {
-          // Log but don't fail if server cancellation fails
-          console.warn(
-            `Server cancellation failed for ${uploadState.uploadId}:`,
-            serverError.message
-          );
+          // Server cancellation failed, continue with local cleanup
         }
       }
 

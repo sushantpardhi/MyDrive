@@ -105,13 +105,6 @@ router.get("/", async (req, res) => {
 
 // Search files and folders with advanced filters
 router.get("/search", async (req, res) => {
-  console.log("=== SEARCH REQUEST RECEIVED ===");
-  console.log("Timestamp:", new Date().toISOString());
-  console.log("User ID:", req.user?.id);
-  console.log("Query params:", req.query);
-  console.log("Headers:", req.headers);
-  console.log("==============================");
-  
   try {
     const {
       query,
@@ -156,9 +149,7 @@ router.get("/search", async (req, res) => {
     let fileSearchQuery;
     try {
       fileSearchQuery = buildSearchQuery(searchParams);
-      console.log("File search query:", JSON.stringify(fileSearchQuery));
     } catch (error) {
-      console.error("Error building file search query:", error);
       return res
         .status(400)
         .json({ error: "Invalid search query: " + error.message });
@@ -183,9 +174,7 @@ router.get("/search", async (req, res) => {
           });
         }
       }
-      console.log("Folder search query:", JSON.stringify(folderSearchQuery));
     } catch (error) {
-      console.error("Error building folder search query:", error);
       return res
         .status(400)
         .json({ error: "Invalid search query: " + error.message });
@@ -211,16 +200,6 @@ router.get("/search", async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    console.log("Found folders:", folders.length);
-    if (folders.length > 0) {
-      console.log("Sample folder:", {
-        name: folders[0].name,
-        owner: folders[0].owner,
-        createdAt: folders[0].createdAt,
-        updatedAt: folders[0].updatedAt,
-      });
-    }
-
     const filesLimit = Math.max(0, limit - folders.length);
     const filesSkip =
       folders.length < limit ? 0 : Math.max(0, skip - totalFolders);
@@ -231,28 +210,11 @@ router.get("/search", async (req, res) => {
       .skip(filesSkip)
       .limit(filesLimit > 0 ? filesLimit : limit);
 
-    console.log("Found files:", files.length);
-    if (files.length > 0) {
-      console.log("Sample file:", {
-        name: files[0].name,
-        owner: files[0].owner,
-        createdAt: files[0].createdAt,
-        updatedAt: files[0].updatedAt,
-      });
-    }
-
     // Add search highlights and relevance scores
     if (query && query.trim()) {
       folders = addSearchHighlights(folders, query);
       files = addSearchHighlights(files, query);
     }
-
-    console.log(
-      "After highlights - folders:",
-      folders.length,
-      "files:",
-      files.length
-    );
 
     res.json({
       files,

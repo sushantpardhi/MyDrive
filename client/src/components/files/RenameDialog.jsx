@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import styles from "./RenameDialog.module.css";
 import { X } from "lucide-react";
 import { useUIContext } from "../../contexts";

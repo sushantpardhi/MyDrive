@@ -1,4 +1,3 @@
-import React from "react";
 import styles from "./OwnerAvatar.module.css";
 
 const OwnerAvatar = ({ owner, size = "default", className = "" }) => {

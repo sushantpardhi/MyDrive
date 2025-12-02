@@ -258,8 +258,8 @@ router.post("/:id/share", async (req, res) => {
       const owner = await User.findById(req.user.id);
       emailService
         .sendFileSharedEmail(userToShareWith, owner, item.name, "folder")
-        .catch((err) => {
-          console.error("Failed to send folder shared email:", err.message);
+        .catch(() => {
+          // Email notification failed, but sharing was successful
         });
     }
 
@@ -735,29 +735,21 @@ router.get("/download/:folderId", async (req, res) => {
     // Track progress
     archive.on("entry", (entry) => {
       processedFiles++;
-      // Note: This fires when a file is added to the archive
-      console.log(`Zipping progress: ${processedFiles}/${files.length} files`);
     });
 
     archive.on("progress", (progress) => {
       processedBytes = progress.fs.processedBytes;
-      console.log(
-        `Archive progress: ${processedBytes} / ${progress.fs.totalBytes} bytes`
-      );
     });
 
     // Handle archiver warnings
     archive.on("warning", (err) => {
-      if (err.code === "ENOENT") {
-        console.warn("Archiver warning:", err);
-      } else {
+      if (err.code !== "ENOENT") {
         throw err;
       }
     });
 
     // Handle archiver errors
     archive.on("error", (err) => {
-      console.error("Archiver error:", err);
       if (!res.headersSent) {
         res.status(500).json({ error: "Error creating ZIP file" });
       }

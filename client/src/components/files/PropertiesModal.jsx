@@ -45,11 +45,10 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
             const statsResponse = await api.getFolderStats(item._id);
             setStats(statsResponse.data);
           } catch (error) {
-            console.log("Could not fetch folder stats:", error);
+            // Stats are optional, silently fail
           }
         }
       } catch (error) {
-        console.error("Failed to fetch item details:", error);
         toast.error("Failed to load properties");
         setDetails(item); // Fallback to provided item
       } finally {

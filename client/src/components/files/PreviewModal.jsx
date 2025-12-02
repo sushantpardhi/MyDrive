@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  Suspense,
-} from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -402,15 +396,58 @@ const PreviewModal = () => {
     const ext = filename.split(".").pop().toLowerCase();
 
     const categories = {
-      image: { exts: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"], label: "Image", color: "#4CAF50" },
+      image: {
+        exts: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"],
+        label: "Image",
+        color: "#4CAF50",
+      },
       pdf: { exts: ["pdf"], label: "PDF", color: "#F44336" },
-      document: { exts: ["docx", "doc", "txt", "md"], label: "Document", color: "#2196F3" },
-      spreadsheet: { exts: ["xlsx", "xls", "xlsm", "xlsb", "csv"], label: "Spreadsheet", color: "#4CAF50" },
-      video: { exts: ["mp4", "webm", "ogg", "mov", "avi", "mkv"], label: "Video", color: "#9C27B0" },
-      audio: { exts: ["mp3", "wav", "ogg", "flac", "m4a"], label: "Audio", color: "#FF9800" },
-      code: { exts: ["js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "html", "css"], label: "Code", color: "#00BCD4" },
-      archive: { exts: ["zip", "rar", "7z", "tar", "gz"], label: "Archive", color: "#795548" },
-      model: { exts: ["obj", "stl", "gltf", "glb"], label: "3D Model", color: "#E91E63" },
+      document: {
+        exts: ["docx", "doc", "txt", "md"],
+        label: "Document",
+        color: "#2196F3",
+      },
+      spreadsheet: {
+        exts: ["xlsx", "xls", "xlsm", "xlsb", "csv"],
+        label: "Spreadsheet",
+        color: "#4CAF50",
+      },
+      video: {
+        exts: ["mp4", "webm", "ogg", "mov", "avi", "mkv"],
+        label: "Video",
+        color: "#9C27B0",
+      },
+      audio: {
+        exts: ["mp3", "wav", "ogg", "flac", "m4a"],
+        label: "Audio",
+        color: "#FF9800",
+      },
+      code: {
+        exts: [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "c",
+          "cpp",
+          "html",
+          "css",
+        ],
+        label: "Code",
+        color: "#00BCD4",
+      },
+      archive: {
+        exts: ["zip", "rar", "7z", "tar", "gz"],
+        label: "Archive",
+        color: "#795548",
+      },
+      model: {
+        exts: ["obj", "stl", "gltf", "glb"],
+        label: "3D Model",
+        color: "#E91E63",
+      },
     };
 
     for (const [key, value] of Object.entries(categories)) {
@@ -898,17 +935,17 @@ const PreviewModal = () => {
   };
 
   // New handler functions for enhanced features
-  const toggleMetadataSidebar = () => setMetadataSidebarOpen(prev => !prev);
-  
-  const toggleKeyboardHelp = () => setShowKeyboardHelp(prev => !prev);
-  
-  const toggleQuickActions = () => setQuickActionsOpen(prev => !prev);
+  const toggleMetadataSidebar = () => setMetadataSidebarOpen((prev) => !prev);
+
+  const toggleKeyboardHelp = () => setShowKeyboardHelp((prev) => !prev);
+
+  const toggleQuickActions = () => setQuickActionsOpen((prev) => !prev);
 
   const handlePrint = useCallback(() => {
     if (!previewFile) return;
-    
+
     const fileType = getFileType(previewFile.name);
-    
+
     if (fileType === "pdf" && pdfData) {
       window.print();
     } else if (fileType === "image" && fileUrl) {
@@ -1096,7 +1133,12 @@ const PreviewModal = () => {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.fileInfo}>
-            <div className={styles.fileTypeBadge} style={{ backgroundColor: getFileTypeCategory(previewFile.name).color }}>
+            <div
+              className={styles.fileTypeBadge}
+              style={{
+                backgroundColor: getFileTypeCategory(previewFile.name).color,
+              }}
+            >
               {getFileTypeCategory(previewFile.name).label}
             </div>
             <div className={styles.fileTitleGroup}>
@@ -1108,13 +1150,13 @@ const PreviewModal = () => {
           </div>
           <div className={styles.headerActions}>
             {/* Keyboard shortcuts button */}
-          <button
-            onClick={toggleKeyboardHelp}
-            className={styles.iconButton}
-            title="Keyboard Shortcuts (?)"
-          >
-            <Keyboard size={20} />
-          </button>
+            <button
+              onClick={toggleKeyboardHelp}
+              className={styles.iconButton}
+              title="Keyboard Shortcuts (?)"
+            >
+              <Keyboard size={20} />
+            </button>
             {/* Type-specific controls */}
             {fileType === "image" && (
               <>
@@ -1271,7 +1313,10 @@ const PreviewModal = () => {
             )}
 
             {/* Print button for supported file types */}
-            {(fileType === "pdf" || fileType === "image" || fileType === "text" || fileType === "markdown") && (
+            {(fileType === "pdf" ||
+              fileType === "image" ||
+              fileType === "text" ||
+              fileType === "markdown") && (
               <button
                 onClick={handlePrint}
                 className={styles.iconButton}
@@ -1290,10 +1335,16 @@ const PreviewModal = () => {
             </button>
             <button
               onClick={toggleMetadataSidebar}
-              className={`${styles.iconButton} ${metadataSidebarOpen ? styles.active : ""}`}
+              className={`${styles.iconButton} ${
+                metadataSidebarOpen ? styles.active : ""
+              }`}
               title="File Info (I)"
             >
-              {metadataSidebarOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+              {metadataSidebarOpen ? (
+                <PanelRightClose size={20} />
+              ) : (
+                <PanelRightOpen size={20} />
+              )}
             </button>
             <button
               onClick={handleDownload}
@@ -1878,8 +1929,14 @@ const PreviewModal = () => {
 
         {/* Keyboard Shortcuts Help */}
         {showKeyboardHelp && (
-          <div className={styles.keyboardHelpOverlay} onClick={toggleKeyboardHelp}>
-            <div className={styles.keyboardHelpModal} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.keyboardHelpOverlay}
+            onClick={toggleKeyboardHelp}
+          >
+            <div
+              className={styles.keyboardHelpModal}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className={styles.keyboardHelpHeader}>
                 <h3>Keyboard Shortcuts</h3>
                 <button

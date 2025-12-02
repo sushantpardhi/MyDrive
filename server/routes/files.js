@@ -267,8 +267,8 @@ router.post("/:id/share", async (req, res) => {
       const owner = await User.findById(req.user.id);
       emailService
         .sendFileSharedEmail(userToShareWith, owner, item.name, "file")
-        .catch((err) => {
-          console.error("Failed to send file shared email:", err.message);
+        .catch(() => {
+          // Email notification failed, but sharing was successful
         });
     }
 

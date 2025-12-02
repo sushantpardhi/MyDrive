@@ -52,13 +52,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Better mobile scrolling */
-@media (max-width: 768px) {
-  body {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
 /* Global theme-aware styles */
 input, textarea, select {
   background-color: var(--input-bg);

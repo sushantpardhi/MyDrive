@@ -227,17 +227,18 @@
 .inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .inputGroup label {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
+  margin-bottom: 2px;
 }
 
 .inputGroup input {
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 6px;
@@ -254,13 +255,14 @@
 
 .sizeInputWrapper {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
+  margin-top: 4px;
 }
 
 .sizeInput {
   flex: 1;
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 6px;
@@ -276,7 +278,7 @@
 }
 
 .unitSelect {
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 6px;
@@ -284,7 +286,7 @@
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 80px;
+  min-width: 90px;
 }
 
 .unitSelect:focus {
@@ -303,10 +305,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-top: 4px;
 }
 
 .sortSelect {
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 6px;
