@@ -210,3 +210,131 @@
 .border-primary {
   border-color: var(--border-color);
 }
+
+/* Dark Theme CSS Variables */
+[data-theme="dark"] {
+  /* Background colors */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #252525;
+  --bg-tertiary: #2d2d2d;
+  --bg-quaternary: #222222;
+
+  /* Text colors */
+  --text-primary: #f5f5f5;
+  --text-secondary: #d1d1d1;
+  --text-tertiary: #a3a3a3;
+  --text-quaternary: #737373;
+
+  /* Border colors */
+  --border-color: #3d3d3d;
+  --border-secondary: #4a4a4a;
+  --border-tertiary: #333333;
+
+  /* Accent colors */
+  --accent-primary: #7c8ff0;
+  --accent-secondary: #8d5fb5;
+  --accent-hover: #6a7fe6;
+  --accent-active: #5f6dd8;
+
+  /* Status colors */
+  --success-color: #34d399;
+  --success-bg: #064e3b;
+  --success-border: #065f46;
+
+  --warning-color: #fbbf24;
+  --warning-bg: #78350f;
+  --warning-border: #92400e;
+
+  --error-color: #f87171;
+  --error-bg: #7f1d1d;
+  --error-border: #991b1b;
+
+  --info-color: #60a5fa;
+  --info-bg: #1e3a8a;
+  --info-border: #1e40af;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5),
+    0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6),
+    0 10px 10px -5px rgba(0, 0, 0, 0.5);
+
+  /* Interaction overlays */
+  --hover-overlay: rgba(255, 255, 255, 0.1);
+  --active-overlay: rgba(255, 255, 255, 0.15);
+  --disabled-overlay: rgba(255, 255, 255, 0.3);
+
+  /* Component-specific colors */
+  --sidebar-bg: #1a1a1a;
+  --sidebar-border: #3d3d3d;
+  --sidebar-item-hover: #2d2d2d;
+  --sidebar-item-active: linear-gradient(135deg, #7c8ff0 0%, #8d5fb5 100%);
+
+  --header-bg: #1a1a1a;
+  --header-border: #3d3d3d;
+
+  --card-bg: #252525;
+  --card-border: #3d3d3d;
+  --card-hover-bg: #2d2d2d;
+  --card-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  --input-bg: #252525;
+  --input-border: #3d3d3d;
+  --input-focus-border: #7c8ff0;
+  --input-disabled-bg: #1f1f1f;
+
+  --modal-bg: #252525;
+  --modal-overlay: rgba(0, 0, 0, 0.75);
+  --modal-border: #3d3d3d;
+
+  --toast-bg: #252525;
+  --toast-border: #3d3d3d;
+  --toast-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+
+  /* Accent variations */
+  --accent-bg-light: rgba(124, 143, 240, 0.12);
+  --accent-bg-medium: rgba(124, 143, 240, 0.18);
+  --accent-bg-subtle: #1a1f3a;
+  --accent-border: rgba(124, 143, 240, 0.3);
+  --accent-border-hover: rgba(124, 143, 240, 0.4);
+
+  /* Danger colors */
+  --danger-color: #ef4444;
+  --danger-color-dark: #dc2626;
+  --danger-bg-light: #450a0a;
+
+  /* File/folder specific */
+  --folder-bg: linear-gradient(135deg, #3d3520 0%, #4a4025 100%);
+  --folder-color: #fbbf24;
+
+  /* Tooltip */
+  --tooltip-bg: #3d3d3d;
+  --tooltip-text: #f5f5f5;
+}
+
+/* Scrollbar theming for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Selection colors for dark mode */
+[data-theme="dark"] ::selection {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+[data-theme="dark"] ::-moz-selection {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+}

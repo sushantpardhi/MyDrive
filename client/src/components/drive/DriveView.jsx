@@ -51,6 +51,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setHasMore,
     currentFolderId,
     updateCurrentFolder,
+    reloadTrigger,
   } = useDriveContext();
 
   const { selectedItems, toggleSelection, selectAll, clearSelection } =
@@ -223,8 +224,16 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     loadMoreSearchResults,
   });
 
-  // Reset to root folder when type changes
+  // Reset to root folder when type changes (but not on initial mount)
+  const initialMountRef = useRef(true);
   useEffect(() => {
+    // Skip on initial mount - let DriveContext's saved lastFolderId take effect
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      typeRef.current = type;
+      return;
+    }
+
     // Only reset if type actually changed
     if (typeRef.current !== type) {
       typeRef.current = type;
@@ -234,12 +243,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   }, [type, updateCurrentFolder, navigateTo]);
 
-  // Load folder contents when currentFolderId changes
+  // Load folder contents when currentFolderId changes or reloadTrigger fires
   useEffect(() => {
     loadFolderContents(currentFolderId);
-    setCurrentPage(1);
-    setHasMore(true);
-  }, [currentFolderId, loadFolderContents, setCurrentPage, setHasMore]);
+  }, [currentFolderId, loadFolderContents, reloadTrigger]);
 
   // Reset selections when changing folders or type
   useEffect(() => {
@@ -467,6 +474,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       <DriveContent
         loading={loading}
         loadingMore={loadingMore}
+        isSearching={isSearching}
         folders={displayFolders}
         files={displayFiles}
         viewMode={viewMode}

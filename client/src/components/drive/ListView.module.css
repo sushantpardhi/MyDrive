@@ -78,20 +78,20 @@
   border: none;
   background: transparent;
   border-radius: 7px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--transition-normal);
 }
 
 .selectAllBtn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
 .selectAllBtn.active {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--accent-bg-light);
+  color: var(--accent-primary);
 }
 
 .headerName,
@@ -100,11 +100,12 @@
 .headerActions {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   -webkit-user-select: none;
   user-select: none;
+  transition: color var(--transition-normal);
 }
 
 .headerName {
@@ -120,9 +121,10 @@
 .listBody {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--card-bg);
   overflow: visible;
   border-radius: 0 0 12px 12px;
+  transition: background-color var(--transition-normal);
 }
 
 /* Row hover effects */

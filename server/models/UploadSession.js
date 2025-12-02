@@ -184,24 +184,16 @@ UploadSessionSchema.methods.addChunk = async function (chunkData) {
         }
       } else {
         // Non-retryable error
-        console.error(
-          `Non-retryable error adding chunk ${chunkData.index}:`,
-          error.message
+        throw new Error(
+          `Non-retryable error adding chunk ${chunkData.index}: ${error.message}`
         );
-        throw error;
       }
     }
   }
 
   // All retries exhausted
-  console.error(
+  throw new Error(
     `Failed to add chunk ${chunkData.index} after ${maxRetries} retries`
-  );
-  throw (
-    lastError ||
-    new Error(
-      `Failed to add chunk ${chunkData.index} after ${maxRetries} retries`
-    )
   );
 };
 
@@ -254,8 +246,9 @@ UploadSessionSchema.methods.addChunks = async function (chunksData) {
         }
       }
 
-      console.error(`Failed to add chunks after ${retryCount} retries:`, error);
-      throw error;
+      throw new Error(
+        `Failed to add chunks after ${retryCount} retries: ${error.message}`
+      );
     }
   }
 
@@ -315,10 +308,7 @@ UploadSessionSchema.statics.cleanupExpiredSessions = async function () {
           fs.rmSync(session.tempDirectory, { recursive: true, force: true });
         }
       } catch (error) {
-        console.error(
-          `Failed to clean up temp directory ${session.tempDirectory}:`,
-          error
-        );
+        // Cleanup errors are non-critical, continue processing
       }
     }
 
@@ -330,8 +320,7 @@ UploadSessionSchema.statics.cleanupExpiredSessions = async function () {
 
     return result;
   } catch (error) {
-    console.error("Error cleaning up expired sessions:", error);
-    throw error;
+    throw new Error(`Error cleaning up expired sessions: ${error.message}`);
   }
 };
 

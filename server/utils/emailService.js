@@ -26,12 +26,9 @@ class EmailService {
         this.transporter = createTransporter();
         this.isConfigured = true;
       } else {
-        console.log(
-          "ℹ️  Email service not configured - notifications disabled"
-        );
+        this.isConfigured = false;
       }
     } catch (error) {
-      console.error("Email service initialization error:", error.message);
       this.isConfigured = false;
     }
   }
@@ -42,10 +39,6 @@ class EmailService {
    */
   async sendMail(mailOptions) {
     if (!this.isConfigured) {
-      console.log(
-        "📧 Email not sent (service not configured):",
-        mailOptions.subject
-      );
       return { success: false, message: "Email service not configured" };
     }
 
@@ -54,15 +47,8 @@ class EmailService {
         from: `${getFromName()} <${getFromEmail()}>`,
         ...mailOptions,
       });
-      console.log(
-        "✅ Email sent:",
-        mailOptions.subject,
-        "- Message ID:",
-        info.messageId
-      );
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      console.error("❌ Email send error:", error.message);
       return { success: false, error: error.message };
     }
   }
@@ -246,9 +232,37 @@ class EmailService {
   }
 
   /**
+   * Check if user has email notifications enabled
+   * @private
+   */
+  async hasEmailNotificationsEnabled(userId) {
+    try {
+      const User = require("../models/User");
+      const user = await User.findById(userId).select(
+        "settings.emailNotifications"
+      );
+      return user?.settings?.emailNotifications !== false;
+    } catch (error) {
+      return true; // Default to enabled if there's an error
+    }
+  }
+
+  /**
    * Send file shared notification
+   * Respects user's email notification preference
    */
   async sendFileSharedEmail(recipient, sharer, itemName, itemType) {
+    // Check if recipient has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      recipient._id || recipient.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
     const subject = `${sharer.name} shared a ${itemType} with you`;
     const html = `
       <!DOCTYPE html>
@@ -328,11 +342,23 @@ class EmailService {
 
   /**
    * Send bulk file/folder shared email notification
+   * Respects user's email notification preference
    * @param {Object} recipient - User who will receive the shared items
    * @param {Object} sharer - User who is sharing the items
    * @param {Array} items - Array of items being shared [{name, type}]
    */
   async sendBulkShareEmail(recipient, sharer, items) {
+    // Check if recipient has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      recipient._id || recipient.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
     const itemCount = items.length;
     const fileCount = items.filter((item) => item.type === "file").length;
     const folderCount = items.filter((item) => item.type === "folder").length;
@@ -482,6 +508,7 @@ class EmailService {
 
   /**
    * Send storage limit warning
+   * Respects user's email notification preference
    */
   async sendStorageWarningEmail(
     user,
@@ -489,6 +516,17 @@ class EmailService {
     storageUsed,
     storageLimit
   ) {
+    // Check if user has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      user._id || user.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
     const subject = "⚠️ Storage Space Warning - MyDrive";
     const html = `
       <!DOCTYPE html>
@@ -584,8 +622,20 @@ class EmailService {
 
   /**
    * Send custom notification email
+   * Respects user's email notification preference
    */
   async sendNotificationEmail(user, subject, message) {
+    // Check if user has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      user._id || user.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
     const html = `
       <!DOCTYPE html>
       <html>

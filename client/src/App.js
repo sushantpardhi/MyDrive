@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DriveProvider } from "./contexts/DriveContext";
 import { SelectionProvider } from "./contexts/SelectionContext";
 import { UIProvider, useUIContext } from "./contexts/UIContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import styles from "./App.module.css";
 
 // Protected Route Component
@@ -80,81 +81,74 @@ const AppLayout = () => {
 };
 
 const App = () => {
-  // Ensure light theme is applied consistently
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "light");
-    document.body.setAttribute("data-theme", "light");
-    // Clean up any old theme preferences from localStorage
-    localStorage.removeItem("userTheme");
-  }, []);
-
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Auth Routes */}
-          <Route
-            path="/register"
-            element={
-              <AuthRoute>
-                <Register />
-              </AuthRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <AuthRoute>
-                <Login />
-              </AuthRoute>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <AuthRoute>
-                <ForgotPassword />
-              </AuthRoute>
-            }
-          />
-          <Route
-            path="/reset-password"
-            element={
-              <AuthRoute>
-                <ResetPassword />
-              </AuthRoute>
-            }
-          />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Auth Routes */}
+            <Route
+              path="/register"
+              element={
+                <AuthRoute>
+                  <Register />
+                </AuthRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <AuthRoute>
+                  <Login />
+                </AuthRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <AuthRoute>
+                  <ForgotPassword />
+                </AuthRoute>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={
+                <AuthRoute>
+                  <ResetPassword />
+                </AuthRoute>
+              }
+            />
 
-          {/* Protected Routes */}
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <UIProvider>
-                  <DriveProvider>
-                    <SelectionProvider>
-                      <AppLayout />
-                    </SelectionProvider>
-                  </DriveProvider>
-                </UIProvider>
-              </ProtectedRoute>
-            }
+            {/* Protected Routes */}
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <UIProvider>
+                    <DriveProvider>
+                      <SelectionProvider>
+                        <AppLayout />
+                      </SelectionProvider>
+                    </DriveProvider>
+                  </UIProvider>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+          <ToastContainer
+            position="top-right"
+            toastStyle={{
+              zIndex: 9999,
+            }}
+            className="react-toast-container"
+            style={{
+              zIndex: 9999,
+            }}
           />
-        </Routes>
-        <ToastContainer
-          position="top-right"
-          theme="light"
-          toastStyle={{
-            zIndex: 9999,
-          }}
-          className="react-toast-container"
-          style={{
-            zIndex: 9999,
-          }}
-        />
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

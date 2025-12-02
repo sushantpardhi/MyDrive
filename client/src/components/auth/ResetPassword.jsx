@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import api from "../../services/api";
+import { useUIContext } from "../../contexts";
 import styles from "./Auth.module.css";
 
 const ResetPassword = () => {
@@ -9,11 +10,11 @@ const ResetPassword = () => {
     password: "",
     confirmPassword: "",
   });
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useUIContext();
 
   useEffect(() => {
     // Get token from URL
@@ -60,7 +61,7 @@ const ResetPassword = () => {
       return;
     }
 
-    setLoading(true);
+    showLoading("Resetting password...");
 
     try {
       await api.resetPassword(token, formData.password);
@@ -76,7 +77,7 @@ const ResetPassword = () => {
         "Failed to reset password. The link may have expired.";
       setError(errorMessage);
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 

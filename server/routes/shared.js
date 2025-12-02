@@ -249,8 +249,8 @@ router.post("/bulk-share", async (req, res) => {
       const owner = await User.findById(req.user.id);
       emailService
         .sendBulkShareEmail(userToShareWith, owner, sharedItems)
-        .catch((err) => {
-          console.error("Failed to send bulk share email:", err.message);
+        .catch(() => {
+          // Email send failure is non-critical
         });
     }
 

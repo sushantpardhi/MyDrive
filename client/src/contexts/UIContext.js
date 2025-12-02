@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback } from "react";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 
 const UIContext = createContext();
 
@@ -13,6 +14,11 @@ export const useUIContext = () => {
 export const UIProvider = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+
+  // Global loading state
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingType, setLoadingType] = useState("overlay"); // "overlay" or "fullscreen"
 
   // Dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -39,6 +45,18 @@ export const UIProvider = ({ children }) => {
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
+  }, []);
+
+  // Global loading handlers
+  const showLoading = useCallback((message = "", type = "overlay") => {
+    setIsLoading(true);
+    setLoadingMessage(message);
+    setLoadingType(type);
+  }, []);
+
+  const hideLoading = useCallback(() => {
+    setIsLoading(false);
+    setLoadingMessage("");
   }, []);
 
   const openShareDialog = useCallback((item, itemType) => {
@@ -115,6 +133,12 @@ export const UIProvider = ({ children }) => {
     toggleSidebar,
     closeSidebar,
 
+    // Global loading state
+    isLoading,
+    loadingMessage,
+    showLoading,
+    hideLoading,
+
     // Dialog states and handlers
     shareDialogOpen,
     shareItem,
@@ -145,5 +169,17 @@ export const UIProvider = ({ children }) => {
     closePreviewModal,
   };
 
-  return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
+  return (
+    <UIContext.Provider value={value}>
+      {children}
+      {isLoading && (
+        <LoadingSpinner
+          fullscreen={loadingType === "fullscreen"}
+          overlay={loadingType === "overlay"}
+          message={loadingMessage}
+          size="large"
+        />
+      )}
+    </UIContext.Provider>
+  );
 };

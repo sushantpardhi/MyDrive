@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { useUIContext } from "../../contexts";
 import styles from "./Auth.module.css";
 
 const Login = () => {
@@ -10,10 +11,10 @@ const Login = () => {
     password: "",
   });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showLoading, hideLoading } = useUIContext();
 
   const handleChange = (e) => {
     setFormData({
@@ -35,7 +36,7 @@ const Login = () => {
       return;
     }
 
-    setLoading(true);
+    showLoading("Signing in...");
 
     try {
       const response = await api.login(formData.email, formData.password);
@@ -64,7 +65,7 @@ const Login = () => {
         );
       }
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 

@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,9 +13,9 @@
 }
 
 .dialog {
-  background: white;
+  background: var(--modal-bg);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
   max-width: 400px;
   width: 100%;
   max-height: 90vh;
@@ -34,7 +34,8 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
+  transition: color var(--transition-normal);
 }
 
 .closeButton {
@@ -42,14 +43,14 @@
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-tertiary);
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .closeButton:hover {
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: var(--hover-overlay);
+  color: var(--text-primary);
 }
 
 .closeButton:disabled {
@@ -69,8 +70,9 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   font-size: 0.9rem;
+  transition: color var(--transition-normal);
 }
 
 .inputWrapper {
@@ -82,10 +84,12 @@
 .nameInput {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  transition: all var(--transition-normal);
   box-sizing: border-box;
 }
 
@@ -97,13 +101,13 @@
 
 .extension {
   padding: 10px 12px;
-  background: #f8f9fa;
-  border: 1px solid #ddd;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--input-border);
   border-left: none;
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
   font-size: 1rem;
-  color: #6c757d;
+  color: var(--text-tertiary);
   font-weight: 500;
   white-space: nowrap;
   cursor: not-allowed;
@@ -114,8 +118,9 @@
 .extensionNote {
   margin: 4px 0 0 0;
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--text-tertiary);
   font-style: italic;
+  transition: color var(--transition-normal);
 }
 
 .errorMessage {

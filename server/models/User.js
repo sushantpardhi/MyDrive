@@ -6,8 +6,9 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   settings: {
-    notifications: { type: Boolean, default: true },
+    emailNotifications: { type: Boolean, default: true },
     language: { type: String, default: "en" },
+    theme: { type: String, default: "light" },
   },
   preferences: {
     viewMode: { type: String, default: "list" },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./RenameDialog.module.css";
 import { X } from "lucide-react";
+import { useUIContext } from "../../contexts";
 
 // Extract file name and extension for files
 const getFileNameParts = (fullName, isFolder) => {
@@ -22,8 +23,8 @@ const getFileNameParts = (fullName, isFolder) => {
 
 const RenameDialog = ({ isOpen, onClose, onRename, item, itemType }) => {
   const [name, setName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef(null);
+  const { showLoading, hideLoading } = useUIContext();
 
   const fileNameParts = item
     ? getFileNameParts(item.name, itemType === "folders")
@@ -83,12 +84,12 @@ const RenameDialog = ({ isOpen, onClose, onRename, item, itemType }) => {
       return;
     }
 
-    setIsSubmitting(true);
+    showLoading(`Renaming ${itemType === "folders" ? "folder" : "file"}...`);
     try {
       await onRename(item._id, finalName, itemType);
       onClose();
     } finally {
-      setIsSubmitting(false);
+      hideLoading();
     }
   };
 
@@ -105,11 +106,7 @@ const RenameDialog = ({ isOpen, onClose, onRename, item, itemType }) => {
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h3>Rename {itemType === "folders" ? "Folder" : "File"}</h3>
-          <button
-            onClick={onClose}
-            className={styles.closeButton}
-            disabled={isSubmitting}
-          >
+          <button onClick={onClose} className={styles.closeButton}>
             <X size={20} />
           </button>
         </div>
@@ -131,7 +128,6 @@ const RenameDialog = ({ isOpen, onClose, onRename, item, itemType }) => {
                 placeholder={`Enter ${
                   itemType === "folders" ? "folder" : "file"
                 } name`}
-                disabled={isSubmitting}
                 required
               />
               {extension && (
@@ -158,16 +154,15 @@ const RenameDialog = ({ isOpen, onClose, onRename, item, itemType }) => {
               type="button"
               onClick={onClose}
               className={styles.cancelButton}
-              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
               className={styles.renameButton}
-              disabled={!name.trim() || validationError || isSubmitting}
+              disabled={!name.trim() || validationError}
             >
-              {isSubmitting ? "Renaming..." : "Rename"}
+              Rename
             </button>
           </div>
         </form>

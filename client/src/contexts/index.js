@@ -3,3 +3,4 @@ export { AuthProvider, useAuth } from "./AuthContext";
 export { DriveProvider, useDriveContext } from "./DriveContext";
 export { SelectionProvider, useSelectionContext } from "./SelectionContext";
 export { UIProvider, useUIContext } from "./UIContext";
+export { ThemeProvider, useTheme } from "./ThemeContext";

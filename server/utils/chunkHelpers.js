@@ -137,14 +137,14 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
       });
 
       readStream.on("error", (error) => {
-        console.error(`Error reading chunk ${currentChunk}:`, error);
-        reject(error);
+        reject(
+          new Error(`Failed to read chunk ${currentChunk}: ${error.message}`)
+        );
       });
     };
 
     writeStream.on("error", (error) => {
-      console.error("Error writing combined file:", error);
-      reject(error);
+      reject(new Error(`Failed to write combined file: ${error.message}`));
     });
 
     writeStream.on("open", () => {

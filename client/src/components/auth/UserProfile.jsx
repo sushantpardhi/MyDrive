@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import api from "../../services/api";
 import { useUserSettings } from "../../hooks/useUserSettings";
+import { useTheme } from "../../contexts";
+import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./UserProfile.module.css";
 
 const defaultSettings = {
-  notifications: true,
+  emailNotifications: true,
   language: "en",
+  theme: "light",
 };
 const defaultPreferences = {
   viewMode: "list",
@@ -26,6 +30,7 @@ export default function UserProfile() {
 
   // Use user settings for live updates
   const { changeViewMode } = useUserSettings();
+  const { theme, setTheme, isDark } = useTheme();
 
   useEffect(() => {
     async function fetchProfile() {
@@ -39,6 +44,11 @@ export default function UserProfile() {
         };
         setProfile(profileData);
         setForm(profileData);
+
+        // Sync theme from user settings
+        if (profileData.settings.theme) {
+          setTheme(profileData.settings.theme);
+        }
       } catch (err) {
         console.error("Error fetching profile:", err);
         setError(
@@ -85,6 +95,34 @@ export default function UserProfile() {
     }
   }
 
+  function handleThemeToggle() {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    setForm((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        theme: newTheme,
+      },
+    }));
+    // Auto-save theme change
+    saveThemeToServer(newTheme);
+  }
+
+  async function saveThemeToServer(newTheme) {
+    try {
+      await api.updateUserProfile({
+        name: form.name,
+        settings: { ...form.settings, theme: newTheme },
+        preferences: form.preferences,
+      });
+    } catch (err) {
+      console.error("Error saving theme:", err);
+      // Revert on error
+      setTheme(form.settings.theme);
+    }
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     try {
@@ -107,7 +145,7 @@ export default function UserProfile() {
   if (loading) {
     return (
       <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
+        <LoadingSpinner size="large" message="Loading profile..." />
       </div>
     );
   }
@@ -173,17 +211,53 @@ export default function UserProfile() {
               </div>
             </div>
             <div className={styles.sectionCard}>
+              <h3>Appearance</h3>
+              <div className={styles.formRow}>
+                <label htmlFor="theme">Theme:</label>
+                <button
+                  type="button"
+                  id="theme"
+                  onClick={handleThemeToggle}
+                  className={styles.themeToggle}
+                  aria-label="Toggle theme"
+                >
+                  {isDark ? (
+                    <>
+                      <Sun size={20} />
+                      <span>Switch to Light Mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon size={20} />
+                      <span>Switch to Dark Mode</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className={styles.sectionCard}>
               <h3>Settings</h3>
               <div className={styles.formRow}>
-                <label htmlFor="notifications">Notifications:</label>
-                <input
-                  id="notifications"
-                  type="checkbox"
-                  name="settings.notifications"
-                  checked={form.settings.notifications}
-                  onChange={handleChange}
-                  disabled={!editMode}
-                />
+                <label htmlFor="emailNotifications">Email Notifications:</label>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <input
+                    id="emailNotifications"
+                    type="checkbox"
+                    name="settings.emailNotifications"
+                    checked={form.settings.emailNotifications}
+                    onChange={handleChange}
+                    disabled={!editMode}
+                  />
+                  <small style={{ color: "#666", fontSize: "12px" }}>
+                    Receive email alerts for file shares and storage warnings
+                  </small>
+                </div>
               </div>
               <div className={styles.formRow}>
                 <label htmlFor="language">Language:</label>

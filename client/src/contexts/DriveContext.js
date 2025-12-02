@@ -11,7 +11,11 @@ export const useDriveContext = () => {
 };
 
 export const DriveProvider = ({ children }) => {
-  const [currentFolderId, setCurrentFolderId] = useState("root");
+  // Load lastFolderId from localStorage on init
+  const [currentFolderId, setCurrentFolderId] = useState(() => {
+    const saved = localStorage.getItem("lastFolderId");
+    return saved || "root";
+  });
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,6 +23,7 @@ export const DriveProvider = ({ children }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [driveType, setDriveType] = useState("drive"); // "drive", "shared", "trash"
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const resetState = useCallback(() => {
     setFolders([]);
@@ -29,13 +34,23 @@ export const DriveProvider = ({ children }) => {
     setLoadingMore(false);
   }, []);
 
-  const updateCurrentFolder = useCallback(
-    (folderId) => {
-      setCurrentFolderId(folderId);
-      resetState();
-    },
-    [resetState]
-  );
+  const updateCurrentFolder = useCallback((folderId) => {
+    setCurrentFolderId((prevId) => {
+      localStorage.setItem("lastFolderId", folderId);
+      // If folder hasn't changed, force a reload
+      if (prevId === folderId) {
+        setReloadTrigger((prev) => prev + 1);
+      }
+      return folderId;
+    });
+    // Clear state immediately to show loading
+    setFolders([]);
+    setFiles([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
 
   const updateDriveType = useCallback(
     (type) => {
@@ -82,6 +97,7 @@ export const DriveProvider = ({ children }) => {
     currentPage,
     hasMore,
     driveType,
+    reloadTrigger,
     setFolders,
     setFiles,
     setLoading,

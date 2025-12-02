@@ -52,6 +52,7 @@ import {
   Diff,
   Box,
 } from "lucide-react";
+import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./PreviewModal.module.css";
 import api from "../../services/api";
 import { useUIContext } from "../../contexts";
@@ -159,8 +160,7 @@ const Model3D = ({ url, fileType }) => {
   if (!model) {
     return (
       <div className={styles.loading}>
-        <Loader className={styles.spinner} size={40} />
-        <p>Loading 3D model...</p>
+        <LoadingSpinner size="medium" message="Loading 3D model..." />
       </div>
     );
   }
@@ -1153,8 +1153,7 @@ const PreviewModal = () => {
         <div className={styles.previewContainer}>
           {loading && (
             <div className={styles.loading}>
-              <Loader className={styles.spinner} size={40} />
-              <p>Loading preview...</p>
+              <LoadingSpinner size="large" message="Loading preview..." />
             </div>
           )}
 

@@ -512,7 +512,7 @@
 }
 
 .list:hover .folderName {
-  color: #2563eb;
+  color: var(--accent-primary);
 }
 
 .list .folderDetails {
@@ -522,14 +522,16 @@
 /* Folder metadata columns */
 .folderSize {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   white-space: nowrap;
+  transition: color var(--transition-normal);
 }
 
 .folderMeta {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   white-space: nowrap;
+  transition: color var(--transition-normal);
 }
 .folderCard.list .checkboxWrapper {
   position: static;
@@ -556,15 +558,16 @@
 .folderCard.list .checkbox {
   width: 18px;
   height: 18px;
-  color: #3b82f6;
+  color: var(--accent-primary);
 }
 
 .list .folderDetails {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color var(--transition-normal);
 }
 
 /* Menu styles */
@@ -612,13 +615,13 @@
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
 }
 
 .folderCard:hover .menuButton,
@@ -632,12 +635,12 @@
 /* Keep menu button visible when menu is open */
 .menuButton[aria-expanded="true"] {
   opacity: 1 !important;
-  background: #f3f4f6 !important;
+  background: var(--bg-tertiary) !important;
 }
 
 .menuButton:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
@@ -648,18 +651,18 @@
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   display: none !important;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
 }
 
 .actionButton:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
@@ -668,13 +671,14 @@
   top: 100%;
   right: 0;
   margin-top: 6px;
-  background: white;
+  background: var(--modal-bg);
   border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-xl);
   padding: 6px;
   min-width: 180px;
   z-index: 1001;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
+  transition: background-color var(--transition-normal);
 }
 
 /* Grid view dropdown positioning */
@@ -742,15 +746,15 @@
 
 .menuDivider {
   height: 1px;
-  background: #e5e7eb;
+  background: var(--border-color);
   margin: 6px 0;
 }
 
 .card:hover {
-  background: #fafafa;
-  border-color: #d6d6d6;
+  background: var(--card-hover-bg);
+  border-color: var(--border-secondary);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .iconWrap {
@@ -761,22 +765,23 @@
   justify-content: center;
 
   border-radius: 10px;
-  background: #fff9e5;
+  background: var(--folder-bg);
 }
 
 .icon {
-  color: #f7b500;
+  color: var(--folder-color);
 }
 
 .name {
   max-width: 100%;
   font-size: 14px;
   font-weight: 500;
-  color: #222;
+  color: var(--text-primary);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color var(--transition-normal);
 }
 
 /* Disable hover tooltips on touch devices */

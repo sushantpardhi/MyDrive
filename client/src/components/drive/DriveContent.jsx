@@ -1,11 +1,13 @@
 import { FolderPlus } from "lucide-react";
 import GridView from "./GridView";
 import ListView from "./ListView";
+import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./DriveContent.module.css";
 
 const DriveContent = ({
   loading,
   loadingMore,
+  isSearching,
   folders,
   files,
   viewMode,
@@ -29,10 +31,13 @@ const DriveContent = ({
   type,
   driveViewRef,
 }) => {
-  if (loading) {
+  if (loading || isSearching) {
     return (
       <div className={styles.driveView} ref={driveViewRef}>
-        <div className={styles.loading}>Loading...</div>
+        <LoadingSpinner
+          size="large"
+          message={isSearching ? "Searching..." : "Loading files..."}
+        />
       </div>
     );
   }
@@ -101,7 +106,9 @@ const DriveContent = ({
       )}
 
       {loadingMore && (
-        <div className={styles.loadingMore}>Loading more items...</div>
+        <div className={styles.loadingMore}>
+          <LoadingSpinner size="small" message="Loading more items..." />
+        </div>
       )}
     </div>
   );

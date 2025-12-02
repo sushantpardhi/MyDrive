@@ -10,7 +10,7 @@ const initializeCleanupScheduler = () => {
     try {
       await UploadSession.cleanupExpiredSessions();
     } catch (error) {
-      console.error("Cleanup scheduler error:", error);
+      // Cleanup errors are logged in the model method
     }
   });
 };

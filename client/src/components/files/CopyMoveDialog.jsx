@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import styles from "./CopyMoveDialog.module.css";
 import { X, Folder, ChevronRight, Home, FolderPlus } from "lucide-react";
 import api from "../../services/api";
+import LoadingSpinner from "../common/LoadingSpinner";
+import { useUIContext } from "../../contexts";
 
 const CopyMoveDialog = ({
   isOpen,
@@ -16,11 +18,11 @@ const CopyMoveDialog = ({
   const [currentFolder, setCurrentFolder] = useState("root");
   const [path, setPath] = useState([{ id: "root", name: "My Drive" }]);
   const [loading, setLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [createFolderError, setCreateFolderError] = useState("");
+  const { showLoading, hideLoading } = useUIContext();
 
   const isBulkOperation = items.length > 0;
   const itemCount = isBulkOperation ? items.length : 1;
@@ -154,7 +156,11 @@ const CopyMoveDialog = ({
       }
     }
 
-    setIsSubmitting(true);
+    showLoading(
+      `${operation === "copy" ? "Copying" : "Moving"} ${
+        isBulkOperation ? itemCount + " items" : "item"
+      }...`
+    );
     try {
       if (isBulkOperation) {
         // Bulk operation
@@ -172,7 +178,7 @@ const CopyMoveDialog = ({
       }
       onClose();
     } finally {
-      setIsSubmitting(false);
+      hideLoading();
     }
   };
 
@@ -206,11 +212,7 @@ const CopyMoveDialog = ({
               ? "Folder"
               : "File"}
           </h3>
-          <button
-            onClick={onClose}
-            className={styles.closeButton}
-            disabled={isSubmitting}
-          >
+          <button onClick={onClose} className={styles.closeButton}>
             <X size={20} />
           </button>
         </div>
@@ -226,7 +228,6 @@ const CopyMoveDialog = ({
                 onChange={(e) => setName(e.target.value)}
                 className={styles.nameInput}
                 placeholder={`Copy of ${item?.name || ""}`}
-                disabled={isSubmitting}
               />
             </div>
           )}
@@ -250,7 +251,6 @@ const CopyMoveDialog = ({
                     className={`${styles.breadcrumbItem} ${
                       index === path.length - 1 ? styles.current : ""
                     }`}
-                    disabled={isSubmitting}
                   >
                     {index === 0 ? <Home size={16} /> : null}
                     <span>{pathItem.name}</span>
@@ -262,7 +262,9 @@ const CopyMoveDialog = ({
             {/* Folder list */}
             <div className={styles.folderList}>
               {loading ? (
-                <div className={styles.loading}>Loading folders...</div>
+                <div className={styles.loading}>
+                  <LoadingSpinner size="small" message="Loading folders..." />
+                </div>
               ) : folders.length === 0 ? (
                 <div className={styles.emptyState}>No folders available</div>
               ) : (
@@ -291,7 +293,7 @@ const CopyMoveDialog = ({
                       className={`${styles.folderItem} ${
                         isDisabled ? styles.disabled : ""
                       }`}
-                      disabled={isSubmitting || isDisabled}
+                      disabled={isDisabled}
                     >
                       <Folder size={16} />
                       <span>{folder.name}</span>
@@ -353,7 +355,7 @@ const CopyMoveDialog = ({
                 type="button"
                 onClick={() => setIsCreatingFolder(true)}
                 className={styles.newFolderButton}
-                disabled={isSubmitting || loading}
+                disabled={loading}
               >
                 <FolderPlus size={18} />
                 <span>New Folder</span>
@@ -364,7 +366,6 @@ const CopyMoveDialog = ({
                 type="button"
                 onClick={onClose}
                 className={styles.cancelButton}
-                disabled={isSubmitting}
               >
                 Cancel
               </button>
@@ -372,15 +373,10 @@ const CopyMoveDialog = ({
                 type="submit"
                 className={styles.actionButton}
                 disabled={
-                  isSubmitting ||
-                  isCurrentLocation ||
-                  isSelfFolder ||
-                  allItemsInCurrentLocation
+                  isCurrentLocation || isSelfFolder || allItemsInCurrentLocation
                 }
               >
-                {isSubmitting
-                  ? `${operation === "copy" ? "Copying" : "Moving"}...`
-                  : operation === "copy"
+                {operation === "copy"
                   ? `Copy Here${isBulkOperation ? ` (${itemCount})` : ""}`
                   : `Move Here${isBulkOperation ? ` (${itemCount})` : ""}`}
               </button>

@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 
 export const useUserSettings = () => {
-  const [viewMode, setViewMode] = useState("grid");
+  // Load viewMode from localStorage on init
+  const [viewMode, setViewMode] = useState(() => {
+    const saved = localStorage.getItem("viewMode");
+    return saved || "grid";
+  });
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -55,6 +59,7 @@ export const useUserSettings = () => {
   const changeViewMode = useCallback(
     (mode) => {
       setViewMode(mode);
+      localStorage.setItem("viewMode", mode);
       updateSettings(mode);
     },
     [updateSettings]

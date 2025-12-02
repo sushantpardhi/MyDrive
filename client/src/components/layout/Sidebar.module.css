@@ -86,7 +86,14 @@
 .userSectionLink:hover .userSection {
   border-color: #667eea;
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+[data-theme="light"] .userSectionLink:hover .userSection {
   background: linear-gradient(135deg, #ffffff 0%, #f0f2ff 100%);
+}
+
+[data-theme="dark"] .userSectionLink:hover .userSection {
+  background: linear-gradient(135deg, #2d2d2d 0%, #2a2a3e 100%);
 }
 
 .userAvatar {
@@ -112,19 +119,21 @@
 .userName {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 2px;
+  transition: color var(--transition-normal);
 }
 
 .userEmail {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color var(--transition-normal);
 }
 
 .section {
@@ -147,11 +156,12 @@
 .sectionTitle {
   font-size: 12px;
   font-weight: 700;
-  color: #6c757d;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.8px;
   margin-bottom: 8px;
   padding: 0 8px;
+  transition: color var(--transition-normal);
 }
 
 .menu {
@@ -236,23 +246,23 @@
   gap: 10px;
   padding: 12px 16px;
   width: 100%;
-  background-color: #fff;
-  border: 2px solid #e1e4e8;
+  background-color: var(--card-bg);
+  border: 2px solid var(--border-color);
   border-radius: 10px;
-  color: #dc3545;
+  color: var(--danger-color);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all var(--transition-slow);
+  box-shadow: var(--shadow-sm);
 }
 
 .logoutButton:hover {
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  border-color: #dc3545;
+  background: var(--danger-color);
+  border-color: var(--danger-color);
   color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .logoutButton:active {

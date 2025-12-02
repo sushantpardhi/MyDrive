@@ -65,8 +65,8 @@ router.post(
       await user.save();
 
       // Send welcome email (non-blocking)
-      emailService.sendWelcomeEmail(user).catch((err) => {
-        console.error("Failed to send welcome email:", err.message);
+      emailService.sendWelcomeEmail(user).catch(() => {
+        // Email send failure is non-critical, silently fail
       });
 
       // Generate JWT token
@@ -190,8 +190,9 @@ router.post(
           "If an account exists with this email, a password reset link has been sent.",
       });
     } catch (error) {
-      console.error("Password reset error:", error);
-      res.status(500).json({ error: error.message });
+      res
+        .status(500)
+        .json({ error: "Failed to process password reset request" });
     }
   }
 );

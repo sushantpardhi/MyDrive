@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Search, UserPlus, Mail } from "lucide-react";
+import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./ShareDialog.module.css";
 import api from "../../services/api";
 import { toast } from "react-toastify";
+import { useUIContext } from "../../contexts";
 
 const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -10,8 +12,8 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
   const [searching, setSearching] = useState(false);
   const [sharedWith, setSharedWith] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const { showLoading, hideLoading } = useUIContext();
 
   const isBulkOperation = items.length > 0;
   const itemCount = isBulkOperation ? items.length : 1;
@@ -24,7 +26,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
     }
 
     try {
-      setIsSubmitting(true);
+      showLoading("Removing sharing...");
       const response = await api.unshareItem(itemType, item._id, userId);
       toast.success("Sharing removed");
       if (response.data?.item?.shared) {
@@ -38,7 +40,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
       toast.error(errorMsg);
       console.error(error);
     } finally {
-      setIsSubmitting(false);
+      hideLoading();
     }
   };
 
@@ -119,7 +121,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
 
   const handleShare = async (userEmail) => {
     try {
-      setIsSubmitting(true);
+      showLoading("Sharing...");
 
       if (isBulkOperation) {
         // Bulk share - share all selected items with the user using bulk API
@@ -133,7 +135,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
           };
         });
 
-        console.log("Bulk sharing items:", itemsToShare);
+        // Bulk share selected items
         const response = await api.bulkShareItems(userEmail, itemsToShare);
 
         if (response.data.errorCount > 0) {
@@ -172,7 +174,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
       toast.error(errorMsg);
       console.error(error);
     } finally {
-      setIsSubmitting(false);
+      hideLoading();
     }
   };
 
@@ -197,7 +199,6 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
           <button
             className={styles.closeButton}
             onClick={onClose}
-            disabled={isSubmitting}
             aria-label="Close"
           >
             <X size={20} />
@@ -240,7 +241,6 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
                 placeholder="Search users by name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={isSubmitting}
                 autoFocus
               />
             </div>
@@ -266,7 +266,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
                     <button
                       className={styles.shareButton}
                       onClick={() => handleShare(user.email)}
-                      disabled={isAlreadyShared(user._id) || isSubmitting}
+                      disabled={isAlreadyShared(user._id)}
                     >
                       {isAlreadyShared(user._id) ? (
                         "Shared"
@@ -316,9 +316,8 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
                     <button
                       className={styles.removeShareButton}
                       onClick={() => handleRemoveShare(user._id || user)}
-                      disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Removing..." : "Remove"}
+                      Remove
                     </button>
                   </div>
                 ))}
@@ -327,18 +326,10 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
           ) : null}
 
           <div className={styles.actions}>
-            <button
-              className={styles.cancelButton}
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
+            <button className={styles.cancelButton} onClick={onClose}>
               Cancel
             </button>
-            <button
-              className={styles.doneButton}
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
+            <button className={styles.doneButton} onClick={onClose}>
               Done
             </button>
           </div>

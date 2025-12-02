@@ -95,7 +95,7 @@
 .bulkItemsList {
   margin-top: 8px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   max-height: 100px;
   overflow-y: auto;
@@ -103,7 +103,7 @@
 
 .bulkItemName {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   padding: 4px 0;
   white-space: nowrap;
   overflow: hidden;
@@ -115,15 +115,16 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   margin-bottom: 12px;
-  transition: border-color 0.2s;
+  background: var(--input-bg);
+  transition: border-color var(--transition-normal);
   box-sizing: border-box;
 }
 
 .searchBar:focus-within {
-  border-color: #007bff;
+  border-color: var(--input-focus-border);
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -146,12 +147,12 @@
 }
 
 .searchBar input:disabled {
-  background-color: #f8f9fa;
+  background-color: var(--input-disabled-bg);
   cursor: not-allowed;
 }
 
 .searchResults {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   max-height: 300px;
   overflow-y: auto;
@@ -170,8 +171,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: background-color var(--transition-normal);
 }
 
 .userItem:last-child {
@@ -179,7 +180,7 @@
 }
 
 .userItem:hover {
-  background-color: #f8f9fa;
+  background-color: var(--hover-overlay);
 }
 
 .userAvatar {
@@ -237,7 +238,7 @@
 }
 
 .shareButton:hover:not(:disabled) {
-  background: #0056b3;
+  background: var(--accent-hover);
 }
 
 .shareButton:disabled {
