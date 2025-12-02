@@ -22,6 +22,8 @@ router.get("/:folderId", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
+    const sortBy = req.query.sortBy || "createdAt";
+    const sortOrder = req.query.sortOrder || "desc";
 
     // Check if user has access to the parent folder (if not root)
     let isSharedFolder = false;
@@ -64,6 +66,25 @@ router.get("/:folderId", async (req, res) => {
     const totalFolders = await Folder.countDocuments(query);
     const totalFiles = await File.countDocuments(query);
 
+    // Build sort options
+    const order = sortOrder === "asc" ? 1 : -1;
+    let sortOptions = {};
+    switch (sortBy) {
+      case "name":
+        sortOptions.name = order;
+        break;
+      case "size":
+        sortOptions.size = order;
+        break;
+      case "updatedAt":
+        sortOptions.updatedAt = order;
+        break;
+      case "createdAt":
+      default:
+        sortOptions.createdAt = order;
+        break;
+    }
+
     // Get paginated data - folders first, then files
     let folders = [];
     let files = [];
@@ -72,7 +93,7 @@ router.get("/:folderId", async (req, res) => {
       // We're still in the folders range
       folders = await Folder.find(query)
         .populate("owner", "name email")
-        .sort({ createdAt: -1 })
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit);
 
@@ -81,7 +102,7 @@ router.get("/:folderId", async (req, res) => {
       if (remainingLimit > 0) {
         files = await File.find(query)
           .populate("owner", "name email")
-          .sort({ createdAt: -1 })
+          .sort(sortOptions)
           .limit(remainingLimit);
       }
     } else {
@@ -89,7 +110,7 @@ router.get("/:folderId", async (req, res) => {
       const fileSkip = skip - totalFolders;
       files = await File.find(query)
         .populate("owner", "name email")
-        .sort({ createdAt: -1 })
+        .sort(sortOptions)
         .skip(fileSkip)
         .limit(limit);
     }

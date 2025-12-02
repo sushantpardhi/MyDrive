@@ -71,10 +71,12 @@ const api = {
     folderId = "root",
     isTrash = false,
     page = 1,
-    limit = 50
+    limit = 50,
+    sortBy = "createdAt",
+    sortOrder = "desc"
   ) =>
     axios.get(`${API_URL}/folders/${folderId}`, {
-      params: { trash: isTrash, page, limit },
+      params: { trash: isTrash, page, limit, sortBy, sortOrder },
     }),
 
   createFolder: (name, parent = "root") =>
@@ -165,9 +167,75 @@ const api = {
 
   emptyTrash: () => axios.delete(`${API_URL}/trash/empty`),
 
-  // Search
-  search: (query, page = 1, limit = 50) =>
-    axios.get(`${API_URL}/search`, { params: { query, page, limit } }),
+  // Search with advanced filters
+  search: (query, page = 1, limit = 50, filters = {}) => {
+    const params = { page, limit };
+
+    // Only add query if it's not empty
+    if (query && query.trim()) {
+      params.query = query.trim();
+    }
+
+    // Add optional filters
+    if (filters.fileTypes && filters.fileTypes.length > 0) {
+      params.fileTypes = filters.fileTypes.join(",");
+    }
+    if (filters.sizeMin !== undefined && filters.sizeMin !== "") {
+      params.sizeMin = filters.sizeMin;
+    }
+    if (filters.sizeMax !== undefined && filters.sizeMax !== "") {
+      params.sizeMax = filters.sizeMax;
+    }
+    if (filters.dateStart) {
+      params.dateStart = filters.dateStart;
+    }
+    if (filters.dateEnd) {
+      params.dateEnd = filters.dateEnd;
+    }
+    if (filters.sortBy) {
+      params.sortBy = filters.sortBy;
+    }
+    if (filters.sortOrder) {
+      params.sortOrder = filters.sortOrder;
+    }
+    if (filters.folderId) {
+      params.folderId = filters.folderId;
+    }
+
+    const searchUrl = `${API_URL}/search`;
+    console.log("=== SEARCH DEBUG ===");
+    console.log("API_URL:", API_URL);
+    console.log("Full URL:", searchUrl);
+    console.log("Search params:", params);
+    console.log("Token present:", !!localStorage.getItem("token"));
+    console.log("==================");
+
+    return axios
+      .get(searchUrl, {
+        params,
+        timeout: 30000, // 30 second timeout
+      })
+      .then((response) => {
+        console.log("Search response received:", response.data);
+        return response;
+      })
+      .catch((error) => {
+        console.error("=== SEARCH ERROR ===");
+        console.error("Error type:", error.constructor.name);
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Response status:", error.response?.status);
+        console.error("Response data:", error.response?.data);
+        console.error("Request config:", {
+          url: error.config?.url,
+          method: error.config?.method,
+          params: error.config?.params,
+          headers: error.config?.headers,
+        });
+        console.error("==================");
+        throw error;
+      });
+  },
 
   // Rename operations
   renameFile: (fileId, name) =>

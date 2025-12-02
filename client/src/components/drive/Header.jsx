@@ -9,8 +9,11 @@ import {
   Download,
   Copy,
   FolderInput,
+  Clock,
 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
+import SearchFilters from "./SearchFilters";
 import styles from "./Header.module.css";
 
 const Header = ({
@@ -19,10 +22,7 @@ const Header = ({
   setSearchQuery,
   isSearching,
   clearSearch,
-  path,
-  navigateTo,
   type,
-  breadcrumbRef,
   // Action props
   onCreateFolder,
   onFileUpload,
@@ -35,8 +35,42 @@ const Header = ({
   onBulkRestore,
   onBulkCopy,
   onBulkMove,
+  // Search filter props
+  searchFilters,
+  updateFilters,
+  clearFilters,
+  hasActiveFilters,
+  searchHistory,
 }) => {
   const { selectedItems } = useSelectionContext();
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchBarRef = useRef(null);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        searchBarRef.current &&
+        !searchBarRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSearchFocus = () => {
+    if (searchHistory && searchHistory.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearchQuery(suggestion);
+    setShowSuggestions(false);
+  };
   return (
     <div className={styles.headerContainer}>
       <div className={styles.headerBar}>
@@ -48,7 +82,7 @@ const Header = ({
           <Menu size={20} />
         </button>
 
-        <div className={styles.searchBar}>
+        <div className={styles.searchBar} ref={searchBarRef}>
           <Search
             size={16}
             className={isSearching ? styles.searchIconActive : ""}
@@ -58,6 +92,7 @@ const Header = ({
             placeholder="Search files and folders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={handleSearchFocus}
           />
           {searchQuery && (
             <button
@@ -68,80 +103,42 @@ const Header = ({
               ×
             </button>
           )}
+
+          {/* Search Suggestions Dropdown */}
+          {showSuggestions &&
+            searchHistory &&
+            searchHistory.length > 0 &&
+            !searchQuery && (
+              <div className={styles.searchSuggestions}>
+                <div className={styles.suggestionsHeader}>
+                  <Clock size={14} />
+                  <span>Recent Searches</span>
+                </div>
+                {searchHistory.slice(0, 5).map((item, index) => (
+                  <button
+                    key={index}
+                    className={styles.suggestionItem}
+                    onClick={() => handleSuggestionClick(item)}
+                  >
+                    <Clock size={14} />
+                    <span>{item}</span>
+                  </button>
+                ))}
+              </div>
+            )}
         </div>
 
-        <div className={styles.breadcrumbScroll} ref={breadcrumbRef}>
-          {path.map((p, i) => (
-            <span key={p.id} className={styles.breadcrumbItem}>
-              <button
-                onClick={() => navigateTo(i)}
-                className={`${styles.breadcrumbLink} ${
-                  i === path.length - 1 ? styles.breadcrumbCurrent : ""
-                }`}
-                title={p.name}
-                aria-label={`Navigate to ${p.name}`}
-              >
-                {i === 0 && (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className={styles.breadcrumbIcon}
-                  >
-                    {type === "shared" ? (
-                      <path
-                        d="M16 5l6 6h-4v6h-4v-6h-4l6-6z"
-                        fill="currentColor"
-                      />
-                    ) : type === "trash" ? (
-                      <path
-                        d="M3 6h18l-1.5 14H4.5L3 6zm2-3h14l1 3H4l1-3z"
-                        fill="currentColor"
-                      />
-                    ) : (
-                      <path
-                        d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
-                        fill="currentColor"
-                      />
-                    )}
-                  </svg>
-                )}
-                {i > 0 && (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className={styles.breadcrumbIcon}
-                  >
-                    <path
-                      d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                )}
-                <span className={styles.breadcrumbText}>{p.name}</span>
-              </button>
-              {i < path.length - 1 && (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className={styles.separator}
-                >
-                  <path
-                    d="m9 18 6-6-6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    fill="none"
-                  />
-                </svg>
-              )}
-            </span>
-          ))}
-        </div>
+        {/* Search Filters - Always Available */}
+        {searchFilters && (
+          <div className={styles.searchFiltersWrapper}>
+            <SearchFilters
+              filters={searchFilters}
+              onFiltersChange={updateFilters}
+              onClear={clearFilters}
+              isActive={hasActiveFilters}
+            />
+          </div>
+        )}
 
         {/* Action Buttons or Selection Actions */}
         <div className={styles.actionButtons}>

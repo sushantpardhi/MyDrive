@@ -103,37 +103,156 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Search files and folders
+// Search files and folders with advanced filters
 router.get("/search", async (req, res) => {
+  console.log("=== SEARCH REQUEST RECEIVED ===");
+  console.log("Timestamp:", new Date().toISOString());
+  console.log("User ID:", req.user?.id);
+  console.log("Query params:", req.query);
+  console.log("Headers:", req.headers);
+  console.log("==============================");
+  
   try {
-    const { query } = req.query;
+    const {
+      query,
+      fileTypes,
+      sizeMin,
+      sizeMax,
+      dateStart,
+      dateEnd,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      folderId,
+    } = req.query;
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const searchQuery = {
-      name: new RegExp(query, "i"),
-      owner: req.user.id,
+    // Import search helpers
+    const {
+      buildSearchQuery,
+      buildSortOptions,
+      addSearchHighlights,
+    } = require("../utils/searchHelpers");
+
+    // Build advanced search query
+    const searchParams = {
+      query,
+      userId: req.user.id,
+      fileTypes: fileTypes ? fileTypes.split(",") : [],
+      sizeRange: {},
+      dateRange: {},
+      trash: false,
+      folderId: folderId && folderId !== "root" ? folderId : null,
     };
 
+    if (sizeMin) searchParams.sizeRange.min = parseInt(sizeMin);
+    if (sizeMax) searchParams.sizeRange.max = parseInt(sizeMax);
+    if (dateStart) searchParams.dateRange.start = dateStart;
+    if (dateEnd) searchParams.dateRange.end = dateEnd;
+
+    // Build query for files and folders
+    let fileSearchQuery;
+    try {
+      fileSearchQuery = buildSearchQuery(searchParams);
+      console.log("File search query:", JSON.stringify(fileSearchQuery));
+    } catch (error) {
+      console.error("Error building file search query:", error);
+      return res
+        .status(400)
+        .json({ error: "Invalid search query: " + error.message });
+    }
+
+    const folderSearchQuery = {
+      owner: req.user.id,
+      trash: false,
+    };
+
+    // Add partial word search for folders
+    try {
+      if (query && query.trim()) {
+        const words = query.trim().split(/\s+/);
+        if (words.length === 1) {
+          const escapedWord = words[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          folderSearchQuery.name = new RegExp(escapedWord, "i");
+        } else {
+          folderSearchQuery.$or = words.map((word) => {
+            const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return { name: new RegExp(escapedWord, "i") };
+          });
+        }
+      }
+      console.log("Folder search query:", JSON.stringify(folderSearchQuery));
+    } catch (error) {
+      console.error("Error building folder search query:", error);
+      return res
+        .status(400)
+        .json({ error: "Invalid search query: " + error.message });
+    }
+
+    // Add folder filter if specified
+    if (folderId && folderId !== "root") {
+      folderSearchQuery.parent = folderId;
+    }
+
+    // Build sort options
+    const hasTextSearch = !!(query && query.trim());
+    const sortOptions = buildSortOptions(sortBy, sortOrder, hasTextSearch);
+
     // Get total counts
-    const totalFiles = await File.countDocuments(searchQuery);
-    const totalFolders = await Folder.countDocuments(searchQuery);
+    const totalFiles = await File.countDocuments(fileSearchQuery);
+    const totalFolders = await Folder.countDocuments(folderSearchQuery);
 
     // Get paginated data
-    const folders = await Folder.find(searchQuery)
-      .sort({ createdAt: -1 })
+    let folders = await Folder.find(folderSearchQuery)
+      .populate("owner", "name email")
+      .sort(sortOptions)
       .skip(skip)
       .limit(limit);
+
+    console.log("Found folders:", folders.length);
+    if (folders.length > 0) {
+      console.log("Sample folder:", {
+        name: folders[0].name,
+        owner: folders[0].owner,
+        createdAt: folders[0].createdAt,
+        updatedAt: folders[0].updatedAt,
+      });
+    }
 
     const filesLimit = Math.max(0, limit - folders.length);
     const filesSkip =
       folders.length < limit ? 0 : Math.max(0, skip - totalFolders);
 
-    const files = await File.find(searchQuery)
-      .sort({ createdAt: -1 })
+    let files = await File.find(fileSearchQuery)
+      .populate("owner", "name email")
+      .sort(sortOptions)
       .skip(filesSkip)
       .limit(filesLimit > 0 ? filesLimit : limit);
+
+    console.log("Found files:", files.length);
+    if (files.length > 0) {
+      console.log("Sample file:", {
+        name: files[0].name,
+        owner: files[0].owner,
+        createdAt: files[0].createdAt,
+        updatedAt: files[0].updatedAt,
+      });
+    }
+
+    // Add search highlights and relevance scores
+    if (query && query.trim()) {
+      folders = addSearchHighlights(folders, query);
+      files = addSearchHighlights(files, query);
+    }
+
+    console.log(
+      "After highlights - folders:",
+      folders.length,
+      "files:",
+      files.length
+    );
 
     res.json({
       files,
@@ -147,8 +266,16 @@ router.get("/search", async (req, res) => {
         hasMore:
           skip + folders.length + files.length < totalFolders + totalFiles,
       },
+      filters: {
+        fileTypes: searchParams.fileTypes,
+        sizeRange: searchParams.sizeRange,
+        dateRange: searchParams.dateRange,
+        sortBy,
+        sortOrder,
+      },
     });
   } catch (error) {
+    console.error("Search error:", error);
     res.status(500).json({ error: error.message });
   }
 });

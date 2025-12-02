@@ -25,6 +25,7 @@ const GridView = ({
   onFileProperties,
   onToggleSelection,
   type,
+  searchQuery = "",
 }) => {
   const { selectedItems } = useSelectionContext();
   // Combine folders and files for unified animation indexing
@@ -49,6 +50,7 @@ const GridView = ({
           onSelect={(e) => onToggleSelection(folder._id, e)}
           viewType="grid"
           type={type}
+          searchQuery={searchQuery}
           style={{ "--item-index": index }}
         />
       ))}
@@ -68,6 +70,7 @@ const GridView = ({
           onSelect={(e) => onToggleSelection(file._id, e)}
           viewType="grid"
           type={type}
+          searchQuery={searchQuery}
           style={{ "--item-index": folders.length + index }}
         />
       ))}

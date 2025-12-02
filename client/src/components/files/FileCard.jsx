@@ -27,6 +27,7 @@ import {
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts";
 import OwnerAvatar from "../common/OwnerAvatar";
+import SearchHighlight from "../common/SearchHighlight";
 import api from "../../services/api";
 
 const FileCard = ({
@@ -42,6 +43,7 @@ const FileCard = ({
   onProperties,
   viewType = "grid",
   type = "drive",
+  searchQuery = "",
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
@@ -348,7 +350,11 @@ const FileCard = ({
         </div>
         <div className={styles.fileInfo}>
           <div className={styles.fileName} title={safeFile.name}>
-            {safeFile.name}
+            <SearchHighlight
+              text={safeFile.name}
+              searchTerm={searchQuery}
+              searchMeta={safeFile._searchMeta}
+            />
           </div>
           {/* Show details in both views for consistency */}
           <div className={styles.fileDetails}>

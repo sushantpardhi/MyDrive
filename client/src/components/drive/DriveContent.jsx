@@ -32,6 +32,7 @@ const DriveContent = ({
   onSelectAll,
   type,
   driveViewRef,
+  searchQuery = "",
 }) => {
   if (loading || isSearching) {
     return (
@@ -83,6 +84,7 @@ const DriveContent = ({
           onFileProperties={onFileProperties}
           onToggleSelection={onToggleSelection}
           type={type}
+          searchQuery={searchQuery}
         />
       ) : (
         <ListView
@@ -108,6 +110,7 @@ const DriveContent = ({
           onToggleSelection={onToggleSelection}
           onSelectAll={onSelectAll}
           type={type}
+          searchQuery={searchQuery}
         />
       )}
 

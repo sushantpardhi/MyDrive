@@ -12,8 +12,8 @@
 .headerBar {
   display: flex;
   align-items: center;
-  padding: 16px;
-  gap: 16px;
+  padding: 12px 20px;
+  gap: 12px;
 }
 
 @media (max-width: 768px) {
@@ -69,12 +69,12 @@
 .searchBar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-secondary);
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
   flex: 1;
-  max-width: 400px;
+  max-width: 500px;
   border: 1px solid transparent;
   transition: all 0.2s ease;
 }
@@ -284,8 +284,9 @@
 /* Action buttons in header */
 .actionButtons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 @media (max-width: 768px) {
@@ -299,20 +300,22 @@
 .actionBtnDanger {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  padding: 8px 14px;
   color: var(--text-primary);
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .actionBtn:hover {
   background: var(--hover-overlay);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
 }
 
 .actionBtnDanger {
@@ -323,7 +326,8 @@
 
 .actionBtnDanger:hover {
   background: var(--danger-bg-light);
-  opacity: 0.8;
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 @media (max-width: 768px) {
@@ -362,5 +366,74 @@
   .selectionCount {
     font-size: 12px;
     padding: 6px 8px;
+  }
+}
+
+/* Search Suggestions */
+.searchBar {
+  position: relative;
+}
+
+.searchSuggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-tertiary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.suggestionsHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+  background: var(--bg-secondary);
+}
+
+.suggestionItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.suggestionItem:hover {
+  background: var(--hover-overlay);
+}
+
+.suggestionItem svg {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.searchFiltersWrapper {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+@media (max-width: 768px) {
+  .searchFiltersWrapper {
+    position: absolute;
+    top: 100%;
+    right: 12px;
+    margin-top: 8px;
+    z-index: 100;
   }
 }

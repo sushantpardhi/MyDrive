@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
+import SearchHighlight from "../common/SearchHighlight";
 import OwnerAvatar from "../common/OwnerAvatar";
 
 const FolderCard = ({
@@ -32,6 +33,7 @@ const FolderCard = ({
   onProperties,
   viewType = "grid",
   type = "drive",
+  searchQuery = "",
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -97,7 +99,13 @@ const FolderCard = ({
           <Folder size={viewType === "grid" ? 32 : 24} />
         </div>
         <div className={styles.folderInfo}>
-          <div className={styles.folderName}>{folder.name}</div>
+          <div className={styles.folderName}>
+            <SearchHighlight
+              text={folder.name}
+              searchTerm={searchQuery}
+              searchMeta={folder._searchMeta}
+            />
+          </div>
           {viewType === "grid" && (
             <div className={styles.folderDetails}>
               Updated {formatDate(folder.updatedAt)}

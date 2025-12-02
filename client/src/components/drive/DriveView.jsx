@@ -92,6 +92,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const fileInputRef = useRef(null);
   const driveViewRef = useRef(null);
   const typeRef = useRef(type);
+  const sortByRef = useRef("createdAt");
+  const sortOrderRef = useRef("desc");
 
   // Custom hooks
   const { viewMode, changeViewMode } = useUserSettings();
@@ -114,7 +116,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
             folderId,
             type === "trash",
             page,
-            50
+            50,
+            sortByRef.current,
+            sortOrderRef.current
           );
         }
 
@@ -194,6 +198,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     clearSearch,
     loadMoreSearchResults,
     hasMore: searchHasMore,
+    searchFilters,
+    updateFilters,
+    clearFilters,
+    hasActiveFilters,
+    searchHistory,
   } = useSearch(api, loadFolderContents);
 
   const {
@@ -205,9 +214,43 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     bulkMove,
   } = useSelection(api, folders, files, type);
 
-  // Get current data to display (search results or regular folder contents)
-  const displayFolders = searchQuery.trim() ? searchResults.folders : folders;
-  const displayFiles = searchQuery.trim() ? searchResults.files : files;
+  // Check if filters are active (needed before useEffect below)
+  const hasFiltersActive =
+    searchFilters.fileTypes.length > 0 ||
+    searchFilters.sizeMin !== "" ||
+    searchFilters.sizeMax !== "" ||
+    searchFilters.dateStart !== "" ||
+    searchFilters.dateEnd !== "";
+
+  // Update sort refs when search filters change and reload if not searching
+  useEffect(() => {
+    const sortChanged =
+      sortByRef.current !== searchFilters.sortBy ||
+      sortOrderRef.current !== searchFilters.sortOrder;
+
+    if (sortChanged) {
+      sortByRef.current = searchFilters.sortBy;
+      sortOrderRef.current = searchFilters.sortOrder;
+
+      // Only reload if not actively searching (search handles its own sorting)
+      if (!searchQuery.trim() && !hasFiltersActive) {
+        loadFolderContents(currentFolderId, 1, false);
+      }
+    }
+  }, [
+    searchFilters.sortBy,
+    searchFilters.sortOrder,
+    searchQuery,
+    hasFiltersActive,
+    loadFolderContents,
+    currentFolderId,
+  ]);
+
+  // Get current data to display (search/filter results or regular folder contents)
+  const displayFolders =
+    searchQuery.trim() || hasFiltersActive ? searchResults.folders : folders;
+  const displayFiles =
+    searchQuery.trim() || hasFiltersActive ? searchResults.files : files;
   const allItemIds = useMemo(
     () => [
       ...displayFolders.map((f) => f._id),
@@ -258,6 +301,17 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   useEffect(() => {
     clearSelection();
   }, [currentFolderId, type, clearSelection]);
+
+  // Wrapper for openFolder that clears search when navigating to a folder
+  const handleOpenFolder = useCallback(
+    (folder) => {
+      // Clear search state when opening a folder
+      clearSearch();
+      // Open the folder
+      openFolder(folder);
+    },
+    [openFolder, clearSearch]
+  );
 
   // Toggle select all handler
   const handleToggleSelectAll = useCallback(() => {
@@ -458,10 +512,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         setSearchQuery={setSearchQuery}
         isSearching={isSearching}
         clearSearch={clearSearch}
-        path={path}
-        navigateTo={navigateTo}
         type={type}
-        breadcrumbRef={breadcrumbRef}
         onCreateFolder={handleCreateFolder}
         onFileUpload={handleFileUpload}
         onEmptyTrash={handleEmptyTrash}
@@ -472,6 +523,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onBulkRestore={handleBulkRestore}
         onBulkCopy={handleBulkCopy}
         onBulkMove={handleBulkMove}
+        searchFilters={searchFilters}
+        updateFilters={updateFilters}
+        clearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        searchHistory={searchHistory}
       />
 
       <LocationHeader
@@ -481,6 +537,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         setViewMode={changeViewMode}
         allItemIds={allItemIds}
         onSelectAll={handleToggleSelectAll}
+        path={path}
+        navigateTo={navigateTo}
+        breadcrumbRef={breadcrumbRef}
       />
 
       <MobileBreadcrumb path={path} navigateTo={navigateTo} />
@@ -492,7 +551,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         folders={displayFolders}
         files={displayFiles}
         viewMode={viewMode}
-        onFolderClick={openFolder}
+        onFolderClick={handleOpenFolder}
         onFolderDelete={(id) => handleDelete(id, "folders")}
         onFolderShare={(folder) => openShareDialog(folder, "folders")}
         onFolderRestore={(id) => handleRestore(id, "folders")}
@@ -515,6 +574,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onSelectAll={handleToggleSelectAll}
         type={type}
         driveViewRef={driveViewRef}
+        searchQuery={searchQuery}
       />
 
       <FloatingActionButton

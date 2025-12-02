@@ -35,6 +35,14 @@ const FileSchema = new mongoose.Schema({
 FileSchema.index({ owner: 1, parent: 1, trash: 1 });
 FileSchema.index({ "uploadMetadata.uploadId": 1 });
 
+// Text index for full-text search
+FileSchema.index({ name: "text" });
+
+// Compound indexes for search with filters
+FileSchema.index({ owner: 1, trash: 1, createdAt: -1 });
+FileSchema.index({ owner: 1, trash: 1, type: 1 });
+FileSchema.index({ owner: 1, trash: 1, size: 1 });
+
 // Pre-save middleware to update timestamp
 FileSchema.pre("save", function (next) {
   this.updatedAt = new Date();

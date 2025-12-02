@@ -15,4 +15,10 @@ const FolderSchema = new mongoose.Schema({
   trashedAt: { type: Date },
 });
 
+// Text index for full-text search
+FolderSchema.index({ name: "text" });
+
+// Compound indexes for search with filters
+FolderSchema.index({ owner: 1, trash: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Folder", FolderSchema);

@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { useDriveContext } from "../contexts/DriveContext";
 
+const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
+const MAX_HISTORY_ITEMS = 10;
+
 export const useSearch = (api, loadFolderContents) => {
   const { currentFolderId } = useDriveContext();
   const [searchQuery, setSearchQuery] = useState("");
@@ -12,7 +15,43 @@ export const useSearch = (api, loadFolderContents) => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [searchFilters, setSearchFilters] = useState({
+    fileTypes: [],
+    sizeMin: "",
+    sizeMax: "",
+    dateStart: "",
+    dateEnd: "",
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const searchTimeoutRef = useRef(null);
+
+  // Save search to history
+  const saveToHistory = (query) => {
+    if (!query || query.trim().length < 2) return;
+
+    const newHistory = [
+      query.trim(),
+      ...searchHistory.filter((item) => item !== query.trim()),
+    ].slice(0, MAX_HISTORY_ITEMS);
+
+    setSearchHistory(newHistory);
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory));
+  };
+
+  // Clear search history
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
+  };
 
   // Debounced search with auto-search
   useEffect(() => {
@@ -21,8 +60,16 @@ export const useSearch = (api, loadFolderContents) => {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // If search query is empty, reload folder contents
-    if (!searchQuery.trim()) {
+    // Check if we have any active filters
+    const hasFilters =
+      searchFilters.fileTypes.length > 0 ||
+      searchFilters.sizeMin !== "" ||
+      searchFilters.sizeMax !== "" ||
+      searchFilters.dateStart !== "" ||
+      searchFilters.dateEnd !== "";
+
+    // If no search query and no filters, reload folder contents
+    if (!searchQuery.trim() && !hasFilters) {
       loadFolderContents(currentFolderId, 1, false);
       setIsSearching(false);
       setCurrentPage(1);
@@ -36,7 +83,14 @@ export const useSearch = (api, loadFolderContents) => {
     // Debounce search by 500ms
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await api.search(searchQuery, 1, 50);
+        console.log(
+          "Starting search with query:",
+          searchQuery,
+          "filters:",
+          searchFilters
+        );
+        const response = await api.search(searchQuery, 1, 50, searchFilters);
+        console.log("Search response:", response.data);
         setSearchResults({
           folders: response.data.folders || [],
           files: response.data.files || [],
@@ -44,9 +98,16 @@ export const useSearch = (api, loadFolderContents) => {
         setHasMore(response.data.pagination?.hasMore || false);
         setCurrentPage(1);
         setIsSearching(false);
+
+        // Save to history on successful search (only if there's a query)
+        if (searchQuery.trim()) {
+          saveToHistory(searchQuery);
+        }
       } catch (error) {
-        toast.error("Search failed");
-        console.error(error);
+        console.error("Search error details:", error);
+        const errorMessage =
+          error.response?.data?.error || error.message || "Search failed";
+        toast.error(`Search failed: ${errorMessage}`);
         setIsSearching(false);
       }
     }, 500);
@@ -57,7 +118,7 @@ export const useSearch = (api, loadFolderContents) => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, currentFolderId, loadFolderContents, api]);
+  }, [searchQuery, searchFilters, currentFolderId, loadFolderContents, api]);
 
   const clearSearch = () => {
     setSearchQuery("");
@@ -67,12 +128,34 @@ export const useSearch = (api, loadFolderContents) => {
     setSearchResults({ folders: [], files: [] });
   };
 
+  const updateFilters = (newFilters) => {
+    setSearchFilters(newFilters);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchFilters({
+      fileTypes: [],
+      sizeMin: "",
+      sizeMax: "",
+      dateStart: "",
+      dateEnd: "",
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+  };
+
   const loadMoreSearchResults = async () => {
     if (!hasMore || isSearching) return;
 
     try {
       const nextPage = currentPage + 1;
-      const response = await api.search(searchQuery, nextPage, 50);
+      const response = await api.search(
+        searchQuery,
+        nextPage,
+        50,
+        searchFilters
+      );
 
       // Filter out duplicates when appending search results
       setSearchResults((prev) => ({
@@ -98,6 +181,16 @@ export const useSearch = (api, loadFolderContents) => {
     }
   };
 
+  const hasActiveFilters = () => {
+    return (
+      searchFilters.fileTypes.length > 0 ||
+      searchFilters.sizeMin !== "" ||
+      searchFilters.sizeMax !== "" ||
+      searchFilters.dateStart !== "" ||
+      searchFilters.dateEnd !== ""
+    );
+  };
+
   return {
     searchQuery,
     setSearchQuery,
@@ -106,6 +199,11 @@ export const useSearch = (api, loadFolderContents) => {
     clearSearch,
     loadMoreSearchResults,
     hasMore,
-    currentPage,
+    searchFilters,
+    updateFilters,
+    clearFilters,
+    hasActiveFilters: hasActiveFilters(),
+    searchHistory,
+    clearHistory,
   };
 };

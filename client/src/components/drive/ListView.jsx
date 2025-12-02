@@ -27,6 +27,7 @@ const ListView = ({
   onToggleSelection,
   onSelectAll,
   type,
+  searchQuery = "",
 }) => {
   const { selectedItems } = useSelectionContext();
   const totalItems = folders.length + files.length;
@@ -74,6 +75,7 @@ const ListView = ({
             onSelect={() => onToggleSelection(folder._id)}
             viewType="list"
             type={type}
+            searchQuery={searchQuery}
           />
         ))}
         {files.map((file) => (
@@ -92,6 +94,7 @@ const ListView = ({
             onSelect={() => onToggleSelection(file._id)}
             viewType="list"
             type={type}
+            searchQuery={searchQuery}
           />
         ))}
       </div>

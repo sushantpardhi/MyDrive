@@ -10,32 +10,122 @@
     border-color var(--transition-normal);
 }
 
-.locationIcon {
+/* Breadcrumb Navigation */
+.breadcrumbScroll {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--bg-quaternary);
-  border-radius: 8px;
-  padding: 6px;
-  color: var(--accent-primary);
-  box-shadow: var(--shadow-sm);
-  transition: background-color var(--transition-normal);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  padding: 2px 0;
+  gap: 4px;
 }
 
-.locationName {
-  font-size: 1.35rem;
-  font-weight: 600;
+.breadcrumbScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.breadcrumbItem {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.breadcrumbLink {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.breadcrumbLink:hover {
+  background: var(--hover-overlay);
   color: var(--text-primary);
-  letter-spacing: 0.01em;
-  margin-left: 2px;
-  flex: 1;
-  transition: color var(--transition-normal);
+  transform: translateY(-1px);
+}
+
+.breadcrumbLink:active {
+  transform: translateY(0);
+}
+
+.breadcrumbCurrent {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+}
+
+.breadcrumbIcon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.breadcrumbLink:hover .breadcrumbIcon {
+  opacity: 1;
+}
+
+.breadcrumbText {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
-  max-width: 100%;
-  position: relative;
+  max-width: 150px;
+}
+
+.separator {
+  margin: 0 2px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+/* Breadcrumb tooltip */
+.breadcrumbLink[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1002;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Disable tooltips on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .breadcrumbLink[title]:hover::after {
+    display: none;
+  }
 }
 
 .locationControls {
@@ -82,8 +172,8 @@
     padding: 14px 16px 10px 16px;
   }
 
-  .locationName {
-    font-size: 1.1rem;
+  .breadcrumbScroll {
+    display: none;
   }
 
   .controlBtn {
