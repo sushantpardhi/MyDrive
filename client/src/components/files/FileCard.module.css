@@ -96,6 +96,28 @@
   color: var(--text-tertiary);
 }
 
+/* Owner Avatar */
+.ownerAvatarWrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.fileCard:hover .ownerAvatarWrapper,
+.fileCard:focus-within .ownerAvatarWrapper,
+.fileCard.selected .ownerAvatarWrapper {
+  opacity: 1;
+}
+
+/* Always show owner avatar in list view */
+.fileCard.list .ownerAvatarWrapper {
+  opacity: 1;
+  position: static;
+}
+
 /* Grid View Styles */
 .fileCard.grid {
   width: 100%;
@@ -684,6 +706,12 @@
 }
 
 /* File metadata columns */
+.fileOwner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .fileSize {
   font-size: 13px;
   color: var(--text-secondary);

@@ -131,6 +131,10 @@ const api = {
   getFolderDetails: (folderId) =>
     axios.get(`${API_URL}/folders/${folderId}/details`),
 
+  // Get folder statistics (file count, total size)
+  getFolderStats: (folderId) =>
+    axios.get(`${API_URL}/folders/${folderId}/stats`),
+
   // Share operations
   shareItem: (type, id, email) =>
     axios.post(`${API_URL}/${type}/${id}/share`, { email }),

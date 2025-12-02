@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 const SelectionContext = createContext();
 
@@ -13,7 +20,26 @@ export const useSelectionContext = () => {
 };
 
 export const SelectionProvider = ({ children }) => {
+  // Track the current user to detect changes
+  const currentUserRef = useRef(localStorage.getItem("user"));
   const [selectedItems, setSelectedItems] = useState(new Set());
+
+  // Clear selection when user changes
+  useEffect(() => {
+    const checkUserChange = () => {
+      const currentUser = localStorage.getItem("user");
+      if (currentUser !== currentUserRef.current) {
+        currentUserRef.current = currentUser;
+        setSelectedItems(new Set());
+      }
+    };
+
+    // Check on mount and interval
+    checkUserChange();
+    const interval = setInterval(checkUserChange, 100);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleSelection = useCallback((itemId) => {
     setSelectedItems((prev) => {

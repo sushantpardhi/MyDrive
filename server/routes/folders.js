@@ -143,6 +143,59 @@ router.get("/:folderId/details", async (req, res) => {
   }
 });
 
+// Get folder statistics (file count and total size)
+router.get("/:folderId/stats", async (req, res) => {
+  try {
+    const folderId = req.params.folderId;
+    const folder = await Folder.findById(folderId);
+    
+    if (!folder) {
+      return res.status(404).json({ error: "Folder not found" });
+    }
+
+    // Check if user has access
+    const hasAccess =
+      folder.owner.toString() === req.user.id ||
+      folder.shared.includes(req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Count files and calculate total size recursively
+    const countRecursive = async (parentId) => {
+      // Get direct files in this folder
+      const files = await File.find({ 
+        parent: parentId, 
+        trash: { $ne: true } 
+      });
+      
+      let fileCount = files.length;
+      let totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+
+      // Get subfolders and count their contents
+      const subfolders = await Folder.find({ 
+        parent: parentId, 
+        trash: { $ne: true } 
+      });
+      
+      for (const subfolder of subfolders) {
+        const subStats = await countRecursive(subfolder._id);
+        fileCount += subStats.fileCount;
+        totalSize += subStats.totalSize;
+      }
+
+      return { fileCount, totalSize };
+    };
+
+    const stats = await countRecursive(folderId);
+    res.json(stats);
+  } catch (error) {
+    console.error("Error getting folder stats:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Share folder - Updated to accept email instead of userId
 router.post("/:id/share", async (req, res) => {
   try {

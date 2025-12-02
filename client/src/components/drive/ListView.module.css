@@ -26,6 +26,13 @@
     border-color var(--transition-normal);
 }
 
+/* When owner column is present (shared view) */
+.listHeader:has(.headerOwner) {
+  grid-template-columns:
+    48px minmax(180px, 2.5fr) minmax(90px, 1fr) minmax(80px, 1fr) minmax(100px, 1fr)
+    100px;
+}
+
 @media (max-width: 1024px) {
   .listHeader {
     grid-template-columns:
@@ -50,7 +57,8 @@
   }
 
   .headerSize,
-  .headerMeta {
+  .headerMeta,
+  .headerOwner {
     display: none;
   }
 
@@ -95,6 +103,7 @@
 }
 
 .headerName,
+.headerOwner,
 .headerSize,
 .headerMeta,
 .headerActions {
@@ -110,6 +119,12 @@
 
 .headerName {
   padding-left: 6px;
+}
+
+.headerOwner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .headerActions {

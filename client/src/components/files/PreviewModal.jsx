@@ -51,6 +51,21 @@ import {
   Type,
   Diff,
   Box,
+  Printer,
+  Edit3,
+  Trash2,
+  Copy,
+  ChevronDown,
+  Calendar,
+  User,
+  HardDrive,
+  Link,
+  Clock,
+  Tag,
+  Keyboard,
+  MoreVertical,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./PreviewModal.module.css";
@@ -242,6 +257,15 @@ const PreviewModal = () => {
   // JSON viewer state
   const [jsonData, setJsonData] = useState(null);
 
+  // Metadata sidebar state
+  const [metadataSidebarOpen, setMetadataSidebarOpen] = useState(false);
+
+  // Keyboard shortcuts help state
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  // Quick actions menu state
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+
   // Get file extension and type
   const getFileType = (filename) => {
     if (!filename) return "unknown";
@@ -370,6 +394,30 @@ const PreviewModal = () => {
 
     // For any other file type, show generic preview with icon
     return "unknown";
+  };
+
+  // Get file type category for badge
+  const getFileTypeCategory = (filename) => {
+    if (!filename) return { label: "File", color: "#888" };
+    const ext = filename.split(".").pop().toLowerCase();
+
+    const categories = {
+      image: { exts: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"], label: "Image", color: "#4CAF50" },
+      pdf: { exts: ["pdf"], label: "PDF", color: "#F44336" },
+      document: { exts: ["docx", "doc", "txt", "md"], label: "Document", color: "#2196F3" },
+      spreadsheet: { exts: ["xlsx", "xls", "xlsm", "xlsb", "csv"], label: "Spreadsheet", color: "#4CAF50" },
+      video: { exts: ["mp4", "webm", "ogg", "mov", "avi", "mkv"], label: "Video", color: "#9C27B0" },
+      audio: { exts: ["mp3", "wav", "ogg", "flac", "m4a"], label: "Audio", color: "#FF9800" },
+      code: { exts: ["js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "html", "css"], label: "Code", color: "#00BCD4" },
+      archive: { exts: ["zip", "rar", "7z", "tar", "gz"], label: "Archive", color: "#795548" },
+      model: { exts: ["obj", "stl", "gltf", "glb"], label: "3D Model", color: "#E91E63" },
+    };
+
+    for (const [key, value] of Object.entries(categories)) {
+      if (value.exts.includes(ext)) return value;
+    }
+
+    return { label: ext.toUpperCase(), color: "#888" };
   };
 
   // Get icon for file type
@@ -849,13 +897,94 @@ const PreviewModal = () => {
     }
   };
 
+  // New handler functions for enhanced features
+  const toggleMetadataSidebar = () => setMetadataSidebarOpen(prev => !prev);
+  
+  const toggleKeyboardHelp = () => setShowKeyboardHelp(prev => !prev);
+  
+  const toggleQuickActions = () => setQuickActionsOpen(prev => !prev);
+
+  const handlePrint = useCallback(() => {
+    if (!previewFile) return;
+    
+    const fileType = getFileType(previewFile.name);
+    
+    if (fileType === "pdf" && pdfData) {
+      window.print();
+    } else if (fileType === "image" && fileUrl) {
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(`
+        <html>
+          <head><title>Print ${previewFile.name}</title></head>
+          <body style="margin:0;display:flex;align-items:center;justify-content:center;">
+            <img src="${fileUrl}" style="max-width:100%;height:auto;" onload="window.print();window.close();" />
+          </body>
+        </html>
+      `);
+    } else if (fileType === "text" || fileType === "markdown") {
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print ${previewFile.name}</title>
+            <style>body{font-family:monospace;padding:20px;white-space:pre-wrap;}</style>
+          </head>
+          <body>${fileContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  }, [previewFile, fileContent, fileUrl, pdfData]);
+
   // Keyboard shortcuts
   useEffect(() => {
     if (!previewModalOpen) return;
 
     const handleKeyDown = (e) => {
+      // Show keyboard help
+      if (e.key === "?" && !e.shiftKey) {
+        e.preventDefault();
+        toggleKeyboardHelp();
+        return;
+      }
+
+      // Close modal
       if (e.key === "Escape") {
-        closePreviewModal();
+        if (showKeyboardHelp) {
+          setShowKeyboardHelp(false);
+        } else {
+          closePreviewModal();
+        }
+        return;
+      }
+
+      // Toggle metadata sidebar with 'i' key
+      if (e.key === "i" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        toggleMetadataSidebar();
+        return;
+      }
+
+      // Print with Ctrl+P or Cmd+P
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+        e.preventDefault();
+        handlePrint();
+        return;
+      }
+
+      // Download with 'd' key
+      if (e.key === "d" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleDownload();
+        return;
+      }
+
+      // Fullscreen with 'f' key
+      if (e.key === "f" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        toggleFullScreen();
+        return;
       }
 
       const fileType = previewFile ? getFileType(previewFile.name) : "unknown";
@@ -891,6 +1020,9 @@ const PreviewModal = () => {
     numPages,
     excelSheets.length,
     epubRendition,
+    showKeyboardHelp,
+    handlePrint,
+    handleDownload,
   ]);
 
   if (!previewModalOpen || !previewFile) {
@@ -964,12 +1096,25 @@ const PreviewModal = () => {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.fileInfo}>
-            <h2>{previewFile.name}</h2>
-            <span className={styles.fileSize}>
-              {formatFileSize(previewFile.size)}
-            </span>
+            <div className={styles.fileTypeBadge} style={{ backgroundColor: getFileTypeCategory(previewFile.name).color }}>
+              {getFileTypeCategory(previewFile.name).label}
+            </div>
+            <div className={styles.fileTitleGroup}>
+              <h2>{previewFile.name}</h2>
+              <span className={styles.fileSize}>
+                {formatFileSize(previewFile.size)}
+              </span>
+            </div>
           </div>
           <div className={styles.headerActions}>
+            {/* Keyboard shortcuts button */}
+          <button
+            onClick={toggleKeyboardHelp}
+            className={styles.iconButton}
+            title="Keyboard Shortcuts (?)"
+          >
+            <Keyboard size={20} />
+          </button>
             {/* Type-specific controls */}
             {fileType === "image" && (
               <>
@@ -1125,17 +1270,35 @@ const PreviewModal = () => {
               </>
             )}
 
+            {/* Print button for supported file types */}
+            {(fileType === "pdf" || fileType === "image" || fileType === "text" || fileType === "markdown") && (
+              <button
+                onClick={handlePrint}
+                className={styles.iconButton}
+                title="Print (Ctrl+P)"
+              >
+                <Printer size={20} />
+              </button>
+            )}
+
             <button
               onClick={toggleFullScreen}
               className={styles.iconButton}
-              title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+              title={isFullScreen ? "Exit Full Screen (F)" : "Full Screen (F)"}
             >
               {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
             </button>
             <button
+              onClick={toggleMetadataSidebar}
+              className={`${styles.iconButton} ${metadataSidebarOpen ? styles.active : ""}`}
+              title="File Info (I)"
+            >
+              {metadataSidebarOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+            </button>
+            <button
               onClick={handleDownload}
               className={styles.iconButton}
-              title="Download"
+              title="Download (D)"
             >
               <Download size={20} />
             </button>
@@ -1601,6 +1764,192 @@ const PreviewModal = () => {
             </div>
           )}
         </div>
+
+        {/* Metadata Sidebar */}
+        {metadataSidebarOpen && (
+          <div className={styles.metadataSidebar}>
+            <div className={styles.metadataHeader}>
+              <h3>File Information</h3>
+              <button
+                onClick={toggleMetadataSidebar}
+                className={styles.iconButton}
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.metadataContent}>
+              <div className={styles.metadataSection}>
+                <div className={styles.metadataLabel}>
+                  <FileText size={16} />
+                  <span>File Name</span>
+                </div>
+                <div className={styles.metadataValue}>{previewFile.name}</div>
+              </div>
+
+              <div className={styles.metadataSection}>
+                <div className={styles.metadataLabel}>
+                  <HardDrive size={16} />
+                  <span>Size</span>
+                </div>
+                <div className={styles.metadataValue}>
+                  {formatFileSize(previewFile.size)}
+                </div>
+              </div>
+
+              <div className={styles.metadataSection}>
+                <div className={styles.metadataLabel}>
+                  <Tag size={16} />
+                  <span>Type</span>
+                </div>
+                <div className={styles.metadataValue}>
+                  {getFileTypeCategory(previewFile.name).label}
+                  {previewFile.mimetype && (
+                    <span className={styles.metadataMimeType}>
+                      {previewFile.mimetype}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {previewFile.createdAt && (
+                <div className={styles.metadataSection}>
+                  <div className={styles.metadataLabel}>
+                    <Calendar size={16} />
+                    <span>Created</span>
+                  </div>
+                  <div className={styles.metadataValue}>
+                    {new Date(previewFile.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              )}
+
+              {previewFile.updatedAt && (
+                <div className={styles.metadataSection}>
+                  <div className={styles.metadataLabel}>
+                    <Clock size={16} />
+                    <span>Modified</span>
+                  </div>
+                  <div className={styles.metadataValue}>
+                    {new Date(previewFile.updatedAt).toLocaleString()}
+                  </div>
+                </div>
+              )}
+
+              {imageDimensions && (
+                <div className={styles.metadataSection}>
+                  <div className={styles.metadataLabel}>
+                    <FileImage size={16} />
+                    <span>Dimensions</span>
+                  </div>
+                  <div className={styles.metadataValue}>
+                    {imageDimensions.width} × {imageDimensions.height} px
+                  </div>
+                </div>
+              )}
+
+              {previewFile.shared && previewFile.shared.length > 0 && (
+                <div className={styles.metadataSection}>
+                  <div className={styles.metadataLabel}>
+                    <Share2 size={16} />
+                    <span>Sharing</span>
+                  </div>
+                  <div className={styles.metadataValue}>
+                    Shared with {previewFile.shared.length}{" "}
+                    {previewFile.shared.length === 1 ? "person" : "people"}
+                  </div>
+                </div>
+              )}
+
+              {previewFile.owner && (
+                <div className={styles.metadataSection}>
+                  <div className={styles.metadataLabel}>
+                    <User size={16} />
+                    <span>Owner</span>
+                  </div>
+                  <div className={styles.metadataValue}>
+                    {previewFile.owner.email || "You"}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Keyboard Shortcuts Help */}
+        {showKeyboardHelp && (
+          <div className={styles.keyboardHelpOverlay} onClick={toggleKeyboardHelp}>
+            <div className={styles.keyboardHelpModal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.keyboardHelpHeader}>
+                <h3>Keyboard Shortcuts</h3>
+                <button
+                  onClick={toggleKeyboardHelp}
+                  className={styles.iconButton}
+                  title="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className={styles.keyboardHelpContent}>
+                <div className={styles.shortcutGroup}>
+                  <h4>General</h4>
+                  <div className={styles.shortcut}>
+                    <kbd>Esc</kbd>
+                    <span>Close modal</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>?</kbd>
+                    <span>Show/hide this help</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>I</kbd>
+                    <span>Toggle file info sidebar</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>D</kbd>
+                    <span>Download file</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>F</kbd>
+                    <span>Toggle fullscreen</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>Ctrl</kbd> + <kbd>P</kbd>
+                    <span>Print (PDF, images, text)</span>
+                  </div>
+                </div>
+
+                <div className={styles.shortcutGroup}>
+                  <h4>PDF Navigation</h4>
+                  <div className={styles.shortcut}>
+                    <kbd>←</kbd> / <kbd>→</kbd>
+                    <span>Previous/Next page</span>
+                  </div>
+                </div>
+
+                <div className={styles.shortcutGroup}>
+                  <h4>Image Controls</h4>
+                  <div className={styles.shortcut}>
+                    <kbd>+</kbd> / <kbd>-</kbd>
+                    <span>Zoom in/out</span>
+                  </div>
+                  <div className={styles.shortcut}>
+                    <kbd>R</kbd>
+                    <span>Rotate</span>
+                  </div>
+                </div>
+
+                <div className={styles.shortcutGroup}>
+                  <h4>Excel Navigation</h4>
+                  <div className={styles.shortcut}>
+                    <kbd>←</kbd> / <kbd>→</kbd>
+                    <span>Previous/Next sheet</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

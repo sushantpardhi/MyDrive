@@ -10,6 +10,7 @@ import FloatingActionButton from "./FloatingActionButton";
 import ShareDialog from "../files/ShareDialog";
 import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
+import PropertiesModal from "../files/PropertiesModal";
 import TransferProgressToast from "../files/TransferProgressToast";
 
 // Hooks
@@ -80,6 +81,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     openCopyMoveDialog,
     openBulkCopyMoveDialog,
     closeCopyMoveDialog,
+    propertiesModalOpen,
+    propertiesItem,
+    propertiesItemType,
+    openPropertiesModal,
+    closePropertiesModal,
   } = useUIContext();
 
   // Refs
@@ -436,6 +442,14 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   };
 
+  const handleFileProperties = (file) => {
+    openPropertiesModal(file, "file");
+  };
+
+  const handleFolderProperties = (folder) => {
+    openPropertiesModal(folder, "folder");
+  };
+
   return (
     <div className={styles.driveContainer}>
       <Header
@@ -488,6 +502,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onFolderDownload={(folderId, folderName) =>
           handleFolderDownload(folderId, folderName)
         }
+        onFolderProperties={handleFolderProperties}
         onFileDownload={handleDownload}
         onFileDelete={(id) => handleDelete(id, "files")}
         onFileShare={(file) => openShareDialog(file, "files")}
@@ -495,6 +510,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onFileRename={(file) => openRenameDialog(file, "files")}
         onFileCopy={(file) => openCopyMoveDialog(file, "files", "copy")}
         onFileMove={(file) => openCopyMoveDialog(file, "files", "move")}
+        onFileProperties={handleFileProperties}
         onToggleSelection={toggleSelection}
         onSelectAll={handleToggleSelectAll}
         type={type}
@@ -536,6 +552,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         items={copyMoveItems}
         itemType={copyMoveItemType}
         operation={copyMoveOperation}
+      />
+
+      <PropertiesModal
+        isOpen={propertiesModalOpen}
+        item={propertiesItem}
+        itemType={propertiesItemType}
+        onClose={closePropertiesModal}
       />
 
       <TransferProgressToast

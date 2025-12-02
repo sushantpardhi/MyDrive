@@ -27,6 +27,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (userData, userToken) => {
+    // Clear previous user's settings before setting new user
+    clearUserSettings();
+
     setUser(userData);
     setToken(userToken);
     localStorage.setItem("token", userToken);
@@ -38,10 +41,18 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    clearUserSettings();
   };
 
   const isAuthenticated = () => {
     return !!token;
+  };
+
+  const clearUserSettings = () => {
+    // Clear all user-specific settings from localStorage
+    localStorage.removeItem("viewMode");
+    localStorage.removeItem("theme");
+    localStorage.removeItem("lastFolderId");
   };
 
   const value = {
@@ -51,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isAuthenticated,
+    clearUserSettings,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -15,6 +15,7 @@ const ListView = ({
   onFolderCopy,
   onFolderMove,
   onFolderDownload,
+  onFolderProperties,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -22,6 +23,7 @@ const ListView = ({
   onFileRename,
   onFileCopy,
   onFileMove,
+  onFileProperties,
   onToggleSelection,
   onSelectAll,
   type,
@@ -47,6 +49,7 @@ const ListView = ({
           </button>
         </div>
         <div className={styles.headerName}>Name</div>
+        {type === "shared" && <div className={styles.headerOwner}>Owner</div>}
         <div className={styles.headerSize}>Size</div>
         <div className={styles.headerMeta}>Last modified</div>
         <div className={styles.headerActions}>Actions</div>
@@ -66,6 +69,7 @@ const ListView = ({
             onCopy={() => onFolderCopy(folder)}
             onMove={() => onFolderMove(folder)}
             onDownload={() => onFolderDownload(folder._id, folder.name)}
+            onProperties={() => onFolderProperties(folder)}
             selected={selectedItems.has(folder._id)}
             onSelect={() => onToggleSelection(folder._id)}
             viewType="list"
@@ -83,6 +87,7 @@ const ListView = ({
             onRename={() => onFileRename(file)}
             onCopy={() => onFileCopy(file)}
             onMove={() => onFileMove(file)}
+            onProperties={() => onFileProperties(file)}
             selected={selectedItems.has(file._id)}
             onSelect={() => onToggleSelection(file._id)}
             viewType="list"

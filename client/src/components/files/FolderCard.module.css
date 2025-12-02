@@ -68,6 +68,28 @@
   color: var(--text-tertiary);
 }
 
+/* Owner Avatar */
+.ownerAvatarWrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.folderCard:hover .ownerAvatarWrapper,
+.folderCard:focus-within .ownerAvatarWrapper,
+.folderCard.selected .ownerAvatarWrapper {
+  opacity: 1;
+}
+
+/* Always show owner avatar in list view */
+.folderCard.list .ownerAvatarWrapper {
+  opacity: 1;
+  position: static;
+}
+
 /* Grid View Styles */
 .folderCard.grid {
   width: 100%;
@@ -520,6 +542,12 @@
 }
 
 /* Folder metadata columns */
+.folderOwner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .folderSize {
   font-size: 13px;
   color: var(--text-tertiary);

@@ -19,6 +19,7 @@ const DriveContent = ({
   onFolderCopy,
   onFolderMove,
   onFolderDownload,
+  onFolderProperties,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -26,6 +27,7 @@ const DriveContent = ({
   onFileRename,
   onFileCopy,
   onFileMove,
+  onFileProperties,
   onToggleSelection,
   onSelectAll,
   type,
@@ -70,6 +72,7 @@ const DriveContent = ({
           onFolderCopy={onFolderCopy}
           onFolderMove={onFolderMove}
           onFolderDownload={onFolderDownload}
+          onFolderProperties={onFolderProperties}
           onFileDownload={onFileDownload}
           onFileDelete={onFileDelete}
           onFileShare={onFileShare}
@@ -77,6 +80,7 @@ const DriveContent = ({
           onFileRename={onFileRename}
           onFileCopy={onFileCopy}
           onFileMove={onFileMove}
+          onFileProperties={onFileProperties}
           onToggleSelection={onToggleSelection}
           type={type}
         />
@@ -92,6 +96,7 @@ const DriveContent = ({
           onFolderCopy={onFolderCopy}
           onFolderMove={onFolderMove}
           onFolderDownload={onFolderDownload}
+          onFolderProperties={onFolderProperties}
           onFileDownload={onFileDownload}
           onFileDelete={onFileDelete}
           onFileShare={onFileShare}
@@ -99,6 +104,7 @@ const DriveContent = ({
           onFileRename={onFileRename}
           onFileCopy={onFileCopy}
           onFileMove={onFileMove}
+          onFileProperties={onFileProperties}
           onToggleSelection={onToggleSelection}
           onSelectAll={onSelectAll}
           type={type}

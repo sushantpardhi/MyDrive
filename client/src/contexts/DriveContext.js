@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 const DriveContext = createContext();
 
@@ -11,6 +18,9 @@ export const useDriveContext = () => {
 };
 
 export const DriveProvider = ({ children }) => {
+  // Track the current user to detect changes
+  const currentUserRef = useRef(localStorage.getItem("user"));
+
   // Load lastFolderId from localStorage on init
   const [currentFolderId, setCurrentFolderId] = useState(() => {
     const saved = localStorage.getItem("lastFolderId");
@@ -33,6 +43,25 @@ export const DriveProvider = ({ children }) => {
     setLoading(false);
     setLoadingMore(false);
   }, []);
+
+  // Reset to root folder when user changes
+  useEffect(() => {
+    const checkUserChange = () => {
+      const currentUser = localStorage.getItem("user");
+      if (currentUser !== currentUserRef.current && currentUser) {
+        currentUserRef.current = currentUser;
+        const savedFolderId = localStorage.getItem("lastFolderId");
+        setCurrentFolderId(savedFolderId || "root");
+        resetState();
+      }
+    };
+
+    // Check on mount and interval
+    checkUserChange();
+    const interval = setInterval(checkUserChange, 100);
+
+    return () => clearInterval(interval);
+  }, [resetState]);
 
   const updateCurrentFolder = useCallback((folderId) => {
     setCurrentFolderId((prevId) => {

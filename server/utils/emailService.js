@@ -105,7 +105,8 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:5000"
+                process.env.CLIENT_URL ||
+                `http://${window.location.hostname}:3000`
               }" class="button">Get Started</a>
             </div>
             

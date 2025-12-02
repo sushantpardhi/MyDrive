@@ -14,6 +14,7 @@ const GridView = ({
   onFolderCopy,
   onFolderMove,
   onFolderDownload,
+  onFolderProperties,
   onFileDownload,
   onFileDelete,
   onFileShare,
@@ -21,6 +22,7 @@ const GridView = ({
   onFileRename,
   onFileCopy,
   onFileMove,
+  onFileProperties,
   onToggleSelection,
   type,
 }) => {
@@ -42,6 +44,7 @@ const GridView = ({
           onCopy={() => onFolderCopy(folder)}
           onMove={() => onFolderMove(folder)}
           onDownload={() => onFolderDownload(folder._id, folder.name)}
+          onProperties={() => onFolderProperties(folder)}
           selected={selectedItems.has(folder._id)}
           onSelect={(e) => onToggleSelection(folder._id, e)}
           viewType="grid"
@@ -60,6 +63,7 @@ const GridView = ({
           onRename={() => onFileRename(file)}
           onCopy={() => onFileCopy(file)}
           onMove={() => onFileMove(file)}
+          onProperties={() => onFileProperties(file)}
           selected={selectedItems.has(file._id)}
           onSelect={(e) => onToggleSelection(file._id, e)}
           viewType="grid"

@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../contexts";
 import api from "../services/api";
 
 export const useUserSettings = () => {
+  const { user } = useAuth();
+
   // Load viewMode from localStorage on init
   const [viewMode, setViewMode] = useState(() => {
     const saved = localStorage.getItem("viewMode");
@@ -19,6 +22,11 @@ export const useUserSettings = () => {
 
         if (res.data?.preferences?.viewMode) {
           setViewMode(res.data.preferences.viewMode);
+          localStorage.setItem("viewMode", res.data.preferences.viewMode);
+        } else {
+          // If no backend preference, reset to default
+          setViewMode("grid");
+          localStorage.setItem("viewMode", "grid");
         }
       } catch (err) {
         // Keep local settings as fallback
@@ -28,15 +36,15 @@ export const useUserSettings = () => {
       }
     }
 
-    // Only sync if we have a token (user is logged in)
-    const token = localStorage.getItem("token");
-    if (token) {
+    // Only sync if user is logged in
+    if (user) {
+      setInitialized(false);
       syncSettings();
     } else {
       setInitialized(true);
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   // Update backend when viewMode changes
   const updateSettings = useCallback(

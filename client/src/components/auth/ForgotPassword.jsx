@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
-import { useUIContext } from "../../contexts";
 import styles from "./Auth.module.css";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-  const { showLoading, hideLoading } = useUIContext();
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +27,7 @@ const ForgotPassword = () => {
       return;
     }
 
-    showLoading("Sending reset link...");
+    setLoading(true);
 
     try {
       await api.forgotPassword(email);
@@ -41,7 +40,7 @@ const ForgotPassword = () => {
         "An error occurred. Please try again later.";
       setError(errorMessage);
     } finally {
-      hideLoading();
+      setLoading(false);
     }
   };
 

@@ -12,9 +12,11 @@ import {
   Copy,
   Move,
   Download,
+  Info,
 } from "lucide-react";
 import { formatDate } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
+import OwnerAvatar from "../common/OwnerAvatar";
 
 const FolderCard = ({
   folder,
@@ -27,6 +29,7 @@ const FolderCard = ({
   onCopy,
   onMove,
   onDownload,
+  onProperties,
   viewType = "grid",
   type = "drive",
 }) => {
@@ -70,6 +73,14 @@ const FolderCard = ({
           <Square size={20} className={styles.checkbox} />
         )}
       </div>
+
+      {/* Owner avatar for shared items */}
+      {type === "shared" && folder.owner && (
+        <div className={styles.ownerAvatarWrapper}>
+          <OwnerAvatar owner={folder.owner} />
+        </div>
+      )}
+
       <div
         className={styles.folderContent}
         onClick={(e) => {
@@ -104,6 +115,11 @@ const FolderCard = ({
 
       {viewType === "list" && (
         <>
+          {type === "shared" && (
+            <div className={styles.folderOwner}>
+              {folder.owner && <OwnerAvatar owner={folder.owner} />}
+            </div>
+          )}
           <div className={styles.folderSize}>—</div>
           <div className={styles.folderMeta}>
             {formatDate(folder.updatedAt)}
@@ -195,6 +211,19 @@ const FolderCard = ({
                       <Share2 size={16} />
                       <span>Share</span>
                     </button>
+                    <button
+                      onClick={() => {
+                        onProperties?.();
+                        setMenuOpen(false);
+                      }}
+                      className={styles.menuItem}
+                      aria-label="Properties"
+                      title="Properties"
+                    >
+                      <Info size={16} />
+                      <span>Properties</span>
+                    </button>
+                    <div className={styles.menuDivider} />
                     <button
                       onClick={() => {
                         onDelete();
@@ -322,6 +351,19 @@ const FolderCard = ({
                       <Share2 size={16} />
                       <span>Share</span>
                     </button>
+                    <button
+                      onClick={() => {
+                        onProperties?.();
+                        setMenuOpen(false);
+                      }}
+                      className={styles.menuItem}
+                      aria-label="Properties"
+                      title="Properties"
+                    >
+                      <Info size={16} />
+                      <span>Properties</span>
+                    </button>
+                    <div className={styles.menuDivider} />
                     <button
                       onClick={() => {
                         onDelete();

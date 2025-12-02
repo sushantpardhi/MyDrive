@@ -17,6 +17,7 @@ import {
   FileVideo,
   FileAudio,
   FileCode,
+  Info,
 } from "lucide-react";
 import {
   formatFileSize as formatSize,
@@ -25,6 +26,7 @@ import {
 } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts";
+import OwnerAvatar from "../common/OwnerAvatar";
 import api from "../../services/api";
 
 const FileCard = ({
@@ -37,6 +39,7 @@ const FileCard = ({
   onRename,
   onCopy,
   onMove,
+  onProperties,
   viewType = "grid",
   type = "drive",
 }) => {
@@ -301,6 +304,13 @@ const FileCard = ({
         )}
       </div>
 
+      {/* Owner avatar for shared items */}
+      {type === "shared" && safeFile.owner && (
+        <div className={styles.ownerAvatarWrapper}>
+          <OwnerAvatar owner={safeFile.owner} />
+        </div>
+      )}
+
       {/* File content: icon, name, size, date */}
       <div
         className={styles.fileContent}
@@ -359,6 +369,11 @@ const FileCard = ({
       {/* For list view, show size and date in columns for better alignment */}
       {viewType === "list" && (
         <>
+          {type === "shared" && (
+            <div className={styles.fileOwner}>
+              {safeFile.owner && <OwnerAvatar owner={safeFile.owner} />}
+            </div>
+          )}
           <div className={styles.fileSize}>{formatSize(safeFile.size)}</div>
           <div className={styles.fileMeta}>
             {formatDate(safeFile.updatedAt)}
@@ -478,6 +493,18 @@ const FileCard = ({
                 >
                   <Share2 size={16} />
                   <span>Share</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onProperties?.();
+                    setMenuOpen(false);
+                  }}
+                  className={styles.menuItem}
+                  aria-label="Properties"
+                  title="Properties"
+                >
+                  <Info size={16} />
+                  <span>Properties</span>
                 </button>
                 <button
                   onClick={() => {

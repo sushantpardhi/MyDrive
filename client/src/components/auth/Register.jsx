@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
-import { useUIContext } from "../../contexts";
 import styles from "./Auth.module.css";
 
 const Register = () => {
@@ -13,11 +12,11 @@ const Register = () => {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { showLoading, hideLoading } = useUIContext();
 
   const handleChange = (e) => {
     const newFormData = {
@@ -71,7 +70,7 @@ const Register = () => {
       return;
     }
 
-    showLoading("Creating your account...");
+    setLoading(true);
 
     try {
       const response = await api.register(
@@ -98,7 +97,7 @@ const Register = () => {
         setError(errorMessage || "Registration failed. Please try again.");
       }
     } finally {
-      hideLoading();
+      setLoading(false);
     }
   };
 

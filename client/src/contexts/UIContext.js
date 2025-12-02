@@ -39,6 +39,10 @@ export const UIProvider = ({ children }) => {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
+  const [propertiesModalOpen, setPropertiesModalOpen] = useState(false);
+  const [propertiesItem, setPropertiesItem] = useState(null);
+  const [propertiesItemType, setPropertiesItemType] = useState(null);
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
@@ -126,6 +130,18 @@ export const UIProvider = ({ children }) => {
     setPreviewFile(null);
   }, []);
 
+  const openPropertiesModal = useCallback((item, itemType) => {
+    setPropertiesItem(item);
+    setPropertiesItemType(itemType);
+    setPropertiesModalOpen(true);
+  }, []);
+
+  const closePropertiesModal = useCallback(() => {
+    setPropertiesModalOpen(false);
+    setPropertiesItem(null);
+    setPropertiesItemType(null);
+  }, []);
+
   const value = {
     sidebarOpen,
     actionsMenuOpen,
@@ -167,6 +183,12 @@ export const UIProvider = ({ children }) => {
     previewFile,
     openPreviewModal,
     closePreviewModal,
+
+    propertiesModalOpen,
+    propertiesItem,
+    propertiesItemType,
+    openPropertiesModal,
+    closePropertiesModal,
   };
 
   return (

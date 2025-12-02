@@ -1,8 +1,11 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 
 const ThemeContext = createContext(undefined);
 
 export const ThemeProvider = ({ children }) => {
+  // Track the current user to detect changes
+  const currentUserRef = useRef(localStorage.getItem("user"));
+
   // Initialize theme from localStorage or default to 'light'
   const [theme, setThemeState] = useState(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -15,6 +18,24 @@ export const ThemeProvider = ({ children }) => {
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // Reset theme when user changes
+  useEffect(() => {
+    const checkUserChange = () => {
+      const currentUser = localStorage.getItem("user");
+      if (currentUser !== currentUserRef.current) {
+        currentUserRef.current = currentUser;
+        const savedTheme = localStorage.getItem("theme");
+        setThemeState(savedTheme || "light");
+      }
+    };
+
+    // Check on mount and interval
+    checkUserChange();
+    const interval = setInterval(checkUserChange, 100);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const setTheme = (newTheme) => {
     setThemeState(newTheme);
