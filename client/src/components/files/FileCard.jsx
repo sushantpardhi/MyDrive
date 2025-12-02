@@ -358,7 +358,6 @@ const FileCard = ({
           </div>
         </div>
       </div>
-
       {/* For list view, show size and date in columns for better alignment */}
       {viewType === "list" && (
         <>
@@ -368,7 +367,6 @@ const FileCard = ({
           </div>
         </>
       )}
-
       {/* Menu and actions */}
       <div className={styles.menuWrapper} ref={menuRef}>
         {!hasMultipleSelections && (

@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./OwnerAvatar.module.css";
 
-const OwnerAvatar = ({ owner }) => {
+const OwnerAvatar = ({ owner, size = "default", className = "" }) => {
   if (!owner) return null;
 
   // Get initials from owner name
@@ -22,7 +22,7 @@ const OwnerAvatar = ({ owner }) => {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     const hue = hash % 360;
-    return `hsl(${hue}, 65%, 55%)`;
+    return `hsl(${hue}, 70%, 60%)`;
   };
 
   const ownerName = typeof owner === "object" ? owner.name : owner;
@@ -30,8 +30,13 @@ const OwnerAvatar = ({ owner }) => {
   const initials = getInitials(ownerName);
   const backgroundColor = getAvatarColor(ownerName);
 
+  const sizeClass = size === "compact" ? styles.compact : "";
+
   return (
-    <div className={styles.ownerAvatar} title={`Owner: ${ownerName}`}>
+    <div
+      className={`${styles.ownerAvatar} ${sizeClass} ${className}`}
+      title={`Owner: ${ownerName}`}
+    >
       <div
         className={styles.avatar}
         style={{ backgroundColor }}

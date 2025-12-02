@@ -83,6 +83,22 @@
   transform: scale(1.05);
 }
 
+/* Owner Avatar positioning */
+.ownerAvatar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.fileCard:hover .ownerAvatar,
+.fileCard:focus-within .ownerAvatar,
+.fileCard.selected .ownerAvatar {
+  opacity: 1;
+}
+
 .checkbox {
   color: var(--accent-primary);
   transition: transform var(--transition-normal);
@@ -324,6 +340,10 @@
   .checkboxWrapper {
     opacity: 1 !important;
     pointer-events: auto;
+  }
+
+  .ownerAvatar {
+    opacity: 1 !important;
   }
 
   .menuButton {
