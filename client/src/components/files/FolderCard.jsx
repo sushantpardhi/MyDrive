@@ -34,6 +34,14 @@ const FolderCard = ({
   viewType = "grid",
   type = "drive",
   searchQuery = "",
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  isDragging = false,
+  isDropTarget = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -57,10 +65,19 @@ const FolderCard = ({
     <div
       className={`${styles.folderCard} ${styles[viewType]} ${
         selected ? styles.selected : ""
-      } ${menuOpen ? styles.menuOpen : ""}`}
+      } ${menuOpen ? styles.menuOpen : ""} ${
+        isDragging ? styles.dragging : ""
+      } ${isDropTarget ? styles.dropTarget : ""}`}
       tabIndex={0}
       aria-label={`Folder: ${folder.name}`}
       role="group"
+      draggable={type !== "trash"}
+      onDragStart={(e) => onDragStart?.(folder, "folder", e)}
+      onDragEnd={(e) => onDragEnd?.(e)}
+      onDragOver={(e) => onDragOver?.(folder, e)}
+      onDragEnter={(e) => onDragEnter?.(folder, e)}
+      onDragLeave={(e) => onDragLeave?.(e)}
+      onDrop={(e) => onDrop?.(folder, e)}
     >
       <div
         className={styles.checkboxWrapper}

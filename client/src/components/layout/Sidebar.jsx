@@ -2,9 +2,14 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, Share2, Trash2, HardDrive, X } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { useState, useEffect } from "react";
+import api from "../../services/api";
+import { formatFileSize } from "../../utils/formatters";
+import logger from "../../utils/logger";
+import { useUIContext } from "../../contexts";
 
 const Sidebar = ({ onClose }) => {
   const location = useLocation();
+  const { storageRefreshTrigger } = useUIContext();
 
   const mainMenu = [
     { name: "My Drive", icon: <Home size={18} />, path: "/drive" },
@@ -22,21 +27,41 @@ const Sidebar = ({ onClose }) => {
       setUser(JSON.parse(userInfo));
     }
 
-    //To be handled by Backend in future
+    // Fetch storage info from backend
     async function getStorageInfo() {
-      if (navigator.storage && navigator.storage.estimate) {
-        const { usage, quota } = await navigator.storage.estimate();
+      try {
+        logger.debug("Fetching storage statistics from backend");
+        const response = await api.getStorageStats();
 
-        const usedGB = (usage / 1024 ** 3).toFixed(2);
-        const totalGB = (quota / 1024 ** 3).toFixed(2);
+        const { storageUsed, storageLimit } = response.data;
 
-        setStorage({ used: usedGB, total: totalGB });
-      } else {
-        setStorage({ used: 10, total: 15 });
+        setStorage({
+          used: storageUsed,
+          total: storageLimit,
+        });
+
+        logger.info("Storage statistics loaded", {
+          used: storageUsed,
+          limit: storageLimit,
+          usedFormatted: formatFileSize(storageUsed),
+          limitFormatted: formatFileSize(storageLimit),
+        });
+      } catch (error) {
+        logger.error("Failed to fetch storage statistics", {
+          error: error.message,
+          response: error.response?.data,
+        });
+
+        // Set default values on error
+        setStorage({
+          used: 0,
+          total: 5 * 1024 * 1024 * 1024, // Default 5GB
+        });
       }
     }
+
     getStorageInfo();
-  }, []);
+  }, [storageRefreshTrigger]);
 
   const usedPercent =
     storage.total > 0 ? ((storage.used / storage.total) * 100).toFixed(1) : 0;
@@ -103,7 +128,8 @@ const Sidebar = ({ onClose }) => {
         <div className={styles.storageInfo}>
           <HardDrive size={18} />
           <span>
-            {storage.used || 0} GB of {storage.total || 0} GB used
+            {formatFileSize(storage.used)} of {formatFileSize(storage.total)}{" "}
+            used
           </span>
         </div>
         <div className={styles.storageBar}>

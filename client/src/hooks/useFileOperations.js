@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { toast } from "react-toastify";
 import { downloadFile } from "../utils/helpers";
 import { useDriveContext } from "../contexts/DriveContext";
+import { useUIContext } from "../contexts";
 import {
   createChunkedUploadService,
   CHUNK_SIZE,
@@ -15,6 +16,7 @@ export const useFileOperations = (
   downloadProgressHook = null
 ) => {
   const { currentFolderId } = useDriveContext();
+  const { refreshStorage } = useUIContext();
   const [uploadLoading, setUploadLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -257,12 +259,38 @@ export const useFileOperations = (
   );
 
   const deleteItem = useCallback(
-    async (id, itemType, isPermanent = false) => {
+    async (id, itemType, isPermanent = false, passwordVerifyFn = null) => {
       const confirmMessage = isPermanent
         ? "Are you sure you want to permanently delete this item? This cannot be undone."
         : "Are you sure you want to move this item to trash?";
 
-      if (!window.confirm(confirmMessage)) return false;
+      if (!isPermanent) {
+        // For non-permanent deletion (move to trash), use normal confirmation
+        if (!window.confirm(confirmMessage)) return false;
+      } else {
+        // For permanent deletion, password verification is required
+        if (!passwordVerifyFn) {
+          toast.error(
+            "Password verification is required for permanent deletion"
+          );
+          logger.error(
+            "deleteItem called with isPermanent=true but no passwordVerifyFn provided"
+          );
+          return false;
+        }
+
+        try {
+          // The passwordVerifyFn should handle showing the modal and return a promise
+          await passwordVerifyFn(confirmMessage);
+        } catch (error) {
+          // User cancelled or password verification failed
+          logger.info("Password verification cancelled or failed", {
+            itemId: id,
+            itemType,
+          });
+          return false;
+        }
+      }
 
       setDeleteLoading(true);
       try {
@@ -274,6 +302,16 @@ export const useFileOperations = (
 
         // Reload folder contents to sync with backend
         await loadFolderContents(currentFolderId, 1, false);
+
+        // Refresh storage display if item was permanently deleted
+        if (isPermanent) {
+          logger.info("Refreshing storage after permanent deletion", {
+            itemId: id,
+            itemType,
+          });
+          refreshStorage();
+        }
+
         toast.success(
           isPermanent ? "Item permanently deleted" : "Item moved to trash"
         );
@@ -291,7 +329,7 @@ export const useFileOperations = (
         setDeleteLoading(false);
       }
     },
-    [api, loadFolderContents, currentFolderId]
+    [api, loadFolderContents, currentFolderId, refreshStorage]
   );
 
   const handleDownload = useCallback(
@@ -483,24 +521,41 @@ export const useFileOperations = (
     [api]
   );
 
-  const emptyTrash = useCallback(async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete all items in trash? This cannot be undone."
-      )
-    )
-      return false;
+  const emptyTrash = useCallback(
+    async (passwordVerifyFn = null) => {
+      const confirmMessage =
+        "Are you sure you want to permanently delete all items in trash? This cannot be undone.";
 
-    try {
-      await api.emptyTrash();
-      toast.success("Trash emptied successfully");
-      return true;
-    } catch (error) {
-      toast.error("Failed to empty trash");
-      console.error(error);
-      return false;
-    }
-  }, [api]);
+      // Password verification is required for emptying trash
+      if (!passwordVerifyFn) {
+        toast.error("Password verification is required for permanent deletion");
+        logger.error("emptyTrash called without passwordVerifyFn");
+        return false;
+      }
+
+      try {
+        // The passwordVerifyFn should handle showing the modal and return a promise
+        await passwordVerifyFn(confirmMessage);
+      } catch (error) {
+        // User cancelled or password verification failed
+        logger.info("Password verification cancelled or failed for emptyTrash");
+        return false;
+      }
+
+      try {
+        await api.emptyTrash();
+        logger.info("Refreshing storage after emptying trash");
+        refreshStorage();
+        toast.success("Trash emptied successfully");
+        return true;
+      } catch (error) {
+        toast.error("Failed to empty trash");
+        console.error(error);
+        return false;
+      }
+    },
+    [api, refreshStorage]
+  );
 
   const renameItem = useCallback(
     async (id, name, itemType) => {

@@ -5,6 +5,8 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
+  storageUsed: { type: Number, default: 0 }, // Storage used in bytes
+  storageLimit: { type: Number, default: 5 * 1024 * 1024 * 1024 }, // Default 5GB limit in bytes
   settings: {
     emailNotifications: { type: Boolean, default: true },
     language: { type: String, default: "en" },

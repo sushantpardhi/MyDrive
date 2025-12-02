@@ -26,6 +26,14 @@ const GridView = ({
   onToggleSelection,
   type,
   searchQuery = "",
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  draggedItem,
+  dropTarget,
 }) => {
   const { selectedItems } = useSelectionContext();
   // Combine folders and files for unified animation indexing
@@ -52,6 +60,14 @@ const GridView = ({
           type={type}
           searchQuery={searchQuery}
           style={{ "--item-index": index }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          isDragging={draggedItem?._id === folder._id}
+          isDropTarget={dropTarget?._id === folder._id}
         />
       ))}
       {files.map((file, index) => (
@@ -72,6 +88,9 @@ const GridView = ({
           type={type}
           searchQuery={searchQuery}
           style={{ "--item-index": folders.length + index }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          isDragging={draggedItem?._id === file._id}
         />
       ))}
       {allItems.length === 0 && (

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import LoadingSpinner from "../components/common/LoadingSpinner";
+import logger from "../utils/logger";
 
 const UIContext = createContext();
 
@@ -43,8 +44,16 @@ export const UIProvider = ({ children }) => {
   const [propertiesItem, setPropertiesItem] = useState(null);
   const [propertiesItemType, setPropertiesItemType] = useState(null);
 
+  // Storage refresh trigger
+  const [storageRefreshTrigger, setStorageRefreshTrigger] = useState(0);
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
+  }, []);
+
+  const refreshStorage = useCallback(() => {
+    logger.debug("Storage refresh triggered");
+    setStorageRefreshTrigger((prev) => prev + 1);
   }, []);
 
   const closeSidebar = useCallback(() => {
@@ -189,6 +198,8 @@ export const UIProvider = ({ children }) => {
     propertiesItemType,
     openPropertiesModal,
     closePropertiesModal,
+    storageRefreshTrigger,
+    refreshStorage,
   };
 
   return (

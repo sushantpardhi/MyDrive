@@ -65,6 +65,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     });
     await file.save();
 
+    // Update user's storage usage
+    await User.findByIdAndUpdate(req.user.id, {
+      $inc: { storageUsed: req.file.size },
+    });
+
     logger.logFileOperation("upload", file, req.user.id, {
       fileSize: file.size,
       mimeType: req.file.mimetype,
@@ -392,6 +397,11 @@ router.delete("/:id", async (req, res) => {
         fs.unlinkSync(thumbnailPath);
       }
 
+      // Update user's storage usage (subtract file size)
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { storageUsed: -item.size },
+      });
+
       await File.findByIdAndDelete(id);
       res.json({ message: "Permanently deleted" });
     } else {
@@ -573,6 +583,12 @@ router.post("/:id/copy", async (req, res) => {
     });
 
     await newFile.save();
+
+    // Update user's storage usage (add file size)
+    await User.findByIdAndUpdate(req.user.id, {
+      $inc: { storageUsed: sourceFile.size },
+    });
+
     res.json({ message: "File copied successfully", item: newFile });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1047,6 +1063,11 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       });
 
       await file.save();
+
+      // Update user's storage usage
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { storageUsed: session.fileSize },
+      });
 
       // Update session
       session.status = "completed";

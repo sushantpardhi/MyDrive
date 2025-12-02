@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import { toast } from "react-toastify";
 import { downloadFile } from "../utils/helpers";
 import { useSelectionContext } from "../contexts/SelectionContext";
+import { useUIContext } from "../contexts";
+import logger from "../utils/logger";
 
 export const useSelection = (api, folders, files, type) => {
   const {
@@ -10,6 +12,7 @@ export const useSelection = (api, folders, files, type) => {
     toggleSelection,
     clearSelection,
   } = useSelectionContext();
+  const { refreshStorage } = useUIContext();
 
   const selectAll = useCallback(() => {
     const allItemIds = [
@@ -30,7 +33,7 @@ export const useSelection = (api, folders, files, type) => {
   }, [folders, files, selectedItems, selectAllContext]);
 
   const bulkDelete = useCallback(
-    async (onComplete) => {
+    async (onComplete, passwordVerifyFn = null) => {
       if (!selectedItems.size) return false;
 
       const confirmMessage =
@@ -38,7 +41,30 @@ export const useSelection = (api, folders, files, type) => {
           ? `Are you sure you want to permanently delete ${selectedItems.size} items? This cannot be undone.`
           : `Are you sure you want to move ${selectedItems.size} items to trash?`;
 
-      if (!window.confirm(confirmMessage)) return false;
+      if (type === "trash") {
+        // For permanent deletion from trash, require password verification
+        if (!passwordVerifyFn) {
+          toast.error(
+            "Password verification is required for permanent deletion"
+          );
+          logger.error(
+            "bulkDelete called with type=trash but no passwordVerifyFn provided"
+          );
+          return false;
+        }
+
+        try {
+          await passwordVerifyFn(confirmMessage);
+        } catch (error) {
+          logger.info(
+            "Password verification cancelled or failed for bulk delete"
+          );
+          return false;
+        }
+      } else {
+        // For moving to trash, use normal confirmation
+        if (!window.confirm(confirmMessage)) return false;
+      }
 
       try {
         const promises = [...selectedItems].map((id) => {
@@ -54,6 +80,14 @@ export const useSelection = (api, folders, files, type) => {
 
         if (onComplete) await onComplete();
         clearSelection();
+
+        // Refresh storage display if items were permanently deleted
+        if (type === "trash") {
+          logger.info("Refreshing storage after bulk permanent deletion", {
+            itemCount: selectedItems.size,
+          });
+          refreshStorage();
+        }
 
         toast.success(
           type === "trash"
@@ -72,7 +106,7 @@ export const useSelection = (api, folders, files, type) => {
         return false;
       }
     },
-    [selectedItems, files, type, api, clearSelection]
+    [selectedItems, files, type, api, clearSelection, refreshStorage]
   );
 
   const bulkRestore = useCallback(async () => {

@@ -251,16 +251,35 @@ router.delete("/trash/empty", async (req, res) => {
       owner: req.user.id,
     });
 
+    // Calculate total size of trashed files for storage update
+    let totalSize = 0;
+
     // Delete all trashed files from storage (both direct files and files in folders)
     for (const file of trashedFiles) {
+      totalSize += file.size || 0;
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
     }
 
     // For each trashed folder, recursively delete all physical files within it
+    // and calculate their total size
     for (const folder of trashedFolders) {
+      const folderFiles = await File.find({
+        parent: folder._id,
+        owner: req.user.id,
+      });
+      for (const file of folderFiles) {
+        totalSize += file.size || 0;
+      }
       await deletePhysicalFilesRecursively(folder._id, req.user.id);
+    }
+
+    // Update user's storage usage (subtract total size)
+    if (totalSize > 0) {
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { storageUsed: -totalSize },
+      });
     }
 
     // Delete all trashed items from database

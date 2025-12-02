@@ -28,6 +28,14 @@ const ListView = ({
   onSelectAll,
   type,
   searchQuery = "",
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  draggedItem,
+  dropTarget,
 }) => {
   const { selectedItems } = useSelectionContext();
   const totalItems = folders.length + files.length;
@@ -76,6 +84,14 @@ const ListView = ({
             viewType="list"
             type={type}
             searchQuery={searchQuery}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragOver={onDragOver}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            isDragging={draggedItem?._id === folder._id}
+            isDropTarget={dropTarget?._id === folder._id}
           />
         ))}
         {files.map((file) => (
@@ -95,6 +111,9 @@ const ListView = ({
             viewType="list"
             type={type}
             searchQuery={searchQuery}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            isDragging={draggedItem?._id === file._id}
           />
         ))}
       </div>

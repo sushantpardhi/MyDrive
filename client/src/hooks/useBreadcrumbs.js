@@ -45,31 +45,32 @@ const buildPathFromFolder = async (folderId, type) => {
 
 export const useBreadcrumbs = (type) => {
   const { currentFolderId, updateCurrentFolder } = useDriveContext();
-  const [path, setPath] = useState(generateInitialPath(type));
+  const [path, setPath] = useState(() => generateInitialPath(type));
   const breadcrumbRef = useRef(null);
-  const initializedRef = useRef(false);
   const previousTypeRef = useRef(type);
   const pathBuiltRef = useRef(false);
 
-  // Build path from saved lastFolderId on initial mount
+  // Reset path when type changes
+  useEffect(() => {
+    if (previousTypeRef.current !== type) {
+      logger.debug("Type changed, resetting breadcrumb", {
+        oldType: previousTypeRef.current,
+        newType: type,
+      });
+      const newPath = generateInitialPath(type);
+      setPath(newPath);
+      pathBuiltRef.current = false;
+      previousTypeRef.current = type;
+    }
+  }, [type]);
+
+  // Build path from saved lastFolderId on initial mount or when folder changes
   useEffect(() => {
     if (!pathBuiltRef.current && currentFolderId !== "root") {
       pathBuiltRef.current = true;
       buildPathFromFolder(currentFolderId, type).then(setPath);
     }
   }, [currentFolderId, type]);
-
-  // Reset path only when type actually changes (not on initial mount)
-  useEffect(() => {
-    if (initializedRef.current && previousTypeRef.current !== type) {
-      setPath(generateInitialPath(type));
-      updateCurrentFolder("root");
-      previousTypeRef.current = type;
-      pathBuiltRef.current = false;
-    } else {
-      initializedRef.current = true;
-    }
-  }, [type, updateCurrentFolder]);
 
   // Update document title based on location
   useEffect(() => {

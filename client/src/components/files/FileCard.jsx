@@ -45,6 +45,9 @@ const FileCard = ({
   viewType = "grid",
   type = "drive",
   searchQuery = "",
+  onDragStart,
+  onDragEnd,
+  isDragging = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
@@ -290,10 +293,15 @@ const FileCard = ({
     <div
       className={`${styles.fileCard} ${styles[viewType]} ${
         selected ? styles.selected : ""
-      } ${menuOpen ? styles.menuOpen : ""}`}
+      } ${menuOpen ? styles.menuOpen : ""} ${
+        isDragging ? styles.dragging : ""
+      }`}
       tabIndex={0}
       aria-label={`File: ${safeFile.name}`}
       role="group"
+      draggable={type !== "trash"}
+      onDragStart={(e) => onDragStart?.(safeFile, "file", e)}
+      onDragEnd={(e) => onDragEnd?.(e)}
     >
       {/* Checkbox for selection */}
       <div

@@ -33,6 +33,14 @@ const DriveContent = ({
   type,
   driveViewRef,
   searchQuery = "",
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  draggedItem,
+  dropTarget,
 }) => {
   if (loading || isSearching) {
     return (
@@ -85,6 +93,14 @@ const DriveContent = ({
           onToggleSelection={onToggleSelection}
           type={type}
           searchQuery={searchQuery}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          draggedItem={draggedItem}
+          dropTarget={dropTarget}
         />
       ) : (
         <ListView
@@ -111,6 +127,14 @@ const DriveContent = ({
           onSelectAll={onSelectAll}
           type={type}
           searchQuery={searchQuery}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          draggedItem={draggedItem}
+          dropTarget={dropTarget}
         />
       )}
 

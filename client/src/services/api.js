@@ -45,6 +45,10 @@ const api = {
   // User profile operations
   getUserProfile: () => axios.get(`${API_URL}/users/profile`),
   updateUserProfile: (data) => axios.put(`${API_URL}/users/profile`, data),
+
+  // Storage statistics
+  getStorageStats: () => axios.get(`${API_URL}/users/storage`),
+
   // Auth operations
   register: (name, email, password) =>
     axios.post(`${API_URL}/auth/register`, { name, email, password }),
@@ -151,6 +155,10 @@ const api = {
   // User search
   searchUsers: (query) =>
     axios.get(`${API_URL}/users/search`, { params: { query } }),
+
+  // Verify password for permanent deletion
+  verifyPassword: (password) =>
+    axios.post(`${API_URL}/users/verify-password`, { password }),
 
   // Get shared items
   getSharedItems: (page = 1, limit = 50) =>

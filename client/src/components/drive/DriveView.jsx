@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import logger from "../../utils/logger";
 
@@ -13,6 +13,7 @@ import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
 import PropertiesModal from "../files/PropertiesModal";
 import TransferProgressToast from "../files/TransferProgressToast";
+import PasswordConfirmModal from "../common/PasswordConfirmModal";
 
 // Hooks
 import { useFileOperations } from "../../hooks/useFileOperations";
@@ -23,6 +24,8 @@ import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useDownloadProgress } from "../../hooks/useDownloadProgress";
 import { useUploadWarning } from "../../hooks/useUploadWarning";
+import { useDragAndDrop } from "../../hooks/useDragAndDrop";
+import { usePasswordConfirmation } from "../../hooks/usePasswordConfirmation";
 
 // Contexts
 import { useDriveContext } from "../../contexts/DriveContext";
@@ -95,6 +98,19 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const typeRef = useRef(type);
   const sortByRef = useRef("createdAt");
   const sortOrderRef = useRef("desc");
+  const dragCounterRef = useRef(0);
+
+  // State for external drag
+  const [isDraggingExternal, setIsDraggingExternal] = useState(false);
+
+  // Password confirmation for permanent deletion
+  const {
+    isModalOpen: isPasswordModalOpen,
+    modalMessage: passwordModalMessage,
+    showPasswordModal,
+    handlePasswordConfirm,
+    handleModalClose: handlePasswordModalClose,
+  } = usePasswordConfirmation();
 
   // Custom hooks
   const { viewMode, changeViewMode } = useUserSettings();
@@ -220,6 +236,19 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     bulkMove,
   } = useSelection(api, folders, files, type);
 
+  // Drag and drop functionality
+  const {
+    isDragging,
+    draggedItem,
+    dropTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+  } = useDragAndDrop(api, loadFolderContents);
+
   // Check if filters are active (needed before useEffect below)
   const hasFiltersActive =
     searchFilters.fileTypes.length > 0 ||
@@ -293,10 +322,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     if (typeRef.current !== type) {
       typeRef.current = type;
       updateCurrentFolder("root");
-      // Also reset the breadcrumb path
-      navigateTo(0);
+      // Breadcrumb will auto-update via useBreadcrumbs hook
     }
-  }, [type, updateCurrentFolder, navigateTo]);
+  }, [type, updateCurrentFolder]);
 
   // Load folder contents when currentFolderId changes or reloadTrigger fires
   useEffect(() => {
@@ -369,7 +397,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   };
 
   const handleDelete = async (id, itemType) => {
-    const success = await deleteItem(id, itemType, type === "trash");
+    const isPermanent = type === "trash";
+    const success = await deleteItem(
+      id,
+      itemType,
+      isPermanent,
+      isPermanent ? showPasswordModal : null
+    );
     if (success) {
       await loadFolderContents(currentFolderId, 1, false);
       clearSelection();
@@ -377,8 +411,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   };
 
   const handleBulkDelete = async () => {
-    const success = await bulkDelete(() =>
-      loadFolderContents(currentFolderId, 1, false)
+    const isPermanent = type === "trash";
+    const success = await bulkDelete(
+      () => loadFolderContents(currentFolderId, 1, false),
+      isPermanent ? showPasswordModal : null
     );
     if (success) {
       clearSelection();
@@ -395,7 +431,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   };
 
   const handleEmptyTrash = async () => {
-    const success = await emptyTrash();
+    const success = await emptyTrash(showPasswordModal);
     if (success) {
       setFiles([]);
       setFolders([]);
@@ -510,8 +546,117 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     openPropertiesModal(folder, "folder");
   };
 
+  // Handle external file drop (from file system)
+  const handleExternalDrop = useCallback(
+    async (e) => {
+      // Don't prevent default or stop propagation here
+      // Let folder cards handle their own drops first
+
+      dragCounterRef.current = 0;
+      setIsDraggingExternal(false);
+
+      // Check if the drop target is a folder card - if so, don't handle it here
+      const target = e.target;
+      const isFolderCard = target.closest('[role="group"]');
+      if (isFolderCard) {
+        return; // Let folder card handle the drop
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Check if this is an external file drop (not internal drag)
+      const hasFiles = e.dataTransfer.files && e.dataTransfer.files.length > 0;
+      if (!hasFiles) {
+        return; // Internal drag handled by useDragAndDrop hook
+      }
+
+      logger.info("External files dropped", {
+        fileCount: e.dataTransfer.files.length,
+        currentFolder: currentFolderId,
+      });
+
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (droppedFiles.length > 0) {
+        toast.info(`Uploading ${droppedFiles.length} file(s)...`);
+        const newFiles = await uploadFiles(droppedFiles);
+        if (newFiles.length > 0) {
+          setFiles((prev) => [...prev, ...newFiles]);
+        }
+      }
+    },
+    [uploadFiles, setFiles, currentFolderId]
+  );
+
+  const handleExternalDragOver = useCallback((e) => {
+    // Don't stop propagation - let folder cards handle their own drag over
+    const target = e.target;
+    const isFolderCard = target.closest('[role="group"]');
+    if (isFolderCard) {
+      return; // Let folder card handle drag over
+    }
+
+    e.preventDefault();
+    // Set dropEffect to copy to show the appropriate cursor
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const handleExternalDragEnter = useCallback((e) => {
+    // Don't stop propagation
+    dragCounterRef.current += 1;
+
+    // Only set state on first enter
+    if (dragCounterRef.current === 1) {
+      // Check if this is an external file drag
+      const types = e.dataTransfer.types;
+      const hasFiles = types && types.includes("Files");
+      if (hasFiles) {
+        setIsDraggingExternal(true);
+      }
+    }
+  }, []);
+
+  const handleExternalDragLeave = useCallback((e) => {
+    // Don't stop propagation
+    dragCounterRef.current -= 1;
+
+    // Only clear state when fully exited
+    if (dragCounterRef.current === 0) {
+      setIsDraggingExternal(false);
+    }
+  }, []);
+
+  // Setup external drop listeners on driveViewRef
+  useEffect(() => {
+    const driveElement = driveViewRef.current;
+    if (!driveElement) return;
+
+    driveElement.addEventListener("drop", handleExternalDrop);
+    driveElement.addEventListener("dragover", handleExternalDragOver);
+    driveElement.addEventListener("dragenter", handleExternalDragEnter);
+    driveElement.addEventListener("dragleave", handleExternalDragLeave);
+
+    return () => {
+      driveElement.removeEventListener("drop", handleExternalDrop);
+      driveElement.removeEventListener("dragover", handleExternalDragOver);
+      driveElement.removeEventListener("dragenter", handleExternalDragEnter);
+      driveElement.removeEventListener("dragleave", handleExternalDragLeave);
+    };
+  }, [
+    handleExternalDrop,
+    handleExternalDragOver,
+    handleExternalDragEnter,
+    handleExternalDragLeave,
+  ]);
+
   return (
-    <div className={styles.driveContainer}>
+    <div
+      className={`${styles.driveContainer} ${
+        isDraggingExternal ? styles.dragOverlay : ""
+      }`}
+    >
       <Header
         onMenuClick={onMenuClick}
         searchQuery={searchQuery}
@@ -581,6 +726,14 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         type={type}
         driveViewRef={driveViewRef}
         searchQuery={searchQuery}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        draggedItem={draggedItem}
+        dropTarget={dropTarget}
       />
 
       <FloatingActionButton
@@ -625,6 +778,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         item={propertiesItem}
         itemType={propertiesItemType}
         onClose={closePropertiesModal}
+      />
+
+      <PasswordConfirmModal
+        isOpen={isPasswordModalOpen}
+        onClose={handlePasswordModalClose}
+        onConfirm={handlePasswordConfirm}
+        message={passwordModalMessage}
       />
 
       <TransferProgressToast
