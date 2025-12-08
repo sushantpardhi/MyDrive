@@ -11,6 +11,10 @@ const UploadSession = require("../models/UploadSession");
 const { ensureUserDir, getUserFilePath } = require("../utils/fileHelpers");
 const emailService = require("../utils/emailService");
 const {
+  validateStorageForUpload,
+  handlePostUploadNotification,
+} = require("../utils/storageHelpers");
+const {
   createTempUploadDir,
   storeChunk,
   verifyChunkIntegrity,
@@ -54,10 +58,31 @@ const upload = multer({ storage });
 router.post("/upload", upload.single("file"), async (req, res) => {
   const startTime = Date.now();
   try {
+    // Get user to check storage limits
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Validate storage availability before upload
+    const storageError = validateStorageForUpload(user, req.file.size);
+    if (storageError) {
+      // Delete the uploaded file since we're rejecting it
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      logger.warn("Upload rejected - Storage limit exceeded", {
+        userId: req.user.id,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+      });
+      return res.status(413).json(storageError);
+    }
+
     const { parent } = req.body;
     const file = new File({
       name: req.file.originalname,
-      type: path.extname(req.file.originalname),
+      type: req.file.mimetype || path.extname(req.file.originalname),
       path: req.file.path,
       size: req.file.size,
       parent: parent === "root" ? null : parent,
@@ -68,6 +93,14 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     // Update user's storage usage
     await User.findByIdAndUpdate(req.user.id, {
       $inc: { storageUsed: req.file.size },
+    });
+
+    // Send storage notification if threshold crossed
+    handlePostUploadNotification(user, req.file.size).catch((error) => {
+      logger.error("Failed to send storage notification", {
+        userId: req.user.id,
+        error: error.message,
+      });
     });
 
     logger.logFileOperation("upload", file, req.user.id, {
@@ -523,6 +556,23 @@ router.post("/:id/copy", async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
+    // Get user to check storage limits
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Validate storage availability before copying
+    const storageError = validateStorageForUpload(user, sourceFile.size);
+    if (storageError) {
+      logger.warn("File copy rejected - Storage limit exceeded", {
+        userId: req.user.id,
+        fileName: sourceFile.name,
+        fileSize: sourceFile.size,
+      });
+      return res.status(413).json(storageError);
+    }
+
     // If parent is specified, check if user has access to target folder
     if (parent && parent !== "root") {
       const Folder = require("../models/Folder");
@@ -587,6 +637,14 @@ router.post("/:id/copy", async (req, res) => {
     // Update user's storage usage (add file size)
     await User.findByIdAndUpdate(req.user.id, {
       $inc: { storageUsed: sourceFile.size },
+    });
+
+    // Send storage notification if threshold crossed (async, don't block response)
+    handlePostUploadNotification(user, sourceFile.size).catch((error) => {
+      logger.error("Failed to send storage notification after copy", {
+        userId: req.user.id,
+        error: error.message,
+      });
     });
 
     res.json({ message: "File copied successfully", item: newFile });
@@ -675,6 +733,26 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       return res.status(400).json({
         error: "Invalid fileSize or totalChunks",
       });
+    }
+
+    // Get user to check storage limits
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Validate storage availability before initiating upload
+    const storageError = validateStorageForUpload(user, fileSize);
+    if (storageError) {
+      logger.warn(
+        "Chunked upload initiation rejected - Storage limit exceeded",
+        {
+          userId: req.user.id,
+          fileName,
+          fileSize,
+        }
+      );
+      return res.status(413).json(storageError);
     }
 
     // Check if parent folder exists (if specified)
@@ -1041,7 +1119,7 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       // Create file record
       const file = new File({
         name: finalFileName,
-        type: path.extname(finalFileName),
+        type: session.fileType || path.extname(finalFileName),
         path: finalFilePath,
         size: session.fileSize,
         parent: session.parentFolder,
@@ -1067,6 +1145,17 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       // Update user's storage usage
       await User.findByIdAndUpdate(req.user.id, {
         $inc: { storageUsed: session.fileSize },
+      });
+
+      // Get updated user to send notification
+      const user = await User.findById(req.user.id);
+
+      // Send storage notification if threshold crossed (async, don't block response)
+      handlePostUploadNotification(user, session.fileSize).catch((error) => {
+        logger.error("Failed to send storage notification", {
+          userId: req.user.id,
+          error: error.message,
+        });
       });
 
       // Update session

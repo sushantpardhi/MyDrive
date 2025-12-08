@@ -68,6 +68,7 @@ const FolderCard = ({
       } ${menuOpen ? styles.menuOpen : ""} ${
         isDragging ? styles.dragging : ""
       } ${isDropTarget ? styles.dropTarget : ""}`}
+      data-item-id={folder._id}
       tabIndex={0}
       aria-label={`Folder: ${folder.name}`}
       role="group"

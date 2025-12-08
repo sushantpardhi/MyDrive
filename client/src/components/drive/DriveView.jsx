@@ -12,7 +12,6 @@ import ShareDialog from "../files/ShareDialog";
 import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
 import PropertiesModal from "../files/PropertiesModal";
-import TransferProgressToast from "../files/TransferProgressToast";
 import PasswordConfirmModal from "../common/PasswordConfirmModal";
 
 // Hooks
@@ -21,17 +20,17 @@ import { useSearch } from "../../hooks/useSearch";
 import { useSelection } from "../../hooks/useSelection";
 import { useBreadcrumbs } from "../../hooks/useBreadcrumbs";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
-import { useUploadProgress } from "../../hooks/useUploadProgress";
-import { useDownloadProgress } from "../../hooks/useDownloadProgress";
 import { useUploadWarning } from "../../hooks/useUploadWarning";
 import { useDragAndDrop } from "../../hooks/useDragAndDrop";
 import { usePasswordConfirmation } from "../../hooks/usePasswordConfirmation";
+import { useDragSelect } from "../../hooks/useDragSelect";
 
 // Contexts
 import { useDriveContext } from "../../contexts/DriveContext";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts/UIContext";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
+import { useTransfer } from "../../contexts/TransferContext";
 
 // Services
 import api from "../../services/api";
@@ -113,7 +112,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   } = usePasswordConfirmation();
 
   // Custom hooks
-  const { viewMode, changeViewMode } = useUserSettings();
+  const { viewMode, itemsPerPage, changeViewMode } = useUserSettings();
   const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type);
 
   const loadFolderContents = useCallback(
@@ -127,13 +126,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
         let response;
         if (type === "shared" && folderId === "root") {
-          response = await api.getSharedItems(page, 50);
+          response = await api.getSharedItems(page, itemsPerPage);
         } else {
           response = await api.getFolderContents(
             folderId,
             type === "trash",
             page,
-            50,
+            itemsPerPage,
             sortByRef.current,
             sortOrderRef.current
           );
@@ -176,6 +175,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     },
     [
       type,
+      itemsPerPage,
       setLoading,
       setLoadingMore,
       setFolders,
@@ -185,11 +185,35 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     ]
   );
 
-  // Upload progress management
-  const uploadProgressHook = useUploadProgress();
+  // Use global transfer context instead of local hooks
+  const transferContext = useTransfer();
+  const uploadProgressHook = {
+    uploadProgress: transferContext.uploadProgress,
+    uploading: transferContext.uploading,
+    startUpload: transferContext.startUpload,
+    updateProgress: transferContext.updateProgress,
+    completeUpload: transferContext.completeUpload,
+    failUpload: transferContext.failUpload,
+    cancelUpload: transferContext.cancelUpload,
+    cancelAll: transferContext.cancelAll,
+    resetProgress: transferContext.resetProgress,
+    registerChunkService: transferContext.registerChunkService,
+    unregisterChunkService: transferContext.unregisterChunkService,
+    updateChunkProgress: transferContext.updateChunkProgress,
+    completeChunk: transferContext.completeChunk,
+    retryChunk: transferContext.retryChunk,
+  };
 
-  // Download progress management
-  const downloadProgressHook = useDownloadProgress();
+  const downloadProgressHook = {
+    downloadProgress: transferContext.downloadProgress,
+    startDownload: transferContext.startDownload,
+    updateProgress: transferContext.updateDownloadProgress,
+    updateZippingProgress: transferContext.updateZippingProgress,
+    completeDownload: transferContext.completeDownload,
+    failDownload: transferContext.failDownload,
+    cancelDownload: transferContext.cancelDownload,
+    resetProgress: transferContext.resetDownloadProgress,
+  };
 
   // Warn user before leaving page during active uploads
   useUploadWarning(uploadProgressHook.uploading);
@@ -225,7 +249,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     clearFilters,
     hasActiveFilters,
     searchHistory,
-  } = useSearch(api, loadFolderContents);
+  } = useSearch(api, loadFolderContents, itemsPerPage);
 
   const {
     bulkDelete,
@@ -248,6 +272,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     handleDrop,
     handleDragEnd,
   } = useDragAndDrop(api, loadFolderContents);
+
+  // Drag select functionality (lasso selection)
+  const {
+    isSelecting,
+    selectionBox,
+    handleMouseDown: handleDragSelectMouseDown,
+    handleMouseMove: handleDragSelectMouseMove,
+    handleMouseLeave: handleDragSelectMouseLeave,
+  } = useDragSelect(folders, files, driveViewRef);
 
   // Check if filters are active (needed before useEffect below)
   const hasFiltersActive =
@@ -734,6 +767,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onDrop={handleDrop}
         draggedItem={draggedItem}
         dropTarget={dropTarget}
+        isSelecting={isSelecting}
+        selectionBox={selectionBox}
+        onDragSelectMouseDown={handleDragSelectMouseDown}
+        onDragSelectMouseMove={handleDragSelectMouseMove}
+        onDragSelectMouseLeave={handleDragSelectMouseLeave}
       />
 
       <FloatingActionButton
@@ -785,16 +823,6 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onClose={handlePasswordModalClose}
         onConfirm={handlePasswordConfirm}
         message={passwordModalMessage}
-      />
-
-      <TransferProgressToast
-        isOpen={true}
-        uploadProgress={uploadProgressHook.uploadProgress}
-        downloadProgress={downloadProgressHook.downloadProgress}
-        onClose={uploadProgressHook.resetProgress}
-        onStopUpload={uploadProgressHook.cancelUpload}
-        onCancelDownload={downloadProgressHook.cancelDownload}
-        onStopAll={uploadProgressHook.cancelAll}
       />
     </div>
   );

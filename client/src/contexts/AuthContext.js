@@ -42,7 +42,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", userToken);
     localStorage.setItem("user", JSON.stringify(userData));
 
-    logger.logAuth("login", userData.id, "User logged in successfully");
+    logger.logAuth("login", userData.id, {
+      message: "User logged in successfully",
+      role: userData.role,
+    });
   };
 
   const logout = () => {
@@ -75,6 +78,11 @@ export const AuthProvider = ({ children }) => {
     logout,
     isAuthenticated,
     clearUserSettings,
+    isAdmin: () => user?.role === "admin",
+    isFamily: () => user?.role === "family",
+    isGuest: () => user?.role === "guest",
+    hasUnlimitedStorage: () =>
+      user?.role === "admin" || user?.role === "family",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

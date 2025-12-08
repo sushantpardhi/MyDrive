@@ -327,6 +327,104 @@ All drag and drop operations use the centralized logger:
 - `logger.error()` for system errors
 - `logger.debug()` for detailed state tracking
 
+## Drag Selection (Lasso Selection)
+
+### Overview
+
+MyDrive includes a drag-to-select feature that allows users to select multiple files and folders by clicking and dragging to create a selection box (lasso). This provides an intuitive way to select multiple items at once.
+
+### Features
+
+- **Click and drag** on empty space to create a selection box
+- **Visual selection box** with semi-transparent background
+- **Real-time selection** - items are selected as the box overlaps them
+- **Works with both grid and list views**
+- **Smooth user experience** - prevents accidental selections on small movements
+- **Theme-aware** - selection box color adapts to light/dark theme
+
+### Custom Hook: `useDragSelect`
+
+Located at: `client/src/hooks/useDragSelect.js`
+
+**Key Features:**
+- Rectangle intersection detection for accurate selection
+- Minimum movement threshold (5px) to avoid accidental selections
+- Scrolling support - works with scrolled content
+- Clean up on unmount to prevent memory leaks
+- Comprehensive logging for debugging
+
+**Parameters:**
+- `folders` - Array of folder objects
+- `files` - Array of file objects  
+- `containerRef` - Ref to the scrollable container element
+
+**Returns:**
+- `isSelecting` - Boolean indicating if selection is in progress
+- `selectionBox` - Object with box dimensions `{left, top, width, height}`
+- `handleMouseDown` - Mouse down event handler
+- `handleMouseMove` - Mouse move event handler
+- `handleMouseLeave` - Mouse leave event handler
+
+### Usage Pattern
+
+```javascript
+import { useDragSelect } from "../../hooks/useDragSelect";
+
+// In your component
+const {
+  isSelecting,
+  selectionBox,
+  handleMouseDown: handleDragSelectMouseDown,
+  handleMouseMove: handleDragSelectMouseMove,
+  handleMouseLeave: handleDragSelectMouseLeave,
+} = useDragSelect(folders, files, containerRef);
+
+// Apply to container
+<div
+  ref={containerRef}
+  onMouseDown={handleDragSelectMouseDown}
+  onMouseMove={handleDragSelectMouseMove}
+  onMouseLeave={handleDragSelectMouseLeave}
+>
+  {/* Render selection box */}
+  {isSelecting && (
+    <div
+      className={styles.selectionBox}
+      style={{
+        left: `${selectionBox.left}px`,
+        top: `${selectionBox.top}px`,
+        width: `${selectionBox.width}px`,
+        height: `${selectionBox.height}px`,
+      }}
+    />
+  )}
+</div>
+```
+
+### Implementation Details
+
+1. **Item Identification**: Uses `data-item-id` attribute on each file/folder card
+2. **Intersection Detection**: Uses bounding box math to detect overlapping items
+3. **Coordinate System**: Calculates relative to container, accounting for scroll position
+4. **Selection Integration**: Uses `SelectionContext` to update selected items in real-time
+
+### CSS Styling
+
+Located at: `client/src/components/drive/SelectionBox.module.css`
+
+- `.selectionBox` - The visual selection rectangle
+- `.container` - Applied to the container to prevent text selection
+- `.selecting` - Applied during active selection for crosshair cursor
+- Theme-aware colors using CSS custom properties
+
+### User Interactions
+
+- **Click on empty space and drag** - Creates selection box
+- **Release mouse** - Finalizes selection
+- **Click on item** - Normal click behavior (single selection)
+- **Ctrl/Cmd + Click on item** - Toggle individual item selection
+- **Works alongside existing selection methods** - Keyboard shortcuts, checkboxes, etc.
+
 ## Summary
 
 The drag and drop implementation provides an intuitive way to organize files and folders in MyDrive. It's built with:
@@ -337,5 +435,6 @@ The drag and drop implementation provides an intuitive way to organize files and
 - ✅ Extensive logging for debugging
 - ✅ Mobile-responsive design
 - ✅ Follows existing MyDrive architecture patterns
+- ✅ **NEW: Drag-to-select (lasso) for multi-item selection**
 
 The feature integrates seamlessly with the existing file operations system and uses the same backend endpoints as the "Move" dialog, ensuring consistency across the application.

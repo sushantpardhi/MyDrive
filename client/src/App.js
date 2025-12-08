@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/theme.css";
@@ -11,12 +17,21 @@ import ForgotPassword from "./components/auth/ForgotPassword.jsx";
 import ResetPassword from "./components/auth/ResetPassword.jsx";
 import UserProfile from "./components/auth/UserProfile.jsx";
 import PreviewModal from "./components/files/PreviewModal.jsx";
+import TransferProgressToast from "./components/files/TransferProgressToast.jsx";
+import AdminRoute from "./components/common/AdminRoute.jsx";
+import AdminDashboard from "./components/admin/AdminDashboard.jsx";
+import UserManagement from "./components/admin/UserManagement.jsx";
+import FileManagement from "./components/admin/FileManagement.jsx";
+import StorageReport from "./components/admin/StorageReport.jsx";
+import ActivityLog from "./components/admin/ActivityLog.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DriveProvider } from "./contexts/DriveContext";
 import { SelectionProvider } from "./contexts/SelectionContext";
 import { UIProvider, useUIContext } from "./contexts/UIContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
+import { TransferProvider, useTransfer } from "./contexts/TransferContext";
+import { AdminProvider } from "./contexts/AdminContext";
 import styles from "./App.module.css";
 
 // Protected Route Component
@@ -34,6 +49,24 @@ const AuthRoute = ({ children }) => {
 // Main App Layout with contexts
 const AppLayout = () => {
   const { sidebarOpen, toggleSidebar, closeSidebar } = useUIContext();
+  const {
+    uploadProgress,
+    downloadProgress,
+    cancelUpload,
+    cancelDownload,
+    cancelAll,
+    resetProgress,
+  } = useTransfer();
+  const location = useLocation();
+
+  // Check if transfer modal should be hidden based on current route
+  const hideTransferModal =
+    location.pathname === "/admin" ||
+    location.pathname === "/admin/users" ||
+    location.pathname === "/admin/files" ||
+    location.pathname === "/admin/storage" ||
+    location.pathname === "/admin/activity" ||
+    location.pathname === "/profile";
 
   // Lock body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -73,10 +106,64 @@ const AppLayout = () => {
             element={<DriveView type="trash" onMenuClick={toggleSidebar} />}
           />
           <Route path="/profile" element={<UserProfile />} />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <UserManagement />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/files"
+            element={
+              <AdminRoute>
+                <FileManagement />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/storage"
+            element={
+              <AdminRoute>
+                <StorageReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/activity"
+            element={
+              <AdminRoute>
+                <ActivityLog />
+              </AdminRoute>
+            }
+          />
         </Routes>
       </div>
       {/* Global Preview Modal */}
       <PreviewModal />
+      {/* Global Transfer Progress Toast - Hidden on admin dashboard and profile pages */}
+      {!hideTransferModal && (
+        <TransferProgressToast
+          isOpen={true}
+          uploadProgress={uploadProgress}
+          downloadProgress={downloadProgress}
+          onClose={resetProgress}
+          onStopUpload={cancelUpload}
+          onCancelDownload={cancelDownload}
+          onStopAll={cancelAll}
+        />
+      )}
     </div>
   );
 };
@@ -128,11 +215,15 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <UIProvider>
-                      <DriveProvider>
-                        <SelectionProvider>
-                          <AppLayout />
-                        </SelectionProvider>
-                      </DriveProvider>
+                      <TransferProvider>
+                        <DriveProvider>
+                          <SelectionProvider>
+                            <AdminProvider>
+                              <AppLayout />
+                            </AdminProvider>
+                          </SelectionProvider>
+                        </DriveProvider>
+                      </TransferProvider>
                     </UIProvider>
                   </ProtectedRoute>
                 }

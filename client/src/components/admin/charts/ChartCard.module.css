@@ -1,0 +1,45 @@
+/* Chart Card Styles */
+.chartCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.75rem;
+  transition: all 0.3s ease;
+}
+
+.chartCard:hover {
+  border-color: var(--border-color);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chartContent {
+  min-height: 280px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chartCard {
+    padding: 1.25rem;
+  }
+
+  .chartTitle {
+    font-size: 0.9rem;
+  }
+
+  .chartContent {
+    min-height: 240px;
+  }
+}

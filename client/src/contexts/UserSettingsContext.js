@@ -26,6 +26,7 @@ export const UserSettingsProvider = ({ children }) => {
   const { user } = useAuth();
   const { setTheme } = useTheme();
   const [viewMode, setViewMode] = useState("grid");
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -36,10 +37,12 @@ export const UserSettingsProvider = ({ children }) => {
         // User logged out, reset to defaults
         logger.info("UserSettings: User logged out, resetting to defaults");
         setViewMode("grid");
+        setItemsPerPage(25);
         setTheme("light");
         setLoading(false);
         setInitialized(true);
         localStorage.removeItem("viewMode");
+        localStorage.removeItem("itemsPerPage");
         localStorage.removeItem("theme");
         return;
       }
@@ -79,15 +82,39 @@ export const UserSettingsProvider = ({ children }) => {
           setViewMode("grid");
           localStorage.setItem("viewMode", "grid");
         }
+
+        // Apply itemsPerPage from preferences.itemsPerPage
+        if (res.data?.preferences?.itemsPerPage) {
+          logger.info("UserSettings: Loaded itemsPerPage from backend", {
+            itemsPerPage: res.data.preferences.itemsPerPage,
+          });
+          setItemsPerPage(res.data.preferences.itemsPerPage);
+          localStorage.setItem(
+            "itemsPerPage",
+            res.data.preferences.itemsPerPage.toString()
+          );
+        } else {
+          // No backend preference, use default
+          logger.debug(
+            "UserSettings: No backend preference, using default: 25"
+          );
+          setItemsPerPage(25);
+          localStorage.setItem("itemsPerPage", "25");
+        }
       } catch (err) {
         logger.logError(err, "UserSettings: Failed to fetch user settings");
         // On error, try localStorage fallback
         const savedViewMode = localStorage.getItem("viewMode");
+        const savedItemsPerPage = localStorage.getItem("itemsPerPage");
         const savedTheme = localStorage.getItem("theme");
         setViewMode(savedViewMode || "grid");
+        setItemsPerPage(
+          savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 25
+        );
         setTheme(savedTheme || "light");
         logger.info("UserSettings: Using localStorage fallback", {
           viewMode: savedViewMode,
+          itemsPerPage: savedItemsPerPage,
           theme: savedTheme,
         });
       } finally {
@@ -124,9 +151,32 @@ export const UserSettingsProvider = ({ children }) => {
     [updateSettings]
   );
 
+  const changeItemsPerPage = useCallback(async (perPage) => {
+    const numPerPage =
+      typeof perPage === "string" ? parseInt(perPage, 10) : perPage;
+    setItemsPerPage(numPerPage);
+    localStorage.setItem("itemsPerPage", numPerPage.toString());
+    try {
+      const userProfile = await api.getUserProfile();
+      await api.updateUserProfile({
+        preferences: {
+          ...userProfile.data.preferences,
+          itemsPerPage: numPerPage,
+        },
+      });
+      logger.info("UserSettings: Updated items per page", {
+        itemsPerPage: numPerPage,
+      });
+    } catch (err) {
+      logger.logError(err, "UserSettings: Failed to update itemsPerPage");
+    }
+  }, []);
+
   const value = {
     viewMode,
+    itemsPerPage,
     changeViewMode,
+    changeItemsPerPage,
     loading,
     initialized,
   };

@@ -1,21 +1,23 @@
 .profileWrapper {
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: var(--bg-secondary);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2rem 0;
   transition: background-color var(--transition-normal);
+  scroll-behavior: smooth;
 }
 
 .profileContainer {
   width: 100%;
-  max-width: 900px;
-  max-height: 100%;
-  padding: 1.5rem;
+  max-width: 1000px;
+  padding: 0 1.5rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
@@ -31,13 +33,12 @@
 .profileCard {
   background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: var(--shadow-md);
-  overflow: visible;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
   width: 100%;
-  max-height: 100%;
   display: flex;
   flex-direction: column;
   transition: background-color var(--transition-normal);
+  margin-bottom: 2rem;
 }
 
 .profileHeader {
@@ -47,6 +48,11 @@
   align-items: center;
   gap: 1.25rem;
   border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+}
+
+.avatarWrapper {
+  position: relative;
   flex-shrink: 0;
 }
 
@@ -63,6 +69,88 @@
   font-weight: 700;
   font-size: 1.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarEditBtn {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #fff;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.avatarEditBtn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.1);
+}
+
+.avatarActions {
+  padding: 1rem 2rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.uploadAvatarBtn,
+.deleteAvatarBtn,
+.cancelAvatarBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.uploadAvatarBtn {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.uploadAvatarBtn:hover {
+  background: var(--accent-hover);
+}
+
+.deleteAvatarBtn {
+  background: var(--error-color);
+  color: #fff;
+}
+
+.deleteAvatarBtn:hover {
+  background: var(--danger-color-dark);
+}
+
+.cancelAvatarBtn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.cancelAvatarBtn:hover {
+  background: var(--hover-overlay);
 }
 
 .profileInfo {
@@ -88,20 +176,60 @@
   text-overflow: ellipsis;
 }
 
+.profileRole {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  width: fit-content;
+  font-weight: 500;
+}
+
+.profileRole span {
+  text-transform: capitalize;
+}
+
+.role-admin {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.role-family {
+  color: #90ee90;
+  font-weight: 600;
+}
+
+.role-guest {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.profileDate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.25rem;
+}
+
 .profileForm {
-  padding: 1.25rem 1.5rem;
-  flex: 1;
-  overflow-y: auto;
+  padding: 1.5rem 2rem 2rem;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
 .sectionCard {
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 0 0 1.25rem 0;
-  margin-bottom: 1.25rem;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
   border-bottom: 1px solid var(--border-color);
   transition: border-color var(--transition-normal);
 }
@@ -113,13 +241,332 @@
 }
 
 .sectionCard h3 {
-  margin: 0 0 1rem 0;
-  font-size: 0.875rem;
+  margin: 0 0 1.25rem 0;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   transition: color var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Storage Section */
+.storageInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.storageStats {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.storageUsed {
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-size: 1.1rem;
+}
+
+.storageSeparator {
+  color: var(--text-tertiary);
+}
+
+.storageTotal {
+  color: var(--text-secondary);
+}
+
+.storagePercent {
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Account Stats */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.statItem:hover {
+  background: var(--hover-overlay);
+  transform: translateY(-2px);
+}
+
+.statItem svg {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Password Change Section */
+.passwordForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.passwordInput {
+  position: relative;
+  width: 100%;
+  max-width: 350px;
+}
+
+.passwordInput input {
+  width: 100%;
+  padding: 0.5rem 2.75rem 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  font-size: 0.9rem;
+  background: var(--input-bg);
+  transition: all var(--transition-normal);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.passwordInput input:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--accent-bg-light);
+}
+
+.passwordInput input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.togglePassword {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  border-radius: 4px;
+}
+
+.togglePassword:hover {
+  color: var(--text-primary);
+  background: var(--hover-overlay);
+}
+
+.togglePassword:active {
+  background: var(--bg-tertiary);
+}
+
+.changePasswordBtn {
+  align-self: flex-start;
+  padding: 0.625rem 1.25rem;
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.changePasswordBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.changePasswordBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.changePasswordBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.successMessage {
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  border: 1px solid #6ee7b7;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.errorMessage {
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  border: 1px solid #fca5a5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+/* Security Section */
+.securityOption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.comingSoon {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: fit-content;
+}
+
+/* Danger Zone */
+.dangerZone {
+  background: transparent;
+  border: 2px solid var(--error-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.dangerZone h3 {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--error-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dangerBtn {
+  padding: 0.5rem 1rem;
+  background: var(--error-color);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dangerBtn:hover {
+  background: var(--danger-color-dark);
+}
+
+.deleteConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dangerWarning {
+  padding: 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.deleteActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.confirmDeleteBtn {
+  padding: 0.5rem 1rem;
+  background: var(--error-color);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirmDeleteBtn:hover:not(:disabled) {
+  background: var(--danger-color-dark);
+}
+
+.confirmDeleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .formRow {
@@ -156,6 +603,31 @@
   transition: all var(--transition-normal);
   color: var(--text-primary);
   font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Custom dropdown arrow for select */
+.formRow select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px;
+  padding-right: 2.5rem;
+}
+
+[data-theme="dark"] .formRow select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.formRow select:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background-color: var(--hover-overlay);
+}
+
+.formRow input[type="text"]:hover:not(:disabled):not(:focus),
+.formRow input[type="number"]:hover:not(:disabled):not(:focus) {
+  border-color: var(--accent-primary);
 }
 
 .formRow input[type="text"]:focus,
@@ -175,6 +647,54 @@
   color: var(--text-tertiary);
   cursor: not-allowed;
   border-color: var(--border-color);
+  opacity: 0.7;
+}
+
+/* Dropdown options styling */
+.formRow select option {
+  padding: 0.5rem;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.formRow select option:hover {
+  background: var(--accent-bg-light);
+}
+
+/* Input with icon wrapper */
+.inputWithIcon {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 350px;
+  position: relative;
+}
+
+.inputWithIcon input,
+.inputWithIcon select {
+  flex: 1;
+  max-width: none;
+}
+
+.inputWithIcon select {
+  cursor: pointer;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+  animation: checkFadeIn 0.3s ease-in-out;
+}
+
+@keyframes checkFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .formRow input[type="checkbox"] {
@@ -192,26 +712,17 @@
 .profileActions {
   display: flex;
   gap: 0.75rem;
-  justify-content: flex-start;
+  justify-content: flex-end;
   align-items: center;
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  padding-bottom: 0;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
   border-top: 1px solid var(--border-color);
   flex-wrap: wrap;
-  clear: both;
-  flex-shrink: 0;
 }
 
-.actionGroup {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.saveBtn,
-.editBtn,
-.cancelBtn,
 .logoutBtn {
+  background: var(--error-color);
+  color: #fff;
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1rem;
@@ -222,26 +733,8 @@
   font-family: inherit;
 }
 
-.saveBtn {
-  background: var(--accent-primary);
-  color: #fff;
-}
-
-.saveBtn:hover {
-  background: var(--accent-hover);
-}
-
-.saveBtn:active {
-  background: var(--accent-active);
-}
-
-.editBtn {
-  background: var(--accent-primary);
-  color: #fff;
-}
-
-.editBtn:hover {
-  background: var(--accent-hover);
+.logoutBtn:hover {
+  background: var(--danger-color-dark);
 }
 
 .themeToggle {
@@ -272,20 +765,18 @@
 .cancelBtn {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
 }
 
 .cancelBtn:hover {
   background: var(--hover-overlay);
-}
-
-.logoutBtn {
-  background: var(--error-color);
-  color: #fff;
-  margin-left: auto;
-}
-
-.logoutBtn:hover {
-  background: var(--danger-color-dark);
 }
 
 /* Loading State */
@@ -357,16 +848,12 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .profileWrapper {
-    background: #fff;
-    overflow-y: auto;
-    overflow-x: hidden;
-    align-items: flex-start;
+    padding: 1rem 0;
+    min-height: 100vh;
   }
 
   .profileContainer {
-    padding: 1rem;
-    max-height: none;
-    align-items: flex-start;
+    padding: 0 1rem;
   }
 
   .profileTitle {
@@ -398,7 +885,6 @@
 
   .profileForm {
     padding: 1.25rem;
-    overflow-y: visible;
   }
 
   .sectionCard {
@@ -419,6 +905,19 @@
     max-width: 100%;
   }
 
+  .inputWithIcon {
+    max-width: 100%;
+  }
+
+  .passwordInput {
+    max-width: 100%;
+  }
+
+  .changePasswordBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .profileActions {
     flex-direction: column;
     align-items: stretch;
@@ -427,18 +926,38 @@
     padding-top: 1rem;
   }
 
-  .actionGroup {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .saveBtn,
-  .editBtn,
-  .cancelBtn,
   .logoutBtn {
     width: 100%;
     justify-content: center;
-    margin-left: 0 !important;
     padding: 0.75rem 1rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .passwordInput {
+    max-width: 100%;
+  }
+
+  .deleteActions {
+    flex-direction: column;
+  }
+
+  .deleteActions button {
+    width: 100%;
+  }
+
+  .avatarActions {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .uploadAvatarBtn,
+  .deleteAvatarBtn,
+  .cancelAvatarBtn {
+    flex: 1;
+    justify-content: center;
   }
 }

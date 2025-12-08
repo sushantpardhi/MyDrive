@@ -1,9 +1,26 @@
-import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import {
+  Upload,
+  Trash2,
+  Shield,
+  Activity,
+  AlertTriangle,
+  Calendar,
+  HardDrive,
+  File,
+  Folder,
+  Share2,
+  Camera,
+  Lock,
+  Eye,
+  EyeOff,
+  Check,
+} from "lucide-react";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
 import { useTheme } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
+import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
 
 const defaultSettings = {
@@ -13,44 +30,108 @@ const defaultSettings = {
 };
 const defaultPreferences = {
   viewMode: "list",
-  itemsPerPage: 20,
+  itemsPerPage: 25,
 };
 
 export default function UserProfile() {
   const [profile, setProfile] = useState({
     name: "",
     email: "",
+    avatar: "",
+    createdAt: null,
     settings: defaultSettings,
     preferences: defaultPreferences,
   });
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(profile);
   const [error, setError] = useState(null);
+  const [storageStats, setStorageStats] = useState(null);
+
+  // Individual field saving states
+  const [savingFields, setSavingFields] = useState({
+    name: false,
+    emailNotifications: false,
+    language: false,
+    viewMode: false,
+    itemsPerPage: false,
+  });
+  const [savedFields, setSavedFields] = useState({
+    name: false,
+    emailNotifications: false,
+    language: false,
+    viewMode: false,
+    itemsPerPage: false,
+  });
+  const [accountStats, setAccountStats] = useState(null);
+  const [activityLog, setActivityLog] = useState([]);
+
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Avatar upload state
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Delete account state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState(null);
 
   // Use user settings for live updates
-  const { changeViewMode } = useUserSettings();
-  const { theme, setTheme, isDark } = useTheme();
+  const { changeViewMode, changeItemsPerPage } = useUserSettings();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         setError(null);
-        const res = await api.getUserProfile();
+        logger.info("Fetching user profile data");
+
+        // Fetch all data in parallel
+        const [profileRes, storageRes, statsRes] = await Promise.all([
+          api.getUserProfile(),
+          api.getStorageStats(),
+          api.getAccountStats(),
+        ]);
+
         const profileData = {
-          ...res.data,
-          settings: { ...defaultSettings, ...res.data.settings },
-          preferences: { ...defaultPreferences, ...res.data.preferences },
+          ...profileRes.data,
+          settings: { ...defaultSettings, ...profileRes.data.settings },
+          preferences: {
+            ...defaultPreferences,
+            ...profileRes.data.preferences,
+          },
         };
         setProfile(profileData);
         setForm(profileData);
+        setStorageStats(storageRes.data);
+        setAccountStats(statsRes.data);
 
         // Sync theme from user settings
         if (profileData.settings.theme) {
           setTheme(profileData.settings.theme);
         }
+
+        logger.info("Profile data loaded successfully", {
+          userId: profileData._id,
+        });
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        logger.error("Error fetching profile", {
+          error: err.message,
+          stack: err.stack,
+        });
         setError(
           err.response?.data?.error || err.message || "Failed to fetch profile"
         );
@@ -74,6 +155,11 @@ export default function UserProfile() {
           [settingName]: newValue,
         },
       }));
+
+      // Auto-save for settings
+      if (settingName === "emailNotifications" || settingName === "language") {
+        handleFieldSave(settingName, newValue, "settings");
+      }
     } else if (name.startsWith("preferences.")) {
       const prefName = name.split(".")[1];
       const newValue = type === "number" ? Number(value) : value;
@@ -90,13 +176,72 @@ export default function UserProfile() {
       if (prefName === "viewMode") {
         changeViewMode(newValue);
       }
+
+      // Immediately apply itemsPerPage changes
+      if (prefName === "itemsPerPage") {
+        changeItemsPerPage(newValue);
+      }
+
+      // Auto-save for preferences
+      handleFieldSave(prefName, newValue, "preferences");
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   }
 
-  function handleThemeToggle() {
-    const newTheme = theme === "light" ? "dark" : "light";
+  // Individual field save handler
+  async function handleFieldSave(fieldName, value, category = null) {
+    try {
+      setSavingFields((prev) => ({ ...prev, [fieldName]: true }));
+      setSavedFields((prev) => ({ ...prev, [fieldName]: false }));
+
+      logger.info("Saving field", { fieldName, category });
+
+      const updateData = {
+        name: form.name,
+        settings: form.settings,
+        preferences: form.preferences,
+      };
+
+      // Update the specific field
+      if (category === "settings") {
+        updateData.settings = { ...form.settings, [fieldName]: value };
+      } else if (category === "preferences") {
+        updateData.preferences = { ...form.preferences, [fieldName]: value };
+      } else {
+        updateData[fieldName] = value;
+      }
+
+      const res = await api.updateUserProfile(updateData);
+      setProfile(res.data.user);
+
+      setSavingFields((prev) => ({ ...prev, [fieldName]: false }));
+      setSavedFields((prev) => ({ ...prev, [fieldName]: true }));
+
+      // Hide check mark after 2 seconds
+      setTimeout(() => {
+        setSavedFields((prev) => ({ ...prev, [fieldName]: false }));
+      }, 2000);
+
+      logger.info("Field saved successfully", { fieldName });
+    } catch (err) {
+      logger.error("Error saving field", { fieldName, error: err.message });
+      setSavingFields((prev) => ({ ...prev, [fieldName]: false }));
+      setError(
+        err.response?.data?.error || err.message || "Failed to save changes"
+      );
+    }
+  }
+
+  // Handle name field blur (save on blur)
+  async function handleNameBlur() {
+    if (form.name !== profile.name && form.name.trim()) {
+      await handleFieldSave("name", form.name);
+    }
+  }
+
+  function handleThemeChange(e) {
+    const newTheme = e.target.value;
     setTheme(newTheme);
     setForm((prev) => ({
       ...prev,
@@ -105,6 +250,10 @@ export default function UserProfile() {
         theme: newTheme,
       },
     }));
+
+    // Show saving state
+    setSavingFields((prev) => ({ ...prev, theme: true }));
+
     // Auto-save theme change
     saveThemeToServer(newTheme);
   }
@@ -116,30 +265,153 @@ export default function UserProfile() {
         settings: { ...form.settings, theme: newTheme },
         preferences: form.preferences,
       });
+
+      // Show success checkmark
+      setSavingFields((prev) => ({ ...prev, theme: false }));
+      setSavedFields((prev) => ({ ...prev, theme: true }));
+      setTimeout(() => {
+        setSavedFields((prev) => ({ ...prev, theme: false }));
+      }, 2000);
     } catch (err) {
-      console.error("Error saving theme:", err);
+      logger.error("Error saving theme", { error: err.message });
       // Revert on error
       setTheme(form.settings.theme);
+      setSavingFields((prev) => ({ ...prev, theme: false }));
     }
   }
 
-  async function handleSave(e) {
+  // Password change handlers
+  async function handlePasswordChange(e) {
     e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      return;
+    }
+
     try {
-      setError(null);
-      const res = await api.updateUserProfile({
-        name: form.name,
-        settings: form.settings,
-        preferences: form.preferences,
+      logger.info("Attempting to change password");
+      await api.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
+      setPasswordSuccess(true);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
-      setProfile(res.data.user);
-      setEditMode(false);
+      logger.info("Password changed successfully");
+      setTimeout(() => setPasswordSuccess(false), 5000);
     } catch (err) {
-      console.error("Error updating profile:", err);
-      setError(
-        err.response?.data?.error || err.message || "Failed to update profile"
+      logger.error("Password change failed", { error: err.message });
+      setPasswordError(
+        err.response?.data?.error || "Failed to change password"
       );
     }
+  }
+
+  // Avatar handlers
+  function handleAvatarSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Avatar image must be less than 5MB");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
+      }
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      logger.debug("Avatar selected", { fileName: file.name, size: file.size });
+    }
+  }
+
+  async function handleAvatarUpload() {
+    if (!avatarFile) return;
+
+    try {
+      setError(null);
+      logger.info("Uploading avatar");
+      const res = await api.uploadAvatar(avatarFile);
+      setProfile((prev) => ({ ...prev, avatar: res.data.avatarUrl }));
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      logger.info("Avatar uploaded successfully");
+    } catch (err) {
+      logger.error("Avatar upload failed", { error: err.message });
+      setError(err.response?.data?.error || "Failed to upload avatar");
+    }
+  }
+
+  async function handleAvatarDelete() {
+    if (
+      !window.confirm("Are you sure you want to remove your profile picture?")
+    )
+      return;
+
+    try {
+      setError(null);
+      logger.info("Deleting avatar");
+      await api.deleteAvatar();
+      setProfile((prev) => ({ ...prev, avatar: "" }));
+      logger.info("Avatar deleted successfully");
+    } catch (err) {
+      logger.error("Avatar deletion failed", { error: err.message });
+      setError(err.response?.data?.error || "Failed to delete avatar");
+    }
+  }
+
+  // Delete account handler
+  async function handleDeleteAccount(e) {
+    e.preventDefault();
+    if (!deletePassword) {
+      setDeleteError("Please enter your password");
+      return;
+    }
+
+    try {
+      setDeleteError(null);
+      logger.warn("Attempting account deletion", { userId: profile._id });
+      await api.deleteAccount(deletePassword);
+      logger.info("Account deleted successfully");
+      api.logout();
+      window.location.href = "/register";
+    } catch (err) {
+      logger.error("Account deletion failed", { error: err.message });
+      setDeleteError(err.response?.data?.error || "Failed to delete account");
+    }
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  }
+
+  function formatDate(dateString) {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   }
 
   if (loading) {
@@ -174,29 +446,196 @@ export default function UserProfile() {
       <div className={styles.profileContainer}>
         <div className={styles.profileCard}>
           <div className={styles.profileHeader}>
-            <div className={styles.avatar}>
-              {profile.name ? profile.name.charAt(0).toUpperCase() : "U"}
+            <div className={styles.avatarWrapper}>
+              <div className={styles.avatar}>
+                {avatarPreview || profile.avatar ? (
+                  <img
+                    src={avatarPreview || profile.avatar}
+                    alt="Profile"
+                    className={styles.avatarImage}
+                  />
+                ) : (
+                  profile.name?.charAt(0).toUpperCase() || "U"
+                )}
+              </div>
+              <button
+                type="button"
+                className={styles.avatarEditBtn}
+                onClick={() => fileInputRef.current?.click()}
+                title="Change avatar"
+              >
+                <Camera size={16} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarSelect}
+                style={{ display: "none" }}
+              />
             </div>
             <div className={styles.profileInfo}>
               <div className={styles.profileName}>{form.name || "User"}</div>
               <div className={styles.profileEmail}>
                 {form.email || "No email"}
               </div>
+              {profile.role && (
+                <div className={styles.profileRole}>
+                  <Shield size={14} />
+                  <span className={styles[`role-${profile.role}`]}>
+                    {profile.role.charAt(0).toUpperCase() +
+                      profile.role.slice(1)}
+                  </span>
+                </div>
+              )}
+              {profile.createdAt && (
+                <div className={styles.profileDate}>
+                  <Calendar size={14} />
+                  <span>Joined {formatDate(profile.createdAt)}</span>
+                </div>
+              )}
             </div>
           </div>
-          <form onSubmit={handleSave} className={styles.profileForm}>
+
+          {avatarPreview && (
+            <div className={styles.avatarActions}>
+              <button
+                onClick={handleAvatarUpload}
+                className={styles.uploadAvatarBtn}
+              >
+                <Upload size={16} />
+                Upload New Avatar
+              </button>
+              <button
+                onClick={() => {
+                  setAvatarFile(null);
+                  setAvatarPreview(null);
+                }}
+                className={styles.cancelAvatarBtn}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {profile.avatar && !avatarPreview && (
+            <div className={styles.avatarActions}>
+              <button
+                onClick={handleAvatarDelete}
+                className={styles.deleteAvatarBtn}
+              >
+                <Trash2 size={16} />
+                Remove Avatar
+              </button>
+            </div>
+          )}
+
+          <div className={styles.profileForm}>
+            {/* Storage Usage Section - Full Width */}
+            {storageStats && (
+              <div className={styles.sectionCard}>
+                <h3>
+                  <HardDrive size={16} />
+                  Storage Usage
+                </h3>
+                <div className={styles.storageInfo}>
+                  <div className={styles.storageStats}>
+                    <span className={styles.storageUsed}>
+                      {formatFileSize(storageStats.storageUsed)}
+                    </span>
+                    {storageStats.isUnlimited ? (
+                      <>
+                        <span className={styles.storageSeparator}></span>
+                        <span className={styles.storageTotal}>Unlimited</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={styles.storageSeparator}>/</span>
+                        <span className={styles.storageTotal}>
+                          {formatFileSize(storageStats.storageLimit)}
+                        </span>
+                        <span className={styles.storagePercent}>
+                          ({storageStats.percentage.toFixed(1)}%)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {!storageStats.isUnlimited && (
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.progressFill}
+                        style={{
+                          width: `${Math.min(storageStats.percentage, 100)}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Account Statistics Section - Full Width */}
+            {accountStats && (
+              <div className={styles.sectionCard}>
+                <h3>
+                  <Activity size={16} />
+                  Account Statistics
+                </h3>
+                <div className={styles.statsGrid}>
+                  <div className={styles.statItem}>
+                    <File size={20} />
+                    <div className={styles.statInfo}>
+                      <span className={styles.statValue}>
+                        {accountStats.filesCount || 0}
+                      </span>
+                      <span className={styles.statLabel}>Files</span>
+                    </div>
+                  </div>
+                  <div className={styles.statItem}>
+                    <Folder size={20} />
+                    <div className={styles.statInfo}>
+                      <span className={styles.statValue}>
+                        {accountStats.foldersCount || 0}
+                      </span>
+                      <span className={styles.statLabel}>Folders</span>
+                    </div>
+                  </div>
+                  <div className={styles.statItem}>
+                    <Share2 size={20} />
+                    <div className={styles.statInfo}>
+                      <span className={styles.statValue}>
+                        {accountStats.sharedItemsCount || 0}
+                      </span>
+                      <span className={styles.statLabel}>Shared</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Personal Information Section - Full Width */}
             <div className={styles.sectionCard}>
               <h3>Personal Information</h3>
               <div className={styles.formRow}>
                 <label htmlFor="name">Name:</label>
-                <input
-                  id="name"
-                  type="text"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  disabled={!editMode}
-                />
+                <div className={styles.inputWithIcon}>
+                  <input
+                    id="name"
+                    type="text"
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    onBlur={handleNameBlur}
+                    placeholder="Enter your name"
+                  />
+                  {savedFields.name && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
+                </div>
               </div>
               <div className={styles.formRow}>
                 <label htmlFor="email">Email:</label>
@@ -210,127 +649,342 @@ export default function UserProfile() {
                 />
               </div>
             </div>
-            <div className={styles.sectionCard}>
-              <h3>Appearance</h3>
-              <div className={styles.formRow}>
-                <label htmlFor="theme">Theme:</label>
-                <button
-                  type="button"
-                  id="theme"
-                  onClick={handleThemeToggle}
-                  className={styles.themeToggle}
-                  aria-label="Toggle theme"
-                >
-                  {isDark ? (
-                    <>
-                      <Sun size={20} />
-                      <span>Switch to Light Mode</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon size={20} />
-                      <span>Switch to Dark Mode</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+
+            {/* Settings Section - Full Width */}
             <div className={styles.sectionCard}>
               <h3>Settings</h3>
               <div className={styles.formRow}>
                 <label htmlFor="emailNotifications">Email Notifications:</label>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px",
-                  }}
-                >
-                  <input
-                    id="emailNotifications"
-                    type="checkbox"
-                    name="settings.emailNotifications"
-                    checked={form.settings.emailNotifications}
-                    onChange={handleChange}
-                    disabled={!editMode}
-                  />
-                  <small style={{ color: "#666", fontSize: "12px" }}>
-                    Receive email alerts for file shares and storage warnings
-                  </small>
+                <div className={styles.inputWithIcon}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                      flex: 1,
+                    }}
+                  >
+                    <input
+                      id="emailNotifications"
+                      type="checkbox"
+                      name="settings.emailNotifications"
+                      checked={form.settings.emailNotifications}
+                      onChange={handleChange}
+                    />
+                    <small style={{ color: "#666", fontSize: "12px" }}>
+                      Receive email alerts for file shares and storage warnings
+                    </small>
+                  </div>
+                  {savedFields.emailNotifications && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
                 </div>
               </div>
               <div className={styles.formRow}>
                 <label htmlFor="language">Language:</label>
-                <select
-                  id="language"
-                  name="settings.language"
-                  value={form.settings.language}
-                  onChange={handleChange}
-                  disabled={!editMode}
-                >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                </select>
+                <div className={styles.inputWithIcon}>
+                  <select
+                    id="language"
+                    name="settings.language"
+                    value={form.settings.language}
+                    onChange={handleChange}
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                  </select>
+                  {savedFields.language && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Preferences Section - Full Width (includes Appearance) */}
             <div className={styles.sectionCard}>
               <h3>Preferences</h3>
               <div className={styles.formRow}>
+                <label htmlFor="theme">Theme:</label>
+                <div className={styles.inputWithIcon}>
+                  <select
+                    id="theme"
+                    name="settings.theme"
+                    value={theme}
+                    onChange={handleThemeChange}
+                  >
+                    <option value="light">Light Mode</option>
+                    <option value="dark">Dark Mode</option>
+                  </select>
+                  {savedFields.theme && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className={styles.formRow}>
                 <label htmlFor="viewMode">View Mode:</label>
-                <select
-                  id="viewMode"
-                  name="preferences.viewMode"
-                  value={form.preferences.viewMode}
-                  onChange={handleChange}
-                  disabled={!editMode}
-                >
-                  <option value="list">List</option>
-                  <option value="grid">Grid</option>
-                </select>
+                <div className={styles.inputWithIcon}>
+                  <select
+                    id="viewMode"
+                    name="preferences.viewMode"
+                    value={form.preferences.viewMode}
+                    onChange={handleChange}
+                  >
+                    <option value="list">List</option>
+                    <option value="grid">Grid</option>
+                  </select>
+                  {savedFields.viewMode && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
+                </div>
               </div>
               <div className={styles.formRow}>
                 <label htmlFor="itemsPerPage">Items Per Page:</label>
-                <input
-                  id="itemsPerPage"
-                  type="number"
-                  name="preferences.itemsPerPage"
-                  value={form.preferences.itemsPerPage}
-                  onChange={handleChange}
-                  disabled={!editMode}
-                  min={1}
-                  max={100}
-                />
+                <div className={styles.inputWithIcon}>
+                  <select
+                    id="itemsPerPage"
+                    name="preferences.itemsPerPage"
+                    value={form.preferences.itemsPerPage}
+                    onChange={handleChange}
+                  >
+                    <option value={25}>25 items</option>
+                    <option value={50}>50 items</option>
+                    <option value={75}>75 items</option>
+                    <option value={100}>100 items</option>
+                  </select>
+                  {savedFields.itemsPerPage && (
+                    <Check
+                      size={18}
+                      className={styles.checkIcon}
+                      style={{ color: "#10b981" }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-            <div className={styles.profileActions}>
-              <div className={styles.actionGroup}>
-                {editMode ? (
-                  <>
+
+            {/* Password Change Section */}
+            <div className={styles.sectionCard}>
+              <h3>
+                <Lock size={16} />
+                Change Password
+              </h3>
+              {passwordSuccess && (
+                <div className={styles.successMessage}>
+                  Password changed successfully!
+                </div>
+              )}
+              {passwordError && (
+                <div className={styles.errorMessage}>{passwordError}</div>
+              )}
+              <div className={styles.passwordForm}>
+                <div className={styles.formRow}>
+                  <label htmlFor="currentPassword">Current Password:</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      id="currentPassword"
+                      type={showPasswords.current ? "text" : "password"}
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          currentPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter current password"
+                    />
                     <button
                       type="button"
-                      className={styles.cancelBtn}
+                      className={styles.togglePassword}
+                      onClick={() =>
+                        setShowPasswords((prev) => ({
+                          ...prev,
+                          current: !prev.current,
+                        }))
+                      }
+                    >
+                      {showPasswords.current ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="newPassword">New Password:</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      id="newPassword"
+                      type={showPasswords.new ? "text" : "password"}
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          newPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter new password (min 6 chars)"
+                    />
+                    <button
+                      type="button"
+                      className={styles.togglePassword}
+                      onClick={() =>
+                        setShowPasswords((prev) => ({
+                          ...prev,
+                          new: !prev.new,
+                        }))
+                      }
+                    >
+                      {showPasswords.new ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="confirmPassword">Confirm Password:</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      id="confirmPassword"
+                      type={showPasswords.confirm ? "text" : "password"}
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      className={styles.togglePassword}
+                      onClick={() =>
+                        setShowPasswords((prev) => ({
+                          ...prev,
+                          confirm: !prev.confirm,
+                        }))
+                      }
+                    >
+                      {showPasswords.confirm ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePasswordChange}
+                  className={styles.changePasswordBtn}
+                  disabled={
+                    !passwordForm.currentPassword ||
+                    !passwordForm.newPassword ||
+                    !passwordForm.confirmPassword
+                  }
+                >
+                  Change Password
+                </button>
+              </div>
+            </div>
+
+            {/* Security Section */}
+            <div className={styles.sectionCard}>
+              <h3>
+                <Shield size={16} />
+                Security
+              </h3>
+              <div className={styles.formRow}>
+                <label htmlFor="twoFactor">Two-Factor Authentication:</label>
+                <div className={styles.securityOption}>
+                  <span className={styles.comingSoon}>Coming Soon</span>
+                  <small style={{ color: "#666", fontSize: "12px" }}>
+                    Add an extra layer of security to your account
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className={styles.dangerZone}>
+              <h3>
+                <AlertTriangle size={16} />
+                Danger Zone
+              </h3>
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className={styles.dangerBtn}
+                >
+                  Delete Account
+                </button>
+              ) : (
+                <div className={styles.deleteConfirm}>
+                  <p className={styles.dangerWarning}>
+                    ⚠️ This action cannot be undone. All your files and data
+                    will be permanently deleted.
+                  </p>
+                  {deleteError && (
+                    <div className={styles.errorMessage}>{deleteError}</div>
+                  )}
+                  <div className={styles.formRow}>
+                    <label htmlFor="deletePassword">
+                      Enter your password to confirm:
+                    </label>
+                    <input
+                      id="deletePassword"
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Your password"
+                    />
+                  </div>
+                  <div className={styles.deleteActions}>
+                    <button
+                      type="button"
                       onClick={() => {
-                        setEditMode(false);
-                        setForm(profile);
+                        setShowDeleteConfirm(false);
+                        setDeletePassword("");
+                        setDeleteError(null);
                       }}
+                      className={styles.cancelBtn}
                     >
                       Cancel
                     </button>
-                    <button type="submit" className={styles.saveBtn}>
-                      Save Changes
+                    <button
+                      type="button"
+                      onClick={handleDeleteAccount}
+                      className={styles.confirmDeleteBtn}
+                      disabled={!deletePassword}
+                    >
+                      Permanently Delete Account
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.editBtn}
-                    onClick={() => setEditMode(true)}
-                  >
-                    Edit Profile
-                  </button>
-                )}
-              </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.profileActions}>
               <button
                 type="button"
                 className={styles.logoutBtn}
@@ -342,7 +996,7 @@ export default function UserProfile() {
                 Logout
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

@@ -148,6 +148,12 @@
   min-height: 0; /* Prevent flex item from growing based on content */
 }
 
+/* Admin section styling */
+.adminSection {
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: 12px;
+}
+
 /* Storage section stays at bottom */
 .storageSection {
   margin-top: auto;

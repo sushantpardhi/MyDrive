@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Share2, Trash2, HardDrive, X } from "lucide-react";
+import { Home, Share2, Trash2, HardDrive, X, Shield } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
@@ -43,8 +43,10 @@ const Sidebar = ({ onClose }) => {
         logger.info("Storage statistics loaded", {
           used: storageUsed,
           limit: storageLimit,
+          isUnlimited: storageLimit === -1,
           usedFormatted: formatFileSize(storageUsed),
-          limitFormatted: formatFileSize(storageLimit),
+          limitFormatted:
+            storageLimit === -1 ? "Unlimited" : formatFileSize(storageLimit),
         });
       } catch (error) {
         logger.error("Failed to fetch storage statistics", {
@@ -63,8 +65,13 @@ const Sidebar = ({ onClose }) => {
     getStorageInfo();
   }, [storageRefreshTrigger]);
 
-  const usedPercent =
-    storage.total > 0 ? ((storage.used / storage.total) * 100).toFixed(1) : 0;
+  // Handle unlimited storage display
+  const isUnlimited = storage.total === -1;
+  const usedPercent = isUnlimited
+    ? 0
+    : storage.total > 0
+    ? ((storage.used / storage.total) * 100).toFixed(1)
+    : 0;
 
   // const handleLogout = () => {
   //   api.logout();
@@ -123,21 +130,49 @@ const Sidebar = ({ onClose }) => {
         </ul>
       </div>
 
+      {/* Admin Section - Only visible to admin users */}
+      {user && user.role === "admin" && (
+        <div className={`${styles.section} ${styles.adminSection}`}>
+          <h2 className={styles.sectionTitle}>Admin</h2>
+          <ul className={styles.menu}>
+            <li>
+              <Link
+                to="/admin"
+                className={`${styles.link} ${
+                  location.pathname.startsWith("/admin") ? styles.active : ""
+                }`}
+              >
+                <Shield size={18} />
+                <span>Dashboard</span>
+              </Link>
+            </li>
+          </ul>
+        </div>
+      )}
+
       <div className={`${styles.section} ${styles.storageSection}`}>
         <h4 className={styles.sectionTitle}>Storage</h4>
         <div className={styles.storageInfo}>
           <HardDrive size={18} />
           <span>
-            {formatFileSize(storage.used)} of {formatFileSize(storage.total)}{" "}
-            used
+            {isUnlimited ? (
+              <>{formatFileSize(storage.used)} used (Unlimited)</>
+            ) : (
+              <>
+                {formatFileSize(storage.used)} of{" "}
+                {formatFileSize(storage.total)} used
+              </>
+            )}
           </span>
         </div>
-        <div className={styles.storageBar}>
-          <div
-            className={styles.storageUsed}
-            style={{ width: `${usedPercent}%` }}
-          ></div>
-        </div>
+        {!isUnlimited && (
+          <div className={styles.storageBar}>
+            <div
+              className={styles.storageUsed}
+              style={{ width: `${usedPercent}%` }}
+            ></div>
+          </div>
+        )}
       </div>
 
       {/* Move logout to profile/settings section */}

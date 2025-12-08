@@ -67,7 +67,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, password } = req.body;
+      const { name, email, password, role } = req.body;
 
       // Check if user already exists
       const existingUser = await User.findOne({ email });
@@ -81,17 +81,29 @@ router.post(
         });
       }
 
+      // Validate role if provided (default is 'guest')
+      const validRoles = ["admin", "family", "guest"];
+      const userRole = role && validRoles.includes(role) ? role : "guest";
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
+      // Create user with role
       const user = new User({
         name,
         email,
         password: hashedPassword,
+        role: userRole,
       });
 
       await user.save();
+
+      logger.info("User registered with role", {
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        storageLimit: user.storageLimit,
+      });
 
       logger.logAuth("register", user._id, {
         ip,
@@ -125,6 +137,9 @@ router.post(
           id: user._id,
           name: user.name,
           email: user.email,
+          role: user.role,
+          storageLimit: user.storageLimit,
+          storageUsed: user.storageUsed,
         },
       });
     } catch (error) {
@@ -195,9 +210,9 @@ router.post(
         });
       }
 
-      // Generate JWT token
+      // Generate JWT token with role
       const token = jwt.sign(
-        { id: user._id, email: user.email, name: user.name },
+        { id: user._id, email: user.email, name: user.name, role: user.role },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION }
       );
@@ -206,6 +221,7 @@ router.post(
         ip,
         userAgent,
         email,
+        role: user.role,
         success: true,
       });
 
@@ -220,6 +236,9 @@ router.post(
           id: user._id,
           name: user.name,
           email: user.email,
+          role: user.role,
+          storageLimit: user.storageLimit,
+          storageUsed: user.storageUsed,
         },
       });
     } catch (error) {

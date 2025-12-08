@@ -23,6 +23,7 @@ const filesRouter = require("./routes/files");
 const foldersRouter = require("./routes/folders");
 const usersRouter = require("./routes/users");
 const sharedRouter = require("./routes/shared");
+const adminRouter = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -65,6 +66,7 @@ app.use("/api/files", authenticateToken, filesRouter);
 app.use("/api/folders", authenticateToken, foldersRouter);
 app.use("/api/users", authenticateToken, usersRouter);
 app.use("/api/shared", authenticateToken, sharedRouter);
+app.use("/api/admin", authenticateToken, adminRouter);
 app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
 app.get("/", (req, res) => {

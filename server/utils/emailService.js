@@ -691,6 +691,328 @@ class EmailService {
       )}\n\n© ${new Date().getFullYear()} MyDrive. All rights reserved.`,
     });
   }
+
+  /**
+   * Send storage warning email (50%, 75%, 90% thresholds)
+   */
+  async sendStorageWarningEmail(user, threshold, storageInfo) {
+    // Check if user has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      user._id || user.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
+    const percentageText = threshold + "%";
+    const warningLevel =
+      threshold >= 90 ? "Critical" : threshold >= 75 ? "High" : "Medium";
+    const warningColor =
+      threshold >= 90 ? "#dc2626" : threshold >= 75 ? "#f59e0b" : "#0891b2";
+
+    const subject = `⚠️ Storage ${warningLevel}: ${percentageText} Full - MyDrive`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, ${warningColor} 0%, ${warningColor}dd 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .warning-icon { font-size: 60px; margin-bottom: 10px; }
+          .storage-bar { width: 100%; height: 30px; background: #e5e7eb; border-radius: 15px; overflow: hidden; margin: 20px 0; position: relative; }
+          .storage-fill { height: 100%; background: linear-gradient(90deg, ${warningColor} 0%, ${warningColor}dd 100%); transition: width 0.3s ease; }
+          .storage-percentage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: ${
+            threshold >= 50 ? "white" : "#333"
+          }; font-weight: bold; font-size: 14px; }
+          .stats-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${warningColor}; }
+          .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+          .stat-row:last-child { border-bottom: none; }
+          .stat-label { font-weight: 600; color: #6b7280; }
+          .stat-value { font-weight: bold; color: #111827; }
+          .action-box { background: #fef3c7; padding: 20px; border-radius: 8px; border: 1px solid #fbbf24; margin: 20px 0; }
+          .action-title { font-weight: bold; color: #92400e; margin-bottom: 10px; font-size: 16px; }
+          .action-list { margin: 10px 0; padding-left: 20px; }
+          .action-list li { margin: 5px 0; color: #78350f; }
+          .button { display: inline-block; padding: 14px 28px; background: ${warningColor}; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 600; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="warning-icon">⚠️</div>
+            <h1>Storage ${warningLevel} Warning</h1>
+            <p>Your MyDrive storage is ${percentageText} full</p>
+          </div>
+          <div class="content">
+            <h2>Hi ${user.name},</h2>
+            <p>Your MyDrive storage is reaching its limit. You've used <strong>${
+              storageInfo.formattedUsed
+            }</strong> of your <strong>${
+      storageInfo.formattedLimit
+    }</strong> storage quota.</p>
+            
+            <div class="storage-bar">
+              <div class="storage-fill" style="width: ${
+                storageInfo.percentage
+              }%;"></div>
+              <div class="storage-percentage">${storageInfo.percentage.toFixed(
+                1
+              )}%</div>
+            </div>
+            
+            <div class="stats-box">
+              <div class="stat-row">
+                <span class="stat-label">Storage Used:</span>
+                <span class="stat-value">${storageInfo.formattedUsed}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Storage:</span>
+                <span class="stat-value">${storageInfo.formattedLimit}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Remaining Space:</span>
+                <span class="stat-value">${
+                  storageInfo.formattedRemaining
+                }</span>
+              </div>
+            </div>
+            
+            <div class="action-box">
+              <div class="action-title">💡 Actions You Can Take:</div>
+              <ul class="action-list">
+                <li>Delete files you no longer need</li>
+                <li>Empty your trash to permanently free up space</li>
+                <li>Move large files to local storage</li>
+                <li>Compress files before uploading</li>
+              </ul>
+            </div>
+            
+            <p style="color: #991b1b; font-weight: 600; margin-top: 20px;">
+              ${
+                threshold >= 90
+                  ? "⚠️ Warning: You're approaching your storage limit. New uploads may be blocked soon."
+                  : "Please free up some space to continue using MyDrive smoothly."
+              }
+            </p>
+            
+            <div style="text-align: center;">
+              <a href="${
+                process.env.CLIENT_URL || "http://localhost:3000"
+              }" class="button">Manage Your Storage</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} MyDrive. All rights reserved.</p>
+            <p>This is an automated email, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      Storage ${warningLevel} Warning - MyDrive
+      
+      Hi ${user.name},
+      
+      Your MyDrive storage is reaching its limit. You've used ${
+        storageInfo.formattedUsed
+      } of your ${
+      storageInfo.formattedLimit
+    } storage quota (${storageInfo.percentage.toFixed(1)}%).
+      
+      Storage Details:
+      - Storage Used: ${storageInfo.formattedUsed}
+      - Total Storage: ${storageInfo.formattedLimit}
+      - Remaining Space: ${storageInfo.formattedRemaining}
+      
+      Actions You Can Take:
+      • Delete files you no longer need
+      • Empty your trash to permanently free up space
+      • Move large files to local storage
+      • Compress files before uploading
+      
+      ${
+        threshold >= 90
+          ? "⚠️ Warning: You're approaching your storage limit. New uploads may be blocked soon."
+          : "Please free up some space to continue using MyDrive smoothly."
+      }
+      
+      Visit MyDrive: ${process.env.CLIENT_URL || "http://localhost:3000"}
+      
+      © ${new Date().getFullYear()} MyDrive. All rights reserved.
+    `;
+
+    return await this.sendMail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
+   * Send storage limit reached email (100% threshold)
+   */
+  async sendStorageLimitReachedEmail(user, storageInfo) {
+    // Check if user has email notifications enabled
+    const notificationsEnabled = await this.hasEmailNotificationsEnabled(
+      user._id || user.id
+    );
+    if (!notificationsEnabled) {
+      return {
+        success: false,
+        message: "User has email notifications disabled",
+      };
+    }
+
+    const subject = "🚫 Storage Limit Reached - Action Required - MyDrive";
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .alert-icon { font-size: 60px; margin-bottom: 10px; }
+          .storage-bar { width: 100%; height: 30px; background: #e5e7eb; border-radius: 15px; overflow: hidden; margin: 20px 0; position: relative; }
+          .storage-fill { height: 100%; background: linear-gradient(90deg, #dc2626 0%, #b91c1c 100%); width: 100%; }
+          .storage-percentage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 14px; }
+          .stats-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626; }
+          .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+          .stat-row:last-child { border-bottom: none; }
+          .stat-label { font-weight: 600; color: #6b7280; }
+          .stat-value { font-weight: bold; color: #111827; }
+          .alert-box { background: #fee2e2; padding: 20px; border-radius: 8px; border: 2px solid #dc2626; margin: 20px 0; }
+          .alert-title { font-weight: bold; color: #991b1b; margin-bottom: 10px; font-size: 18px; }
+          .alert-text { color: #7f1d1d; font-size: 16px; line-height: 1.5; }
+          .action-box { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0; }
+          .action-title { font-weight: bold; color: #111827; margin-bottom: 10px; font-size: 16px; }
+          .action-list { margin: 10px 0; padding-left: 20px; }
+          .action-list li { margin: 8px 0; color: #374151; }
+          .button { display: inline-block; padding: 14px 28px; background: #dc2626; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 600; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="alert-icon">🚫</div>
+            <h1>Storage Limit Reached</h1>
+            <p>Your storage is at 100% capacity</p>
+          </div>
+          <div class="content">
+            <h2>Hi ${user.name},</h2>
+            
+            <div class="alert-box">
+              <div class="alert-title">⚠️ Uploads Blocked</div>
+              <div class="alert-text">
+                You have reached your storage limit of <strong>${
+                  storageInfo.formattedLimit
+                }</strong>. 
+                You cannot upload any new files until you free up space.
+              </div>
+            </div>
+            
+            <div class="storage-bar">
+              <div class="storage-fill"></div>
+              <div class="storage-percentage">100%</div>
+            </div>
+            
+            <div class="stats-box">
+              <div class="stat-row">
+                <span class="stat-label">Storage Used:</span>
+                <span class="stat-value">${storageInfo.formattedUsed}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Storage:</span>
+                <span class="stat-value">${storageInfo.formattedLimit}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Remaining Space:</span>
+                <span class="stat-value" style="color: #dc2626;">${
+                  storageInfo.formattedRemaining
+                } (${storageInfo.percentage.toFixed(1)}% used)</span>
+              </div>
+            </div>
+            
+            <div class="action-box">
+              <div class="action-title">🔧 Immediate Actions Required:</div>
+              <ul class="action-list">
+                <li><strong>Delete unnecessary files</strong> from your drive</li>
+                <li><strong>Empty your trash</strong> to permanently remove deleted items</li>
+                <li><strong>Download and remove</strong> large files to free up space</li>
+                <li><strong>Compress files</strong> before re-uploading if needed</li>
+              </ul>
+            </div>
+            
+            <p style="color: #991b1b; font-weight: 600; margin-top: 20px; padding: 15px; background: #fee2e2; border-radius: 6px;">
+              💡 <strong>Tip:</strong> Even a small amount of free space will allow you to resume uploads. 
+              Delete just a few files to get started again!
+            </p>
+            
+            <div style="text-align: center;">
+              <a href="${
+                process.env.CLIENT_URL || "http://localhost:3000"
+              }" class="button">Free Up Space Now</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} MyDrive. All rights reserved.</p>
+            <p>This is an automated email, please do not reply.</p>
+            <p>Need help? Contact our support team.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      Storage Limit Reached - Action Required - MyDrive
+      
+      Hi ${user.name},
+      
+      ⚠️ UPLOADS BLOCKED
+      
+      You have reached your storage limit of ${
+        storageInfo.formattedLimit
+      }. You cannot upload any new files until you free up space.
+      
+      Storage Details:
+      - Storage Used: ${storageInfo.formattedUsed}
+      - Total Storage: ${storageInfo.formattedLimit}
+      - Remaining Space: ${
+        storageInfo.formattedRemaining
+      } (${storageInfo.percentage.toFixed(1)}% used)
+      
+      Immediate Actions Required:
+      • Delete unnecessary files from your drive
+      • Empty your trash to permanently remove deleted items
+      • Download and remove large files to free up space
+      • Compress files before re-uploading if needed
+      
+      💡 Tip: Even a small amount of free space will allow you to resume uploads. Delete just a few files to get started again!
+      
+      Visit MyDrive: ${process.env.CLIENT_URL || "http://localhost:3000"}
+      
+      © ${new Date().getFullYear()} MyDrive. All rights reserved.
+    `;
+
+    return await this.sendMail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+  }
 }
 
 // Export singleton instance

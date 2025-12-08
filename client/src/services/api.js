@@ -45,6 +45,24 @@ const api = {
   // User profile operations
   getUserProfile: () => axios.get(`${API_URL}/users/profile`),
   updateUserProfile: (data) => axios.put(`${API_URL}/users/profile`, data),
+  changePassword: (currentPassword, newPassword) =>
+    axios.put(`${API_URL}/users/change-password`, {
+      currentPassword,
+      newPassword,
+    }),
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return axios.post(`${API_URL}/users/avatar`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  deleteAvatar: () => axios.delete(`${API_URL}/users/avatar`),
+  deleteAccount: (password) =>
+    axios.delete(`${API_URL}/users/account`, { data: { password } }),
+  getAccountStats: () => axios.get(`${API_URL}/users/stats`),
+  getActivityLog: (limit = 10) =>
+    axios.get(`${API_URL}/users/activity`, { params: { limit } }),
 
   // Storage statistics
   getStorageStats: () => axios.get(`${API_URL}/users/storage`),
@@ -318,6 +336,27 @@ const api = {
   // Resume upload (get status for resuming)
   resumeUpload: (uploadId) =>
     axios.get(`${API_URL}/files/chunked-upload/${uploadId}/status`),
+
+  // Admin operations
+  admin: {
+    // System statistics
+    getSystemStats: () => axios.get(`${API_URL}/admin/stats`),
+
+    // User management
+    getUsers: (params) => axios.get(`${API_URL}/admin/users`, { params }),
+    getUserDetails: (userId) => axios.get(`${API_URL}/admin/users/${userId}`),
+    updateUserRole: (userId, role) =>
+      axios.put(`${API_URL}/admin/users/${userId}/role`, { role }),
+    deleteUser: (userId) => axios.delete(`${API_URL}/admin/users/${userId}`),
+
+    // File management
+    getFiles: (params) => axios.get(`${API_URL}/admin/files`, { params }),
+    deleteFile: (fileId) => axios.delete(`${API_URL}/admin/files/${fileId}`),
+
+    // Activity and reports
+    getActivity: (params) => axios.get(`${API_URL}/admin/activity`, { params }),
+    getStorageReport: () => axios.get(`${API_URL}/admin/storage-report`),
+  },
 };
 
 export default api;

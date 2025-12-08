@@ -3,6 +3,7 @@ import GridView from "./GridView";
 import ListView from "./ListView";
 import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./DriveContent.module.css";
+import selectionStyles from "./SelectionBox.module.css";
 
 const DriveContent = ({
   loading,
@@ -41,6 +42,11 @@ const DriveContent = ({
   onDrop,
   draggedItem,
   dropTarget,
+  isSelecting = false,
+  selectionBox = { left: 0, top: 0, width: 0, height: 0 },
+  onDragSelectMouseDown,
+  onDragSelectMouseMove,
+  onDragSelectMouseLeave,
 }) => {
   if (loading || isSearching) {
     return (
@@ -68,7 +74,15 @@ const DriveContent = ({
   }
 
   return (
-    <div className={styles.driveView} ref={driveViewRef}>
+    <div
+      className={`${styles.driveView} ${selectionStyles.container} ${
+        isSelecting ? selectionStyles.selecting : ""
+      }`}
+      ref={driveViewRef}
+      onMouseDown={onDragSelectMouseDown}
+      onMouseMove={onDragSelectMouseMove}
+      onMouseLeave={onDragSelectMouseLeave}
+    >
       {viewMode === "grid" ? (
         <GridView
           folders={folders}
@@ -142,6 +156,19 @@ const DriveContent = ({
         <div className={styles.loadingMore}>
           <LoadingSpinner size="small" message="Loading more items..." />
         </div>
+      )}
+
+      {/* Selection box for drag select */}
+      {isSelecting && (
+        <div
+          className={selectionStyles.selectionBox}
+          style={{
+            left: `${selectionBox.left}px`,
+            top: `${selectionBox.top}px`,
+            width: `${selectionBox.width}px`,
+            height: `${selectionBox.height}px`,
+          }}
+        />
       )}
     </div>
   );

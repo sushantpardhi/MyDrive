@@ -6,7 +6,7 @@ import logger from "../utils/logger";
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
 const MAX_HISTORY_ITEMS = 10;
 
-export const useSearch = (api, loadFolderContents) => {
+export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
   const { currentFolderId } = useDriveContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -85,7 +85,12 @@ export const useSearch = (api, loadFolderContents) => {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         logger.info("Starting search", { searchQuery, searchFilters });
-        const response = await api.search(searchQuery, 1, 50, searchFilters);
+        const response = await api.search(
+          searchQuery,
+          1,
+          itemsPerPage,
+          searchFilters
+        );
         logger.debug("Search response received", {
           folderCount: response.data.folders?.length,
           fileCount: response.data.files?.length,
@@ -152,7 +157,7 @@ export const useSearch = (api, loadFolderContents) => {
       const response = await api.search(
         searchQuery,
         nextPage,
-        50,
+        itemsPerPage,
         searchFilters
       );
 

@@ -296,6 +296,7 @@ const FileCard = ({
       } ${menuOpen ? styles.menuOpen : ""} ${
         isDragging ? styles.dragging : ""
       }`}
+      data-item-id={safeFile._id}
       tabIndex={0}
       aria-label={`File: ${safeFile.name}`}
       role="group"
