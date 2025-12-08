@@ -6,11 +6,61 @@ const User = require("../models/User");
 const { authenticateToken } = require("../middleware/auth");
 const emailService = require("../utils/emailService");
 const logger = require("../utils/logger");
+const {
+  generateRefreshToken,
+  revokeAllUserTokens,
+} = require("../utils/refreshTokenHelpers");
 
 const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "7d";
+
+// Logout route (invalidate refresh token)
+router.post("/logout", (req, res) => {
+  const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+  if (refreshToken) {
+    const { revokeRefreshToken } = require("../utils/refreshTokenHelpers");
+    revokeRefreshToken(refreshToken);
+  }
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+  res.json({ message: "Logged out successfully" });
+});
+// Refresh token endpoint
+router.post("/refresh-token", async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ error: "Refresh token missing" });
+    }
+    const { validateRefreshToken } = require("../utils/refreshTokenHelpers");
+    const payload = validateRefreshToken(refreshToken);
+    if (!payload) {
+      return res
+        .status(403)
+        .json({ error: "Invalid or expired refresh token" });
+    }
+    // Issue new access token
+    const token = jwt.sign(
+      {
+        id: payload.id,
+        email: payload.email,
+        name: payload.name,
+        role: payload.role,
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRATION }
+    );
+    res.json({ token });
+  } catch (error) {
+    logger.logError(error, { operation: "refresh-token", ip: req.ip });
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // User Profile Routes
 router.get("/me", authenticateToken, async (req, res) => {
@@ -119,12 +169,21 @@ router.post(
         );
       });
 
-      // Generate JWT token
+      // Generate JWT access token
       const token = jwt.sign(
         { id: user._id, email: user.email, name: user.name },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION }
       );
+      // Generate refresh token
+      const refreshToken = generateRefreshToken(user);
+      // Set refresh token as HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
 
       logger.logPerformance("register", Date.now() - startTime, {
         userId: user._id,
@@ -210,12 +269,21 @@ router.post(
         });
       }
 
-      // Generate JWT token with role
+      // Generate JWT access token
       const token = jwt.sign(
         { id: user._id, email: user.email, name: user.name, role: user.role },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION }
       );
+      // Generate refresh token
+      const refreshToken = generateRefreshToken(user);
+      // Set refresh token as HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
 
       logger.logAuth("login", user._id, {
         ip,

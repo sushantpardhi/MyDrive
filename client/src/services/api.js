@@ -18,24 +18,62 @@ axios.interceptors.request.use(
 
 
 // Response interceptor to handle session expiration
+let isRefreshing = false;
+let failedQueue = [];
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+}
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect on 401 if we're not on login/register pages and have a token
-    if (error.response && error.response.status === 401) {
-      const currentPath = window.location.pathname;
-      const hasToken = localStorage.getItem("token");
-
-      // Don't redirect if we're already on auth pages or don't have a token
-      if (
-        hasToken &&
-        !currentPath.includes("/login") &&
-        !currentPath.includes("/register")
-      ) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
+    const originalRequest = error.config;
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !window.location.pathname.includes("/login") &&
+      !window.location.pathname.includes("/register")
+    ) {
+      if (isRefreshing) {
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            return axios(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
       }
+      originalRequest._retry = true;
+      isRefreshing = true;
+      return api
+        .refreshToken()
+        .then((res) => {
+          const { token } = res.data;
+          localStorage.setItem("token", token);
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          processQueue(null, token);
+          return axios(originalRequest);
+        })
+        .catch((err) => {
+          processQueue(err, null);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+          return Promise.reject(err);
+        })
+        .finally(() => {
+          isRefreshing = false;
+        });
     }
     return Promise.reject(error);
   }
@@ -76,6 +114,9 @@ const api = {
 
   getCurrentUser: () => axios.get(`${API_URL}/auth/me`),
 
+  refreshToken: () =>
+    axios.post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true }),
+
   // Password reset operations
   forgotPassword: (email) =>
     axios.post(`${API_URL}/auth/forgot-password`, { email }),
@@ -83,7 +124,10 @@ const api = {
   resetPassword: (token, newPassword) =>
     axios.post(`${API_URL}/auth/reset-password`, { token, newPassword }),
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+    } catch (e) {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   },
