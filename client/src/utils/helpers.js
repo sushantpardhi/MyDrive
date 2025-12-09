@@ -40,3 +40,32 @@ export const scrollToEnd = (element) => {
     });
   }
 };
+
+/**
+ * Get user initials for avatar placeholder
+ * @param {string} name - User's full name
+ * @returns {string} - User initials (max 2 characters)
+ */
+export const getUserInitials = (name) => {
+  if (!name) return "?";
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+/**
+ * Generate consistent color for avatar background based on name
+ * @param {string} name - User's name
+ * @returns {string} - HSL color string
+ */
+export const getAvatarColor = (name) => {
+  if (!name) return "hsl(0, 0%, 70%)";
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = hash % 360;
+  return `hsl(${hue}, 70%, 60%)`;
+};

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAdmin, useAuth } from "../../contexts";
 import { formatFileSize } from "../../utils/formatters";
+import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 import logger from "../../utils/logger";
 import styles from "./StorageReport.module.css";
 
@@ -186,8 +187,13 @@ const StorageReport = () => {
                       <tr key={user._id}>
                         <td>
                           <div className={styles.userCell}>
-                            <div className={styles.userAvatar}>
-                              {user.name.charAt(0).toUpperCase()}
+                            <div
+                              className={styles.userAvatar}
+                              style={{
+                                backgroundColor: getAvatarColor(user.name),
+                              }}
+                            >
+                              {getUserInitials(user.name)}
                             </div>
                             <div className={styles.userInfo}>
                               <div className={styles.userName}>{user.name}</div>

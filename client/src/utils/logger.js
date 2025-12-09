@@ -24,9 +24,10 @@ const COLORS = {
 
 class Logger {
   constructor() {
-    // Determine log level based on environment
+    // Disable all console logs in both development and production
+    // Only store errors in memory for debugging
     const isDevelopment = process.env.NODE_ENV === "development";
-    this.logLevel = isDevelopment ? LOG_LEVELS.DEBUG : LOG_LEVELS.INFO;
+    this.logLevel = -1; // -1 disables all console logs
     this.isDevelopment = isDevelopment;
   }
 
@@ -54,22 +55,8 @@ class Logger {
    * Core logging method
    */
   log(level, levelValue, message, context = {}, ...args) {
-    if (levelValue > this.logLevel) {
-      return; // Skip if below current log level
-    }
-
-    const formattedMessage = this.formatMessage(level, message, context);
-
-    // In development, use colored console output
-    if (this.isDevelopment) {
-      const color = COLORS[level];
-      console.log(`%c${formattedMessage}`, color, ...args);
-    } else {
-      // In production, use simple console output
-      console.log(formattedMessage, ...args);
-    }
-
-    // Store errors for potential error reporting
+    // Logging completely disabled on frontend
+    // Only store critical errors in memory
     if (level === "ERROR") {
       this.storeError({
         level,
@@ -194,7 +181,6 @@ class Logger {
   logApiRequest(method, endpoint, context = {}) {
     this.debug(`API Request: ${method} ${endpoint}`, context);
   }
-
   /**
    * Log API responses
    */
@@ -208,7 +194,6 @@ class Logger {
       context
     );
   }
-
   /**
    * Log state changes
    */

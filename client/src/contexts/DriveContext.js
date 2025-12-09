@@ -62,11 +62,13 @@ export const DriveProvider = ({ children }) => {
       }
     };
 
-    // Check on mount and interval
+    // Check on mount
     checkUserChange();
-    const interval = setInterval(checkUserChange, 100);
 
-    return () => clearInterval(interval);
+    // Listen for storage events (user changes in other tabs)
+    window.addEventListener("storage", checkUserChange);
+
+    return () => window.removeEventListener("storage", checkUserChange);
   }, [resetState]);
 
   const updateCurrentFolder = useCallback((folderId) => {

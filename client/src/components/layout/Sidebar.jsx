@@ -4,6 +4,7 @@ import styles from "./Sidebar.module.css";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
 import { formatFileSize } from "../../utils/formatters";
+import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 import logger from "../../utils/logger";
 import { useUIContext } from "../../contexts";
 
@@ -91,8 +92,11 @@ const Sidebar = ({ onClose }) => {
       <Link to="/profile" className={styles.userSectionLink}>
         {user ? (
           <div className={styles.userSection}>
-            <div className={styles.userAvatar}>
-              {user.name.charAt(0).toUpperCase()}
+            <div
+              className={styles.userAvatar}
+              style={{ backgroundColor: getAvatarColor(user.name) }}
+            >
+              {getUserInitials(user.name)}
             </div>
             <div className={styles.userInfo}>
               <div className={styles.userName}>{user.name}</div>

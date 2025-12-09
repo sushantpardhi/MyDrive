@@ -30,6 +30,7 @@ import OwnerAvatar from "../common/OwnerAvatar";
 import SearchHighlight from "../common/SearchHighlight";
 import api from "../../services/api";
 import logger from "../../utils/logger";
+import useLazyLoad from "../../hooks/useLazyLoad";
 
 const FileCard = ({
   file,
@@ -52,9 +53,16 @@ const FileCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
   const menuRef = useRef(null);
   const { isSelected, getSelectedCount } = useSelectionContext();
   const { openPreviewModal } = useUIContext();
+
+  // Use lazy loading hook to detect when card is visible
+  const { ref: lazyRef, isVisible } = useLazyLoad({
+    rootMargin: "100px", // Start loading 100px before entering viewport
+    threshold: 0.01,
+  });
 
   // Validate file object to prevent crashes and provide defaults
   const safeFile =
@@ -134,37 +142,57 @@ const FileCard = ({
 
   const fileType = getFileType(safeFile.name);
 
-  // Load thumbnail for image files
+  // Load thumbnail for image files - ONLY when card becomes visible
   useEffect(() => {
     let cancelled = false;
 
+    // Only load if visible, is an image, and has valid ID
     if (
-      fileType === "image" &&
-      safeFile._id !== "unknown" &&
-      safeFile._id !== "invalid"
+      !isVisible ||
+      fileType !== "image" ||
+      safeFile._id === "unknown" ||
+      safeFile._id === "invalid"
     ) {
-      const loadThumbnail = async () => {
-        try {
-          const response = await api.getFileThumbnail(safeFile._id);
-
-          if (!cancelled) {
-            const url = URL.createObjectURL(response.data);
-            setThumbnailUrl(url);
-            setThumbnailError(false);
-          }
-        } catch (error) {
-          if (!cancelled) {
-            logger.logError(error, "Error loading thumbnail", {
-              fileId: safeFile._id,
-              fileName: safeFile.name,
-            });
-            setThumbnailError(true);
-          }
-        }
-      };
-
-      loadThumbnail();
+      return;
     }
+
+    const loadThumbnail = async () => {
+      setThumbnailLoading(true);
+
+      logger.info("Loading thumbnail for file", {
+        fileId: safeFile._id,
+        fileName: safeFile.name,
+        isVisible,
+      });
+
+      try {
+        const response = await api.getFileThumbnail(safeFile._id);
+
+        if (!cancelled) {
+          const url = URL.createObjectURL(response.data);
+          setThumbnailUrl(url);
+          setThumbnailError(false);
+          setThumbnailLoading(false);
+
+          logger.debug("Thumbnail loaded successfully", {
+            fileId: safeFile._id,
+            fileName: safeFile.name,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logger.error("Error loading thumbnail", {
+            fileId: safeFile._id,
+            fileName: safeFile.name,
+            error: error.message,
+          });
+          setThumbnailError(true);
+          setThumbnailLoading(false);
+        }
+      }
+    };
+
+    loadThumbnail();
 
     return () => {
       cancelled = true;
@@ -172,7 +200,7 @@ const FileCard = ({
         URL.revokeObjectURL(thumbnailUrl);
       }
     };
-  }, [safeFile._id, fileType, safeFile.name, thumbnailUrl]);
+  }, [isVisible, safeFile._id, fileType, safeFile.name]);
 
   // Get icon component for file type
   const getFileTypeIcon = () => {
@@ -291,6 +319,7 @@ const FileCard = ({
 
   return (
     <div
+      ref={lazyRef}
       className={`${styles.fileCard} ${styles[viewType]} ${
         selected ? styles.selected : ""
       } ${menuOpen ? styles.menuOpen : ""} ${
@@ -353,9 +382,13 @@ const FileCard = ({
                 onError={() => setThumbnailError(true)}
               />
             </div>
-          ) : fileType === "image" && !thumbnailError ? (
+          ) : fileType === "image" && thumbnailLoading && !thumbnailError ? (
             <div className={styles.thumbnailLoading}>
               <div className={styles.spinner}></div>
+            </div>
+          ) : fileType === "image" && !isVisible && !thumbnailError ? (
+            <div className={styles.thumbnailPlaceholder}>
+              <div className={styles.fileTypePreview}>{getFileTypeIcon()}</div>
             </div>
           ) : (
             <div className={styles.fileTypePreview}>{getFileTypeIcon()}</div>

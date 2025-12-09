@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
@@ -25,10 +26,16 @@ export const useUserSettings = () => {
 export const UserSettingsProvider = ({ children }) => {
   const { user } = useAuth();
   const { setTheme } = useTheme();
+  const setThemeRef = useRef(setTheme);
   const [viewMode, setViewMode] = useState("grid");
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
+
+  // Keep setTheme ref up to date
+  useEffect(() => {
+    setThemeRef.current = setTheme;
+  }, [setTheme]);
 
   // Fetch user settings from backend when user logs in or changes
   useEffect(() => {
@@ -38,7 +45,7 @@ export const UserSettingsProvider = ({ children }) => {
         logger.info("UserSettings: User logged out, resetting to defaults");
         setViewMode("grid");
         setItemsPerPage(25);
-        setTheme("light");
+        setThemeRef.current("light");
         setLoading(false);
         setInitialized(true);
         localStorage.removeItem("viewMode");
@@ -61,10 +68,10 @@ export const UserSettingsProvider = ({ children }) => {
           logger.info("UserSettings: Loaded theme from backend", {
             theme: res.data.settings.theme,
           });
-          setTheme(res.data.settings.theme);
+          setThemeRef.current(res.data.settings.theme);
         } else {
           logger.debug("UserSettings: No backend theme, using default: light");
-          setTheme("light");
+          setThemeRef.current("light");
         }
 
         // Apply viewMode from preferences.viewMode
@@ -111,7 +118,7 @@ export const UserSettingsProvider = ({ children }) => {
         setItemsPerPage(
           savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 25
         );
-        setTheme(savedTheme || "light");
+        setThemeRef.current(savedTheme || "light");
         logger.info("UserSettings: Using localStorage fallback", {
           viewMode: savedViewMode,
           itemsPerPage: savedItemsPerPage,
@@ -124,7 +131,7 @@ export const UserSettingsProvider = ({ children }) => {
     }
 
     fetchSettings();
-  }, [user?.id, setTheme]); // Re-fetch when user ID changes
+  }, [user?.id]); // Only re-fetch when user ID changes
 
   // Update backend when viewMode changes
   const updateSettings = useCallback(async (newViewMode) => {

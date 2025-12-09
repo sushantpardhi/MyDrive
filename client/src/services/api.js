@@ -16,7 +16,6 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
 // Response interceptor to handle session expiration
 let isRefreshing = false;
 let failedQueue = [];
@@ -36,6 +35,7 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     const originalRequest = error.config;
+
     if (
       error.response &&
       error.response.status === 401 &&
@@ -75,6 +75,8 @@ axios.interceptors.response.use(
           isRefreshing = false;
         });
     }
+
+    logger.clearRequestId();
     return Promise.reject(error);
   }
 );
@@ -88,14 +90,6 @@ const api = {
       currentPassword,
       newPassword,
     }),
-  uploadAvatar: (file) => {
-    const formData = new FormData();
-    formData.append("avatar", file);
-    return axios.post(`${API_URL}/users/avatar`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
-  deleteAvatar: () => axios.delete(`${API_URL}/users/avatar`),
   deleteAccount: (password) =>
     axios.delete(`${API_URL}/users/account`, { data: { password } }),
   getAccountStats: () => axios.get(`${API_URL}/users/stats`),

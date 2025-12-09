@@ -362,7 +362,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Load folder contents when currentFolderId changes or reloadTrigger fires
   useEffect(() => {
     loadFolderContents(currentFolderId);
-  }, [currentFolderId, loadFolderContents, reloadTrigger]);
+    // loadFolderContents is stable (wrapped in useCallback with stable dependencies)
+    // Only react to currentFolderId and reloadTrigger changes
+    // eslint-disable-next-line
+  }, [currentFolderId, reloadTrigger]);
 
   // Reset selections when changing folders or type
   useEffect(() => {

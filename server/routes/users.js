@@ -1,6 +1,5 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const multer = require("multer");
 const path = require("path");
 const fs = require("fs").promises;
 const User = require("../models/User");
@@ -11,36 +10,6 @@ const { formatBytes } = require("../utils/storageHelpers");
 const { requireAdmin } = require("../middleware/roleAuth");
 
 const router = express.Router();
-
-// Configure multer for avatar uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const avatarDir = path.join(__dirname, "../uploads/avatars");
-    try {
-      await fs.mkdir(avatarDir, { recursive: true });
-      cb(null, avatarDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${req.user.id}-${Date.now()}${path.extname(
-      file.originalname
-    )}`;
-    cb(null, uniqueName);
-  },
-});
-
-const uploadAvatar = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files are allowed"));
-    }
-    cb(null, true);
-  },
-});
 
 // User Profile Routes
 router.get("/profile", async (req, res) => {
@@ -294,105 +263,6 @@ router.put("/change-password", async (req, res) => {
   }
 });
 
-// Upload avatar
-router.post("/avatar", uploadAvatar.single("avatar"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Delete old avatar if exists
-    if (user.avatar) {
-      const oldAvatarPath = path.join(
-        __dirname,
-        "../uploads/avatars",
-        path.basename(user.avatar)
-      );
-      try {
-        await fs.unlink(oldAvatarPath);
-      } catch (err) {
-        logger.warn("Failed to delete old avatar", { error: err.message });
-      }
-    }
-
-    // Save new avatar URL
-    const avatarUrl = `/api/users/avatar/${req.file.filename}`;
-    user.avatar = avatarUrl;
-    await user.save();
-
-    logger.info("Avatar uploaded successfully", {
-      userId: req.user.id,
-      filename: req.file.filename,
-    });
-    res.json({ message: "Avatar uploaded successfully", avatarUrl });
-  } catch (error) {
-    logger.error("Error uploading avatar", {
-      userId: req.user.id,
-      error: error.message,
-      stack: error.stack,
-    });
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Delete avatar
-router.delete("/avatar", async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    if (!user.avatar) {
-      return res.status(400).json({ error: "No avatar to delete" });
-    }
-
-    // Delete avatar file
-    const avatarPath = path.join(
-      __dirname,
-      "../uploads/avatars",
-      path.basename(user.avatar)
-    );
-    try {
-      await fs.unlink(avatarPath);
-    } catch (err) {
-      logger.warn("Failed to delete avatar file", { error: err.message });
-    }
-
-    user.avatar = "";
-    await user.save();
-
-    logger.info("Avatar deleted successfully", { userId: req.user.id });
-    res.json({ message: "Avatar deleted successfully" });
-  } catch (error) {
-    logger.error("Error deleting avatar", {
-      userId: req.user.id,
-      error: error.message,
-      stack: error.stack,
-    });
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Serve avatar images
-router.get("/avatar/:filename", async (req, res) => {
-  try {
-    const avatarPath = path.join(
-      __dirname,
-      "../uploads/avatars",
-      req.params.filename
-    );
-    res.sendFile(avatarPath);
-  } catch (error) {
-    res.status(404).json({ error: "Avatar not found" });
-  }
-});
-
 // Get account statistics
 router.get("/stats", async (req, res) => {
   try {
@@ -503,20 +373,6 @@ router.delete("/account", async (req, res) => {
       logger.warn("Failed to delete user upload directory", {
         error: err.message,
       });
-    }
-
-    // Delete avatar if exists
-    if (user.avatar) {
-      const avatarPath = path.join(
-        __dirname,
-        "../uploads/avatars",
-        path.basename(user.avatar)
-      );
-      try {
-        await fs.unlink(avatarPath);
-      } catch (err) {
-        logger.warn("Failed to delete avatar", { error: err.message });
-      }
     }
 
     // Delete user account

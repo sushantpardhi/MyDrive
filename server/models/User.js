@@ -17,7 +17,6 @@ const UserSchema = new mongoose.Schema({
     enum: ["admin", "family", "guest"],
     default: "guest",
   },
-  avatar: { type: String, default: "" }, // Avatar URL/path
   createdAt: { type: Date, default: Date.now },
   storageUsed: { type: Number, default: 0 }, // Storage used in bytes
   storageLimit: { type: Number, default: 5 * 1024 * 1024 * 1024 }, // Default 5GB limit in bytes

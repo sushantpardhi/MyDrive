@@ -5,6 +5,7 @@ import styles from "./ShareDialog.module.css";
 import api from "../../services/api";
 import { toast } from "react-toastify";
 import { useUIContext } from "../../contexts";
+import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 import logger from "../../utils/logger";
 
 const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
@@ -268,8 +269,11 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
               <div className={styles.searchResults}>
                 {searchResults.map((user) => (
                   <div key={user._id} className={styles.userItem}>
-                    <div className={styles.userAvatar}>
-                      {user.name.charAt(0).toUpperCase()}
+                    <div
+                      className={styles.userAvatar}
+                      style={{ backgroundColor: getAvatarColor(user.name) }}
+                    >
+                      {getUserInitials(user.name)}
                     </div>
                     <div className={styles.userInfo}>
                       <div className={styles.userName}>{user.name}</div>
@@ -316,8 +320,13 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
               <div className={styles.sharedList}>
                 {sharedWith.map((user) => (
                   <div key={user._id || user} className={styles.sharedItem}>
-                    <div className={styles.userAvatar}>
-                      {user.name ? user.name.charAt(0).toUpperCase() : "?"}
+                    <div
+                      className={styles.userAvatar}
+                      style={{
+                        backgroundColor: getAvatarColor(user.name || "User"),
+                      }}
+                    >
+                      {getUserInitials(user.name || "?")}
                     </div>
                     <div className={styles.userInfo}>
                       <div className={styles.userName}>

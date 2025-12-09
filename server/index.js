@@ -59,7 +59,11 @@ app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Security middleware
-app.use(helmet()); // Security headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow thumbnail loading
+  })
+); // Security headers
 app.use(mongoSanitize()); // Prevent MongoDB injection
 app.use(compression()); // Response compression
 

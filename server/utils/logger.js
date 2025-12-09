@@ -98,10 +98,13 @@ logger.stream = {
 logger.logRequest = (req, message) => {
   const ip = req.ip || req.connection.remoteAddress;
   const userAgent = req.get("user-agent") || "unknown";
+  const requestId = req.id || req.requestId;
   logger.http(
     `${message} - ${req.method} ${req.originalUrl} - User: ${
       req.user?.id || "anonymous"
-    } - IP: ${ip} - UA: ${userAgent}`
+    } - IP: ${ip} - UA: ${userAgent}${
+      requestId ? ` - RequestID: ${requestId}` : ""
+    }`
   );
 };
 

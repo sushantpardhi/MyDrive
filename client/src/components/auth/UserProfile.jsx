@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   Upload,
   Trash2,
@@ -10,7 +10,6 @@ import {
   File,
   Folder,
   Share2,
-  Camera,
   Lock,
   Eye,
   EyeOff,
@@ -18,10 +17,11 @@ import {
 } from "lucide-react";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
-import { useTheme } from "../../contexts";
+import { useTheme, useAuth } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
 import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
+import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 
 const defaultSettings = {
   emailNotifications: true,
@@ -34,10 +34,10 @@ const defaultPreferences = {
 };
 
 export default function UserProfile() {
+  const { user: authUser } = useAuth();
   const [profile, setProfile] = useState({
     name: "",
     email: "",
-    avatar: "",
     createdAt: null,
     settings: defaultSettings,
     preferences: defaultPreferences,
@@ -78,11 +78,6 @@ export default function UserProfile() {
   });
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  // Avatar upload state
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const fileInputRef = useRef(null);
 
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -318,63 +313,6 @@ export default function UserProfile() {
     }
   }
 
-  // Avatar handlers
-  function handleAvatarSelect(e) {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Avatar image must be less than 5MB");
-        return;
-      }
-      if (!file.type.startsWith("image/")) {
-        setError("Please select an image file");
-        return;
-      }
-      setAvatarFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-      logger.debug("Avatar selected", { fileName: file.name, size: file.size });
-    }
-  }
-
-  async function handleAvatarUpload() {
-    if (!avatarFile) return;
-
-    try {
-      setError(null);
-      logger.info("Uploading avatar");
-      const res = await api.uploadAvatar(avatarFile);
-      setProfile((prev) => ({ ...prev, avatar: res.data.avatarUrl }));
-      setAvatarFile(null);
-      setAvatarPreview(null);
-      logger.info("Avatar uploaded successfully");
-    } catch (err) {
-      logger.error("Avatar upload failed", { error: err.message });
-      setError(err.response?.data?.error || "Failed to upload avatar");
-    }
-  }
-
-  async function handleAvatarDelete() {
-    if (
-      !window.confirm("Are you sure you want to remove your profile picture?")
-    )
-      return;
-
-    try {
-      setError(null);
-      logger.info("Deleting avatar");
-      await api.deleteAvatar();
-      setProfile((prev) => ({ ...prev, avatar: "" }));
-      logger.info("Avatar deleted successfully");
-    } catch (err) {
-      logger.error("Avatar deletion failed", { error: err.message });
-      setError(err.response?.data?.error || "Failed to delete avatar");
-    }
-  }
-
   // Delete account handler
   async function handleDeleteAccount(e) {
     e.preventDefault();
@@ -447,32 +385,12 @@ export default function UserProfile() {
         <div className={styles.profileCard}>
           <div className={styles.profileHeader}>
             <div className={styles.avatarWrapper}>
-              <div className={styles.avatar}>
-                {avatarPreview || profile.avatar ? (
-                  <img
-                    src={avatarPreview || profile.avatar}
-                    alt="Profile"
-                    className={styles.avatarImage}
-                  />
-                ) : (
-                  profile.name?.charAt(0).toUpperCase() || "U"
-                )}
-              </div>
-              <button
-                type="button"
-                className={styles.avatarEditBtn}
-                onClick={() => fileInputRef.current?.click()}
-                title="Change avatar"
+              <div
+                className={styles.avatar}
+                style={{ backgroundColor: getAvatarColor(profile.name) }}
               >
-                <Camera size={16} />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarSelect}
-                style={{ display: "none" }}
-              />
+                {getUserInitials(profile.name)}
+              </div>
             </div>
             <div className={styles.profileInfo}>
               <div className={styles.profileName}>{form.name || "User"}</div>
@@ -496,39 +414,6 @@ export default function UserProfile() {
               )}
             </div>
           </div>
-
-          {avatarPreview && (
-            <div className={styles.avatarActions}>
-              <button
-                onClick={handleAvatarUpload}
-                className={styles.uploadAvatarBtn}
-              >
-                <Upload size={16} />
-                Upload New Avatar
-              </button>
-              <button
-                onClick={() => {
-                  setAvatarFile(null);
-                  setAvatarPreview(null);
-                }}
-                className={styles.cancelAvatarBtn}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          {profile.avatar && !avatarPreview && (
-            <div className={styles.avatarActions}>
-              <button
-                onClick={handleAvatarDelete}
-                className={styles.deleteAvatarBtn}
-              >
-                <Trash2 size={16} />
-                Remove Avatar
-              </button>
-            </div>
-          )}
 
           <div className={styles.profileForm}>
             {/* Storage Usage Section - Full Width */}
