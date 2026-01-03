@@ -1,0 +1,33 @@
+name: Deploy Backend
+
+on:
+  push:
+    paths:
+      - "server/**"
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: dev
+    env:
+      PORT: ${{ secrets.PORT }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/sushant/MyDrive
+          git pull
+
+      - name: Setup env
+        run: |
+          cd /home/sushant/MyDrive/server
+
+      - name: Install & restart
+        run: |
+          cd /home/sushant/MyDrive/server
+          npm ci
+          pm2 startOrReload ecosystem.config.cjs --update-env
