@@ -143,7 +143,11 @@ app.use("/api/admin", authenticateToken, adminRouter);
 app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
 app.get("/", (req, res) => {
-  res.send("MyDrive Backend is running.");
+  res.send(
+    `MyDrive Backend is running in ${
+      process.env.NODE_ENV || "development"
+    } mode.`
+  );
 });
 
 // Initialize cleanup scheduler after database connection
