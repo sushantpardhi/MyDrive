@@ -102,8 +102,7 @@ app.use((req, res, next) => {
 });
 
 // MongoDB connection with resilience settings
-const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/mydrive";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose
   .connect(MONGODB_URI, {
@@ -113,7 +112,7 @@ mongoose
   .catch((err) => {
     logger.error("Initial MongoDB connection failed", {
       error: err.message,
-      uri: MONGODB_URI.replace(/:\/\/([^:]+):([^@]+)@/, "://***:***@"), // Hide credentials in logs
+      uri: MONGODB_URI.replace(/:\/\/([^:]+):([^@]+)@/, "://***:***@"),
     });
     process.exit(1);
   });
