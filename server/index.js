@@ -146,7 +146,7 @@ app.get("/", (req, res) => {
   res.send(
     `MyDrive Backend is running in ${
       process.env.NODE_ENV || "development"
-    } mode.`
+    } mode. ✅`
   );
 });
 
