@@ -105,7 +105,7 @@ app.use((req, res, next) => {
 const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose
-  .connect(MONGODB_URI.toString(), {
+  .connect(`${MONGODB_URI}`, {
     serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
     socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
   })
