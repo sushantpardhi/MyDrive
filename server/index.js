@@ -13,11 +13,11 @@ const logger = require("./utils/logger");
 
 // Import and validate environment variables
 const {
-  validateRequiredEnvVars,
+  // validateRequiredEnvVars,
   getConfigSummary,
 } = require("./utils/envValidator");
 try {
-  validateRequiredEnvVars();
+  // validateRequiredEnvVars();
 } catch (error) {
   logger.error("Environment validation failed", { error: error.message });
   process.exit(1);
@@ -51,8 +51,8 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 // Middleware
 app.use(
   cors({
-    origin: CORS_ORIGIN,
-    credentials: true,
+    // origin: CORS_ORIGIN,
+    // credentials: true,
   })
 );
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
