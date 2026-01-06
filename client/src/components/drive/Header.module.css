@@ -137,6 +137,7 @@
     order: 2;
     padding: 10px 14px;
     min-height: 44px;
+    min-width: 0; /* Allow shrinking */
   }
 
   .searchBar input {
@@ -430,10 +431,11 @@
 
 @media (max-width: 768px) {
   .searchFiltersWrapper {
-    position: absolute;
-    top: 100%;
-    right: 12px;
-    margin-top: 8px;
+    position: static;
+    margin-left: 8px;
+    margin-top: 0;
     z-index: 100;
+    order: 3;
+    flex-shrink: 0;
   }
 }

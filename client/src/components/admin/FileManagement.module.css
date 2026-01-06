@@ -545,6 +545,35 @@
   background: #b71c1c;
 }
 
+/* Tablet Responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 1.5rem 2rem;
+  }
+
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .controls {
+    flex-wrap: wrap;
+  }
+
+  .table {
+    font-size: 0.9rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.875rem 0.75rem;
+  }
+}
+
+/* Mobile Responsive */
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
@@ -553,6 +582,7 @@
   .header {
     flex-direction: column;
     align-items: stretch;
+    gap: 1rem;
   }
 
   .title {
@@ -562,34 +592,87 @@
   .backButton {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
   }
 
   .controls {
     flex-direction: column;
+    gap: 0.75rem;
   }
 
   .searchForm {
     min-width: 100%;
   }
 
+  .filters {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
   .tableContainer {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table {
     min-width: 700px;
+    font-size: 0.85rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.75rem 0.5rem;
   }
 
   .modalContent {
     padding: 1.5rem;
+    margin: 1rem;
   }
 
   .modalActions {
     flex-direction: column;
+    gap: 0.75rem;
   }
 
   .modalButtonSecondary,
   .modalButtonPrimary {
     width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .statCard {
+    padding: 1.25rem;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .table {
+    min-width: 600px;
+    font-size: 0.8rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.625rem 0.375rem;
+  }
+
+  .modalContent {
+    padding: 1rem;
+    margin: 0.5rem;
   }
 }

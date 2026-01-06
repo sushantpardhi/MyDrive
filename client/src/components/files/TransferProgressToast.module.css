@@ -687,6 +687,22 @@
   }
 }
 
+/* Tablet responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .toast {
+    width: 420px;
+    max-height: min(450px, calc(100vh - 100px));
+  }
+
+  .header {
+    padding: 16px 18px;
+  }
+
+  .uploadItem {
+    padding: 14px 18px;
+  }
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .toast {
@@ -725,5 +741,46 @@
   .statusLabel,
   .filesInfo {
     font-size: 10px;
+  }
+
+  .actionButton {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .toast {
+    width: calc(100% - 24px);
+    max-width: none;
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    max-height: min(350px, calc(100vh - 120px));
+  }
+
+  .header {
+    padding: 12px 14px;
+  }
+
+  .headerContent h4 {
+    font-size: 13px;
+  }
+
+  .uploadItem {
+    padding: 10px 14px;
+    min-height: 50px;
+  }
+
+  .footer {
+    padding: 8px 14px;
+  }
+
+  .actionButton {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
   }
 }

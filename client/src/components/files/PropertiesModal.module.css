@@ -226,6 +226,26 @@
   padding-top: 0;
 }
 
+/* Tablet Responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .modal {
+    max-width: 600px;
+    max-height: 85vh;
+  }
+
+  .overlay {
+    padding: 16px;
+  }
+
+  .content {
+    padding: 20px;
+  }
+
+  .itemHeader {
+    padding: 18px;
+  }
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .overlay {
@@ -257,12 +277,21 @@
     font-size: 16px;
   }
 
+  .closeButton {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
   .content {
     padding: 20px;
   }
 
   .itemHeader {
     padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .itemIcon {
@@ -272,6 +301,8 @@
 
   .itemName {
     font-size: 15px;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .property {
@@ -291,6 +322,51 @@
 
   .sectionTitle {
     font-size: 13px;
+  }
+
+  .section {
+    margin-bottom: 20px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .modal {
+    max-height: 90vh;
+  }
+
+  .header {
+    padding: 12px 16px;
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .itemHeader {
+    padding: 12px;
+  }
+
+  .itemIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .itemName {
+    font-size: 14px;
+  }
+
+  .propertyLabel,
+  .propertyValue {
+    font-size: 12px;
+  }
+
+  .sectionTitle {
+    font-size: 12px;
   }
 }
 

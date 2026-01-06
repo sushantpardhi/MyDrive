@@ -4,6 +4,10 @@
 }
 
 .filterToggle {
+  position: relative;
+}
+
+.filterToggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -15,6 +19,31 @@
   font-size: 14px;
   color: var(--text-primary);
   transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .filterToggle {
+    padding: 8px;
+    gap: 4px;
+    font-size: 13px;
+    min-height: 44px; /* Match search bar height */
+    min-width: 44px; /* Square button on mobile */
+    justify-content: center;
+  }
+
+  /* Hide "Filters" text but keep badge visible */
+  .filterToggle > span:not(.badge) {
+    display: none;
+  }
+
+  .badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    position: absolute;
+    top: -4px;
+    right: -4px;
+  }
 }
 
 .filterToggle:hover {
@@ -325,16 +354,48 @@
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
 }
 
+/* Tablet Responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .filterPanel {
+    width: 450px;
+    max-height: 70vh;
+  }
+
+  .typeGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .filterPanel {
     width: calc(100vw - 32px);
     max-width: 400px;
-    right: -16px;
+    right: 0;
+    max-height: 80vh;
+  }
+
+  .filterHeader {
+    padding: 12px 16px;
+  }
+
+  .filterBody {
+    padding: 16px;
+  }
+
+  .filterSection {
+    padding: 12px;
+    margin-bottom: 16px;
   }
 
   .typeGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .typeBtn {
+    padding: 10px 8px;
+    font-size: 12px;
   }
 
   .rangeInputs {
@@ -348,15 +409,25 @@
 
   .sizeInput {
     min-width: 0;
+    padding: 8px 12px;
+    font-size: 14px;
   }
 
   .unitSelect {
     min-width: 70px;
     flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 14px;
   }
 
   .sortControls {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sortSelect {
+    padding: 8px 12px;
+    font-size: 14px;
   }
 
   .presetButtons {
@@ -365,7 +436,60 @@
 
   .presetBtn {
     font-size: 11px;
-    padding: 5px 10px;
+    padding: 6px 10px;
+    min-height: 36px;
+  }
+
+  .inputGroup input {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .filterPanel {
+    width: calc(100vw - 24px);
+    right: -12px;
+    max-height: 85vh;
+  }
+
+  .filterHeader {
+    padding: 10px 12px;
+  }
+
+  .filterHeader h3 {
+    font-size: 14px;
+  }
+
+  .filterBody {
+    padding: 12px;
+  }
+
+  .filterSection {
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .filterSection h4 {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .typeGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .typeBtn {
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+
+  .presetBtn {
+    font-size: 10px;
+    padding: 5px 8px;
+    min-height: 32px;
   }
 }
 

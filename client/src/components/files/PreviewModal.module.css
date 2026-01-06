@@ -1023,6 +1023,25 @@
   margin-top: -0.5rem;
 }
 
+/* Tablet Responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .modalContent {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+
+  .header {
+    padding: 1rem 1.25rem;
+  }
+
+  .imagePreview,
+  .pdfPreview,
+  .videoPreview,
+  .audioPreview {
+    padding: 1.5rem;
+  }
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .modalOverlay {
@@ -1045,10 +1064,18 @@
   .fileInfo {
     flex: 1 1 100%;
     gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .fileTitleGroup {
+    min-width: 0;
   }
 
   .fileInfo h2 {
     font-size: 0.875rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .fileSize {
@@ -1060,15 +1087,19 @@
     justify-content: space-between;
     overflow-x: auto;
     gap: 0.25rem;
+    flex-wrap: wrap;
   }
 
   .iconButton {
-    padding: 0.375rem;
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .textButton {
-    padding: 0.375rem 0.75rem;
+    padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
+    min-height: 44px;
   }
 
   .zoomLevel,
@@ -1090,8 +1121,14 @@
     padding: 1rem;
   }
 
+  .imagePreview img {
+    max-width: 100%;
+    height: auto;
+  }
+
   .textPreview {
     font-size: 0.8rem;
+    padding: 1rem;
   }
 
   .wordContent {
@@ -1102,6 +1139,17 @@
   .excelTable :global(td) {
     padding: 0.375rem 0.5rem;
     font-size: 0.75rem;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    justify-content: center;
   }
 }
 

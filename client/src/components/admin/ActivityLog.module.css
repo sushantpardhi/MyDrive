@@ -352,6 +352,39 @@
   flex-shrink: 0;
 }
 
+/* Tablet Responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 2rem;
+  }
+
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .title {
+    font-size: 1.875rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .table {
+    font-size: 0.9rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.875rem 0.75rem;
+  }
+
+  .activityItem {
+    padding: 1rem 1.25rem;
+  }
+}
+
+/* Mobile Responsive */
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
@@ -360,6 +393,7 @@
   .header {
     flex-direction: column;
     align-items: stretch;
+    gap: 1rem;
   }
 
   .title {
@@ -370,6 +404,26 @@
   .backButton {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .statCard {
+    padding: 1.25rem;
+  }
+
+  .controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+    width: 100%;
   }
 
   .table {
@@ -379,6 +433,11 @@
   .table th,
   .table td {
     padding: 0.75rem 0.5rem;
+  }
+
+  .tableContainer {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .typeCell {
@@ -394,9 +453,39 @@
   .activityItem {
     flex-direction: column;
     gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .activityIcon {
+    width: 36px;
+    height: 36px;
   }
 
   .activityTime {
     align-self: flex-start;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .table {
+    font-size: 0.8rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.625rem 0.375rem;
+  }
+
+  .activityItem {
+    padding: 0.875rem;
   }
 }
