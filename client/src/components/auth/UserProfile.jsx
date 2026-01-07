@@ -579,8 +579,7 @@ export default function UserProfile() {
                     onChange={handleChange}
                   >
                     <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
+                    <option value="hi">Hindi</option>
                   </select>
                   {savedFields.language && (
                     <Check
