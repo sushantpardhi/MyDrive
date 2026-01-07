@@ -118,10 +118,7 @@ class EmailService {
             <p>Your account email: <strong>${user.email}</strong></p>
             
             <div style="text-align: center;">
-              <a href="${
-                process.env.CLIENT_URL ||
-                `http://${window.location.hostname}:3000`
-              }" class="button">Get Started</a>
+              <a href="${process.env.CLIENT_URL}" class="button">Get Started</a>
             </div>
             
             <p>If you have any questions, feel free to reach out to our support team.</p>
