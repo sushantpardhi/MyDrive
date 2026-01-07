@@ -151,7 +151,7 @@ class EmailService {
       
       Your account email: ${user.email}
       
-      Get started at: ${process.env.CLIENT_URL || "http://localhost:5000"}
+      Get started at: ${process.env.CLIENT_URL}
       
       Happy storing!
       
@@ -314,7 +314,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:5000"
+                process.env.CLIENT_URL
               }/shared" class="button">View Shared ${
       itemType === "file" ? "File" : "Folder"
     }</a>
@@ -342,7 +342,7 @@ class EmailService {
       
       You can now access this ${itemType} in your MyDrive account under the "Shared with me" section.
       
-      View at: ${process.env.CLIENT_URL || "http://localhost:3000"}/shared
+      View at: ${process.env.CLIENT_URL}/shared
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
@@ -470,7 +470,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:5000"
+                process.env.CLIENT_URL
               }/shared" class="button">View Shared Items</a>
             </div>
             
@@ -508,7 +508,7 @@ class EmailService {
       
       You can now access these items in your MyDrive account under the "Shared with me" section.
       
-      View at: ${process.env.CLIENT_URL || "http://localhost:5000"}/shared
+      View at: ${process.env.CLIENT_URL}/shared
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
@@ -590,7 +590,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:5000"
+                process.env.CLIENT_URL
               }" class="button">Manage Storage</a>
             </div>
           </div>
@@ -620,9 +620,7 @@ class EmailService {
       - Remove large files you no longer need
       - Unshare files that are stored by other users
       
-      Manage your storage at: ${
-        process.env.CLIENT_URL || "http://localhost:5000"
-      }
+      Manage your storage at: ${process.env.CLIENT_URL}
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
@@ -803,7 +801,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL
               }" class="button">Manage Your Storage</a>
             </div>
           </div>
@@ -844,7 +842,7 @@ class EmailService {
           : "Please free up some space to continue using MyDrive smoothly."
       }
       
-      Visit MyDrive: ${process.env.CLIENT_URL || "http://localhost:3000"}
+      Visit MyDrive: ${process.env.CLIENT_URL}
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
@@ -961,7 +959,7 @@ class EmailService {
             
             <div style="text-align: center;">
               <a href="${
-                process.env.CLIENT_URL || "http://localhost:3000"
+                process.env.CLIENT_URL
               }" class="button">Free Up Space Now</a>
             </div>
           </div>
@@ -1001,7 +999,7 @@ class EmailService {
       
       💡 Tip: Even a small amount of free space will allow you to resume uploads. Delete just a few files to get started again!
       
-      Visit MyDrive: ${process.env.CLIENT_URL || "http://localhost:3000"}
+      Visit MyDrive: ${process.env.CLIENT_URL}
       
       © ${new Date().getFullYear()} MyDrive. All rights reserved.
     `;
