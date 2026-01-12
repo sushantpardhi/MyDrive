@@ -16,6 +16,41 @@ const DownloadHelpers = require("../utils/downloadHelpers");
 
 const router = express.Router();
 
+// Mark a folder and all its descendants (folders + files) as trashed/restored
+const markFolderTrashState = async (
+  folderId,
+  userId,
+  trashState,
+  trashedAt = null
+) => {
+  const timestamp = trashState ? trashedAt || new Date() : null;
+  const queue = [folderId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+
+    // Update the current folder
+    await Folder.updateOne(
+      { _id: currentId, owner: userId },
+      { trash: trashState, trashedAt: timestamp }
+    );
+
+    // Update files directly under this folder
+    await File.updateMany(
+      { parent: currentId, owner: userId },
+      { trash: trashState, trashedAt: timestamp }
+    );
+
+    // Queue child folders for processing
+    const childFolders = await Folder.find(
+      { parent: currentId, owner: userId },
+      "_id"
+    );
+
+    childFolders.forEach((child) => queue.push(child._id));
+  }
+};
+
 // Verify folder download permissions and return metadata
 router.get("/verify-download/:folderId", async (req, res) => {
   try {
@@ -98,21 +133,41 @@ router.get("/:folderId", async (req, res) => {
       isSharedFolder = parentFolder.shared.includes(req.user.id);
     }
 
-    // Build the query based on whether it's a shared folder or not
-    const query = isTrash
-      ? { trash: true, owner: req.user.id }
-      : isSharedFolder
-      ? {
-          parent: folderId,
-          trash: { $ne: true },
-          // For shared folders, show items that are shared with the user
-          shared: req.user.id,
+    // Build the query based on whether it's trash, shared, or regular drive
+    let query;
+
+    if (isTrash) {
+      if (folderId !== null) {
+        const trashedFolder = await Folder.findOne({
+          _id: folderId,
+          owner: req.user.id,
+          trash: true,
+        });
+
+        if (!trashedFolder) {
+          return res.status(404).json({ error: "Folder not found" });
         }
-      : {
-          parent: folderId,
-          trash: { $ne: true },
-          owner: req.user.id, // Only show items owned by the user in My Drive
-        };
+
+        // When inside Trash, scope results to the selected folder
+        query = { parent: folderId, trash: true, owner: req.user.id };
+      } else {
+        // Root Trash view still returns all trashed items
+        query = { trash: true, owner: req.user.id };
+      }
+    } else if (isSharedFolder) {
+      query = {
+        parent: folderId,
+        trash: { $ne: true },
+        // For shared folders, show items that are shared with the user
+        shared: req.user.id,
+      };
+    } else {
+      query = {
+        parent: folderId,
+        trash: { $ne: true },
+        owner: req.user.id, // Only show items owned by the user in My Drive
+      };
+    }
 
     // Get total counts
     const totalFolders = await Folder.countDocuments(query);
@@ -424,10 +479,9 @@ router.delete("/:id", async (req, res) => {
       await Folder.findByIdAndDelete(id);
       res.json({ message: "Permanently deleted" });
     } else {
-      // Move to trash
-      item.trash = true;
-      item.trashedAt = new Date();
-      await item.save();
+      // Move folder and all descendants to trash
+      const trashedAt = new Date();
+      await markFolderTrashState(id, req.user.id, true, trashedAt);
       res.json({ message: "Moved to trash" });
     }
   } catch (error) {
@@ -452,9 +506,8 @@ router.post("/:id/restore", async (req, res) => {
         .json({ error: "You can only restore items you own" });
     }
 
-    item.trash = false;
-    item.trashedAt = null;
-    await item.save();
+    // Restore folder and all descendants
+    await markFolderTrashState(id, req.user.id, false, null);
     res.json({ message: "Restored successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
