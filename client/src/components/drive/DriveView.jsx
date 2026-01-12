@@ -165,7 +165,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         logger.logError(error, "Failed to load folder contents", {
           folderId,
           page,
-          isInitialLoad,
+          append,
           type,
         });
       } finally {

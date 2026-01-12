@@ -104,7 +104,6 @@ app.use((req, res, next) => {
 // MongoDB connection with resilience settings
 const MONGODB_URI = process.env.MONGODB_URI;
 
-console.log("mongo uri:", MONGODB_URI);
 
 mongoose
   .connect(`${MONGODB_URI}`, {

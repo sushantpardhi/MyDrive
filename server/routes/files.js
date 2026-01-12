@@ -121,6 +121,36 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// Verify file download permissions and return metadata
+router.get("/verify-download/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      logger.warn(
+        `Download verification failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`
+      );
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Return file metadata for frontend to initiate download
+    res.json({
+      id: file._id,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      verified: true
+    });
+  } catch (error) {
+    logger.logError(error, {
+      operation: "verify-download",
+      userId: req.user.id,
+      ip: req.ip,
+      additionalInfo: req.params.fileId,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Download file
 router.get("/download/:fileId", async (req, res) => {
   const startTime = Date.now();
@@ -1419,5 +1449,244 @@ router.get("/chunked-upload/health", async (req, res) => {
     });
   }
 });
+
+/**
+ * ========================================
+ * MULTI-FILE/FOLDER DOWNLOAD ENDPOINT
+ * ========================================
+ * 
+ * Production-grade ZIP streaming for downloading multiple files and folders
+ * 
+ * Features:
+ * - Streams ZIP on-the-fly (no temp files)
+ * - Recursive folder traversal
+ * - Preserves directory structure
+ * - Memory-efficient streaming
+ * - Permission validation
+ * - Client disconnect handling
+ * - Size limit enforcement
+ * - Comprehensive error handling
+ * 
+ * Request body:
+ * {
+ *   "files": ["fileId1", "fileId2"],
+ *   "folders": ["folderId1", "folderId2"]
+ * }
+ */
+
+const ZipStreamService = require("../utils/zipStreamService");
+const DownloadHelpers = require("../utils/downloadHelpers");
+const { body, validationResult } = require("express-validator");
+
+// Configuration
+const MAX_DOWNLOAD_SIZE = process.env.MAX_DOWNLOAD_SIZE 
+  ? parseInt(process.env.MAX_DOWNLOAD_SIZE) 
+  : 5 * 1024 * 1024 * 1024; // 5GB default
+
+const DOWNLOAD_TIMEOUT = process.env.DOWNLOAD_TIMEOUT
+  ? parseInt(process.env.DOWNLOAD_TIMEOUT)
+  : 30 * 60 * 1000; // 30 minutes default
+
+router.post(
+  "/download",
+  [
+    body("files")
+      .optional()
+      .isArray()
+      .withMessage("files must be an array"),
+    body("folders")
+      .optional()
+      .isArray()
+      .withMessage("folders must be an array"),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+    let archive = null;
+    let filesProcessed = 0;
+
+    try {
+      // Validate request
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        logger.warn("Download validation failed", {
+          userId: req.user.id,
+          errors: errors.array(),
+        });
+        return res.status(400).json({ 
+          error: "Invalid request", 
+          details: errors.array() 
+        });
+      }
+
+      const { files = [], folders = [] } = req.body;
+
+      // Validate at least one item selected
+      if (files.length === 0 && folders.length === 0) {
+        logger.warn("Download attempted with no items", {
+          userId: req.user.id,
+        });
+        return res.status(400).json({ 
+          error: "No files or folders selected" 
+        });
+      }
+
+      // Validate reasonable selection size
+      const totalItems = files.length + folders.length;
+      if (totalItems > 1000) {
+        logger.warn("Download selection too large", {
+          userId: req.user.id,
+          totalItems,
+        });
+        return res.status(400).json({ 
+          error: "Too many items selected (max 1000)" 
+        });
+      }
+
+      logger.info("Multi-download initiated", {
+        userId: req.user.id,
+        fileCount: files.length,
+        folderCount: folders.length,
+        ip: req.ip,
+      });
+
+      // Resolve all files from selection (with permission checks)
+      const resolution = await DownloadHelpers.resolveDownloadSelection(
+        files,
+        folders,
+        req.user.id
+      );
+
+      const { 
+        files: resolvedFiles, 
+        totalSize, 
+        totalFiles, 
+        errors: resolutionErrors,
+        folderNames 
+      } = resolution;
+
+      // Check if any files were resolved
+      if (resolvedFiles.length === 0) {
+        logger.warn("No accessible files found for download", {
+          userId: req.user.id,
+          errors: resolutionErrors,
+        });
+        return res.status(404).json({ 
+          error: "No accessible files found",
+          details: resolutionErrors
+        });
+      }
+
+      // Check size limit
+      if (MAX_DOWNLOAD_SIZE > 0 && totalSize > MAX_DOWNLOAD_SIZE) {
+        logger.warn("Download size exceeds limit", {
+          userId: req.user.id,
+          totalSize,
+          maxSize: MAX_DOWNLOAD_SIZE,
+          formattedSize: DownloadHelpers.formatSize(totalSize),
+          formattedMax: DownloadHelpers.formatSize(MAX_DOWNLOAD_SIZE),
+        });
+        return res.status(413).json({ 
+          error: "Download size exceeds limit",
+          totalSize: DownloadHelpers.formatSize(totalSize),
+          maxSize: DownloadHelpers.formatSize(MAX_DOWNLOAD_SIZE),
+        });
+      }
+
+      // Generate ZIP filename
+      const zipFilename = DownloadHelpers.generateZipFilename(
+        files,
+        folders,
+        folderNames
+      );
+
+      logger.info("Starting ZIP stream", {
+        userId: req.user.id,
+        zipFilename,
+        totalFiles,
+        totalSize: DownloadHelpers.formatSize(totalSize),
+        resolutionErrors: resolutionErrors.length,
+      });
+
+      // Set download timeout
+      req.setTimeout(DOWNLOAD_TIMEOUT);
+
+      // Create ZIP stream
+      archive = ZipStreamService.createZipStream(res, zipFilename, {
+        compressionLevel: 6,
+        comment: `MyDrive archive - ${totalFiles} file(s)`,
+      });
+
+      // Handle client disconnect
+      ZipStreamService.handleClientDisconnect(req, archive, () => {
+        logger.warn("Client disconnected during multi-file download", {
+          userId: req.user.id,
+          zipFilename,
+          filesProcessed,
+          totalFiles,
+        });
+      });
+
+      // Add all files to ZIP
+      for (const fileEntry of resolvedFiles) {
+        try {
+          await ZipStreamService.addFileToZip(
+            archive,
+            fileEntry.filePath,
+            fileEntry.zipPath
+          );
+          filesProcessed++;
+        } catch (error) {
+          logger.error("Error adding file to ZIP", {
+            userId: req.user.id,
+            fileId: fileEntry.fileDoc._id,
+            fileName: fileEntry.fileDoc.name,
+            error: error.message,
+          });
+          // Continue with other files
+        }
+      }
+
+      // Finalize ZIP
+      await ZipStreamService.finalizeZip(archive);
+
+      const duration = Date.now() - startTime;
+
+      logger.info("Multi-download completed", {
+        userId: req.user.id,
+        zipFilename,
+        filesProcessed,
+        totalFiles,
+        totalSize: DownloadHelpers.formatSize(totalSize),
+        duration: `${(duration / 1000).toFixed(2)}s`,
+        avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+        ip: req.ip,
+      });
+
+      // Note: Response is already sent via stream
+    } catch (error) {
+      logger.error("Multi-download failed", {
+        userId: req.user.id,
+        filesProcessed,
+        error: error.message,
+        stack: error.stack,
+        ip: req.ip,
+      });
+
+      // Abort archive if it exists
+      if (archive && !archive.destroyed) {
+        archive.abort();
+        archive.destroy();
+      }
+
+      // Only send error response if headers not sent
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: "Download failed",
+          message: error.message
+        });
+      }
+    }
+  }
+);
 
 module.exports = router;

@@ -47,6 +47,18 @@ export const TransferProvider = ({ children }) => {
     [uploadProgressHook, refreshStorage]
   );
 
+  // Combined cancelAll that clears both uploads and downloads
+  const cancelAll = useCallback(() => {
+    uploadProgressHook.cancelAll();
+    downloadProgressHook.cancelAll();
+  }, [uploadProgressHook, downloadProgressHook]);
+
+  // Combined resetProgress that clears both uploads and downloads
+  const resetProgress = useCallback(() => {
+    uploadProgressHook.resetProgress();
+    downloadProgressHook.resetProgress();
+  }, [uploadProgressHook, downloadProgressHook]);
+
   const value = {
     // Upload methods and state
     uploadProgress: uploadProgressHook.uploadProgress,
@@ -56,8 +68,8 @@ export const TransferProvider = ({ children }) => {
     completeUpload: completeUploadWithRefresh, // Use wrapped version that refreshes storage
     failUpload: uploadProgressHook.failUpload,
     cancelUpload: uploadProgressHook.cancelUpload,
-    cancelAll: uploadProgressHook.cancelAll,
-    resetProgress: uploadProgressHook.resetProgress,
+    cancelAll: cancelAll, // Use combined cancelAll
+    resetProgress: resetProgress, // Use combined resetProgress
     registerChunkService: uploadProgressHook.registerChunkService,
     unregisterChunkService: uploadProgressHook.unregisterChunkService,
     updateChunkProgress: uploadProgressHook.updateChunkProgress,

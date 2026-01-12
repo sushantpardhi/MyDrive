@@ -334,14 +334,62 @@ export const useFileOperations = (
 
   const handleDownload = useCallback(
     async (fileId, fileName) => {
+      const downloadId = `download-${Date.now()}-${fileId}`;
+
       try {
-        await downloadFile(api, fileId, fileName);
+        // Verify first to get file size
+        const verifyResponse = await api.verifyFileDownload(fileId);
+        const fileSize = verifyResponse.data.size;
+
+        // Start download progress tracking
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(
+            downloadId,
+            fileName,
+            fileSize,
+            1
+          );
+        }
+
+        // Show toast notification first
+        toast.info("Starting download...");
+        
+        // Then download in background with progress tracking
+        await downloadFile(api, fileId, fileName, {
+          onProgress: (loaded, total, speed) => {
+            if (downloadProgressHook) {
+              downloadProgressHook.updateProgress(
+                downloadId,
+                loaded,
+                total,
+                speed
+              );
+            }
+          },
+          onComplete: (success) => {
+            if (downloadProgressHook) {
+              downloadProgressHook.completeDownload(downloadId, success);
+            }
+            if (success) {
+              toast.success("Download completed");
+            }
+          },
+          onCancel: () => {
+            if (downloadProgressHook) {
+              downloadProgressHook.cancelDownload(downloadId);
+            }
+          }
+        });
       } catch (error) {
         toast.error("Download failed");
         console.error(error);
+        
+        if (downloadProgressHook) {
+          downloadProgressHook.completeDownload(downloadId, false);
+        }
       }
     },
-    [api]
+    [api, downloadProgressHook]
   );
 
   const handleFolderDownload = useCallback(
@@ -349,9 +397,27 @@ export const useFileOperations = (
       const downloadId = `download-${Date.now()}-${folderId}`;
 
       try {
-        // First, get folder info to determine total files
-        let totalFiles = 1;
-        let totalSize = 0;
+        // First, verify download and get folder info
+        toast.info("Verifying folder access...");
+        
+        const verifyResponse = await api.verifyFolderDownload(folderId);
+        const { totalFiles, totalSize } = verifyResponse.data;
+
+        // Start download progress tracking immediately after verification
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(
+            downloadId,
+            `${folderName}.zip`,
+            totalSize,
+            totalFiles
+          );
+          
+          // Show zipping progress initially (preparing phase)
+          downloadProgressHook.updateZippingProgress(downloadId, 0, totalFiles);
+        }
+
+        // Show initial toast notification
+        toast.info(`Preparing to download ${totalFiles} file${totalFiles !== 1 ? "s" : ""}...`);
 
         // Use XMLHttpRequest for progress tracking
         const token = localStorage.getItem("token");
@@ -366,49 +432,20 @@ export const useFileOperations = (
           xhr.setRequestHeader("Authorization", `Bearer ${token}`);
           xhr.responseType = "blob";
 
-          // Start download progress tracking
-          if (downloadProgressHook) {
-            downloadProgressHook.startDownload(
-              downloadId,
-              `${folderName}.zip`,
-              0,
-              totalFiles
-            );
-          }
-
-          toast.info("Preparing folder for download...");
-
-          // Get total size and files from headers when they arrive
-          xhr.onreadystatechange = () => {
-            if (xhr.readyState === xhr.HEADERS_RECEIVED) {
-              const filesHeader = xhr.getResponseHeader("X-Total-Files");
-              const sizeHeader = xhr.getResponseHeader("X-Total-Size");
-
-              if (filesHeader) totalFiles = parseInt(filesHeader);
-              if (sizeHeader) totalSize = parseInt(sizeHeader);
-
-              // Update with actual file count and size
-              if (downloadProgressHook) {
-                downloadProgressHook.startDownload(
-                  downloadId,
-                  `${folderName}.zip`,
-                  totalSize,
-                  totalFiles
-                );
-              }
-
-              toast.info(
-                `Zipping ${totalFiles} file${totalFiles !== 1 ? "s" : ""}...`
-              );
-            }
-          };
-
           let lastLoaded = 0;
           let lastTime = Date.now();
+          let isFirstProgress = true;
 
           // Track download progress
           xhr.onprogress = (event) => {
             if (downloadProgressHook) {
+              // On first progress event, we know zipping is complete and download has started
+              if (isFirstProgress && event.loaded > 0) {
+                isFirstProgress = false;
+                // Mark zipping as complete
+                downloadProgressHook.updateZippingProgress(downloadId, totalFiles, totalFiles);
+              }
+              
               if (event.lengthComputable) {
                 // Calculate speed
                 const now = Date.now();
@@ -422,7 +459,7 @@ export const useFileOperations = (
                 downloadProgressHook.updateProgress(
                   downloadId,
                   event.loaded,
-                  event.total,
+                  event.total || totalSize,
                   speed
                 );
               } else {
@@ -430,7 +467,7 @@ export const useFileOperations = (
                 downloadProgressHook.updateProgress(
                   downloadId,
                   event.loaded,
-                  null,
+                  totalSize,
                   0
                 );
               }
