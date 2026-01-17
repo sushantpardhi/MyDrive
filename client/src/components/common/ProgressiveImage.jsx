@@ -128,6 +128,8 @@ const ProgressiveImage = ({
           // Step 1: Show blur image immediately (smallest, loads instantly)
           if (blurUrl) {
             updateCurrentSrc(blurUrl);
+            // Hide loading spinner once blur is shown - user perceives content is loading
+            setIsLoading(false);
           }
 
           // Step 2: Detect network speed
@@ -141,16 +143,18 @@ const ProgressiveImage = ({
             try {
               await preloadImage(originalUrl);
               updateCurrentSrc(originalUrl);
-              setIsLoading(false);
               onLoad?.();
             } catch (error) {
               console.error("[ProgressiveImage] Failed to load original:", error);
               // Fallback to low-quality if original fails
               if (lowQualityUrl) {
-                await preloadImage(lowQualityUrl);
-                updateCurrentSrc(lowQualityUrl);
+                try {
+                  await preloadImage(lowQualityUrl);
+                  updateCurrentSrc(lowQualityUrl);
+                } catch (lqError) {
+                  console.error("[ProgressiveImage] Failed to load low-quality fallback:", lqError);
+                }
               }
-              setIsLoading(false);
             }
           } else {
             // SLOW NETWORK: Load low-quality first, then original
@@ -171,17 +175,14 @@ const ProgressiveImage = ({
               try {
                 await preloadImage(originalUrl);
                 updateCurrentSrc(originalUrl);
-                setIsLoading(false);
                 onLoad?.();
               } catch (error) {
                 console.error("[ProgressiveImage] Failed to load original:", error);
-                setIsLoading(false);
               }
             }
           }
         } catch (error) {
           console.error("[ProgressiveImage] Progressive loading error:", error);
-          setIsLoading(false);
         }
       };
 
@@ -219,8 +220,8 @@ const ProgressiveImage = ({
         />
       )}
       
-      {/* Loading indicator for progressive mode */}
-      {mode === "progressive" && isLoading && (
+      {/* Loading indicator: only show if no image is displayed yet in progressive mode */}
+      {mode === "progressive" && isLoading && !currentSrc && (
         <div className={styles.loadingIndicator}>
           <div className={styles.spinner}></div>
         </div>
