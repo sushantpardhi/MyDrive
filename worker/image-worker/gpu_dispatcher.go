@@ -137,7 +137,20 @@ func (gd *GPUDispatcher) executeOperation(op *gpuOperation) {
 		case <-op.ctx.Done():
 		}
 	} else {
-		log.Printf("[GPU-EXEC] Job %s operation %s complete (output size: %d bytes)", op.jobID, op.op, len(result.Data))
+		// Log size comparison to verify quality ordering
+		inputSize := len(op.imageData)
+		outputSize := len(result.Data)
+		sizeReduction := float64(inputSize-outputSize) / float64(inputSize) * 100
+
+		log.Printf("[GPU-EXEC] Job %s operation %s complete (input: %d bytes -> output: %d bytes, reduction: %.1f%%)",
+			op.jobID, op.op, inputSize, outputSize, sizeReduction)
+
+		// Validate that processed output is smaller than original
+		if outputSize >= inputSize && inputSize > 0 {
+			log.Printf("[GPU-WARN] Job %s operation %s: output size (%d) >= input size (%d) - quality ordering may not be guaranteed",
+				op.jobID, op.op, outputSize, inputSize)
+		}
+
 		select {
 		case op.result <- result:
 		case <-op.ctx.Done():
@@ -146,78 +159,84 @@ func (gd *GPUDispatcher) executeOperation(op *gpuOperation) {
 }
 
 func (gd *GPUDispatcher) processThumbnail(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
-	if err != nil {
-		return nil, fmt.Errorf("decode failed: %w", err)
+	result := CudaProcessThumbnail(imageData)
+	if result == nil {
+		return nil, errors.New("thumbnail processing returned nil")
 	}
-
-	// Process with CUDA (resize to 64px)
-	processedRGB, outWidth, outHeight, err := CudaProcessThumbnail(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
-
-	// Encode to WebP with quality 30 (smallest)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("thumbnail"))
-	if err != nil {
-		return nil, fmt.Errorf("WebP encoding failed: %w", err)
-	}
-
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   result,
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processBlur(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
-	if err != nil {
-		return nil, fmt.Errorf("decode failed: %w", err)
+	result := CudaProcessBlur(imageData)
+	if result == nil {
+		return nil, errors.New("blur processing returned nil")
 	}
-
-	// Process with CUDA (resize to 256px + blur)
-	processedRGB, outWidth, outHeight, err := CudaProcessBlur(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
-
-	// Encode to WebP with quality 50 (medium-small)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("blur"))
-	if err != nil {
-		return nil, fmt.Errorf("WebP encoding failed: %w", err)
-	}
-
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   result,
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processLowQuality(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
-	if err != nil {
-		return nil, fmt.Errorf("decode failed: %w", err)
+	result := CudaProcessLowQuality(imageData)
+	if result == nil {
+		return nil, errors.New("low-quality processing returned nil")
 	}
-
-	// Process with CUDA (resize to 512px)
-	processedRGB, outWidth, outHeight, err := CudaProcessLowQuality(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
-
-	// Encode to WebP with quality 70 (medium)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("low-quality"))
-	if err != nil {
-		return nil, fmt.Errorf("WebP encoding failed: %w", err)
-	}
-
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   result,
 		Format: "webp",
 	}, nil
+}
+
+// ValidateQualityOrder checks if processed files follow the expected size ordering:
+// thumbnail < blur < low-quality < original
+// Returns true if ordering is correct, false otherwise with detailed logging
+func ValidateQualityOrder(thumbnailSize, blurSize, lowQualitySize, originalSize int) bool {
+	isValid := true
+
+	if thumbnailSize >= blurSize {
+		log.Printf("[QUALITY-WARN] thumbnail (%d bytes) >= blur (%d bytes)", thumbnailSize, blurSize)
+		isValid = false
+	}
+
+	if blurSize >= lowQualitySize {
+		log.Printf("[QUALITY-WARN] blur (%d bytes) >= low-quality (%d bytes)", blurSize, lowQualitySize)
+		isValid = false
+	}
+
+	if lowQualitySize >= originalSize {
+		log.Printf("[QUALITY-WARN] low-quality (%d bytes) >= original (%d bytes)", lowQualitySize, originalSize)
+		isValid = false
+	}
+
+	if isValid {
+		log.Printf("[QUALITY-OK] Size ordering verified: thumbnail (%d) < blur (%d) < low-quality (%d) < original (%d)",
+			thumbnailSize, blurSize, lowQualitySize, originalSize)
+	}
+
+	return isValid
+}
+
+// ExpectedQualityRatios returns the expected size ratios for each operation
+// These are approximate targets based on the processing parameters:
+// - Thumbnail: 128px width, quality 30% -> ~1-5% of original
+// - Blur: 320px width, quality 50% -> ~5-15% of original
+// - Low-Quality: 640px width, quality 65% -> ~15-40% of original
+type QualityRatios struct {
+	ThumbnailMaxRatio  float64 // Maximum expected ratio (output/original)
+	BlurMaxRatio       float64
+	LowQualityMaxRatio float64
+}
+
+func GetExpectedQualityRatios() QualityRatios {
+	return QualityRatios{
+		ThumbnailMaxRatio:  0.05, // 5% of original max
+		BlurMaxRatio:       0.15, // 15% of original max
+		LowQualityMaxRatio: 0.40, // 40% of original max
+	}
 }
 
 func (gd *GPUDispatcher) Close() {
