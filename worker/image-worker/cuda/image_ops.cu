@@ -21,7 +21,7 @@ __global__ void kernel_resize_bilinear(const uint8_t* input, uint8_t* output,
                                        int out_width, int out_height, 
                                        int channels) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;w
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x >= out_width || y >= out_height) return;
 
@@ -133,18 +133,20 @@ __global__ void kernel_downscale_quality(const uint8_t* input, uint8_t* output,
 // ============================================================================
 // Helper function to calculate output dimensions maintaining aspect ratio
 // ============================================================================
-static void calculate_output_dimensions(int in_width, int in_height, int max_width,
-                                         int* out_width, int* out_height) {
-    if (in_width <= max_width) {
-        // Image is already smaller than target, scale down proportionally
-        *out_width = max_width * in_width / (in_width > in_height ? in_width : in_height);
-        if (*out_width < 1) *out_width = 1;
-    } else {
-        *out_width = max_width;
-    }
+static void calculate_dimensions(int in_width, int in_height, int max_size,
+                                 int* out_width, int* out_height) {
+    int max_dim = (in_width > in_height) ? in_width : in_height;
     
-    *out_height = (*out_width * in_height) / in_width;
-    if (*out_height < 1) *out_height = 1;
+    if (max_dim <= max_size) {
+        *out_width = in_width;
+        *out_height = in_height;
+    } else {
+        float scale = (float)max_size / max_dim;
+        *out_width = (int)(in_width * scale);
+        *out_height = (int)(in_height * scale);
+        if (*out_width < 1) *out_width = 1;
+        if (*out_height < 1) *out_height = 1;
+    }
 }
 
 // ============================================================================
@@ -179,66 +181,54 @@ void cuda_free(void* ptr) {
 
 // ============================================================================
 // THUMBNAIL PROCESSING
-// Smallest output: 128px width, WebP quality 30%
-// Target size: ~5-15KB for typical images
+// Smallest output: 64px max dimension
+// Returns raw RGB to be encoded as WebP quality 30 in Go
 // ============================================================================
-uint8_t* cuda_process_thumbnail(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    // Placeholder: In production, use nvJPEG/stb_image for decoding
-    // Assuming decoded dimensions from input metadata
-    int width = 1920, height = 1080, channels = 3;  // Assume HD source
-    
-    // Calculate thumbnail dimensions (smallest output)
-    int thumb_width, thumb_height;
-    calculate_output_dimensions(width, height, THUMBNAIL_MAX_WIDTH, &thumb_width, &thumb_height);
+uint8_t* cuda_process_thumbnail(const uint8_t* input, int input_width, int input_height,
+                                uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, THUMBNAIL_SIZE, out_width, out_height);
 
-    size_t input_bytes = width * height * channels;
-    size_t output_bytes = thumb_width * thumb_height * channels;
-    
+    size_t input_bytes = input_width * input_height * channels;
+    size_t output_bytes = (*out_width) * (*out_height) * channels;
+
     uint8_t* gpu_input;
     uint8_t* gpu_output;
     cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_output, output_bytes);
     cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
-    // Copy input to GPU (in production, decode directly on GPU with nvJPEG)
-    cudaMemcpy(gpu_input, input, min((size_t)input_size, input_bytes), cudaMemcpyHostToDevice);
-
     dim3 threads(16, 16);
-    dim3 blocks((thumb_width + threads.x - 1) / threads.x,
-                (thumb_height + threads.y - 1) / threads.y);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_output, 
-                                                 width, height,
-                                                 thumb_width, thumb_height, channels);
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_output,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
-    // Copy to host (in production, encode as WebP with quality=THUMBNAIL_WEBP_QUALITY)
     uint8_t* host_output = (uint8_t*)malloc(output_bytes);
     cudaMemcpy(host_output, gpu_output, output_bytes, cudaMemcpyDeviceToHost);
-    
+
     cudaFree(gpu_input);
     cudaFree(gpu_output);
 
-    // Note: Actual output size will be much smaller after WebP encoding at quality 30%
-    // The raw pixel data is compressed significantly
     *output_size = output_bytes;
     return host_output;
 }
 
 // ============================================================================
 // BLUR PROCESSING
-// Medium-small output: 320px width, Gaussian blur, WebP quality 50%
-// Target size: ~20-50KB for typical images (larger than thumbnail)
+// Medium-small output: 256px max dimension, Gaussian blur
+// Returns raw RGB to be encoded as WebP quality 50 in Go
 // ============================================================================
-uint8_t* cuda_process_blur(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    int width = 1920, height = 1080, channels = 3;
-    
-    // Calculate blur dimensions (larger than thumbnail)
-    int blur_width, blur_height;
-    calculate_output_dimensions(width, height, BLUR_MAX_WIDTH, &blur_width, &blur_height);
-    
-    size_t input_bytes = width * height * channels;
-    size_t resized_bytes = blur_width * blur_height * channels;
+uint8_t* cuda_process_blur(const uint8_t* input, int input_width, int input_height,
+                           uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, BLUR_SIZE, out_width, out_height);
+
+    size_t input_bytes = input_width * input_height * channels;
+    size_t resized_bytes = (*out_width) * (*out_height) * channels;
 
     uint8_t* gpu_input;
     uint8_t* gpu_resized;
@@ -246,27 +236,22 @@ uint8_t* cuda_process_blur(const uint8_t* input, uint32_t input_size, uint32_t* 
     cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_resized, resized_bytes);
     cudaMalloc(&gpu_output, resized_bytes);
-
-    cudaMemcpy(gpu_input, input, min((size_t)input_size, input_bytes), cudaMemcpyHostToDevice);
+    cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     dim3 threads(16, 16);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    // Step 1: Resize to blur dimensions
-    dim3 resize_blocks((blur_width + threads.x - 1) / threads.x,
-                       (blur_height + threads.y - 1) / threads.y);
-
-    kernel_resize_bilinear<<<resize_blocks, threads>>>(gpu_input, gpu_resized,
-                                                        width, height,
-                                                        blur_width, blur_height, channels);
+    // Step 1: Resize
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_resized,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
-    // Step 2: Apply Gaussian blur with configured radius
-    dim3 blur_blocks((blur_width + threads.x - 1) / threads.x,
-                     (blur_height + threads.y - 1) / threads.y);
-
-    kernel_gaussian_blur<<<blur_blocks, threads>>>(gpu_resized, gpu_output, 
-                                                    blur_width, blur_height, 
-                                                    channels, BLUR_RADIUS);
+    // Step 2: Apply blur with radius 3 for visible blur effect
+    const int blur_radius = 3;
+    kernel_gaussian_blur<<<blocks, threads>>>(gpu_resized, gpu_output, 
+                                              *out_width, *out_height, channels, blur_radius);
     cudaDeviceSynchronize();
 
     uint8_t* host_output = (uint8_t*)malloc(resized_bytes);
@@ -276,40 +261,36 @@ uint8_t* cuda_process_blur(const uint8_t* input, uint32_t input_size, uint32_t* 
     cudaFree(gpu_resized);
     cudaFree(gpu_output);
 
-    // Note: After WebP encoding at quality 50%, size will be larger than thumbnail
     *output_size = resized_bytes;
     return host_output;
 }
 
 // ============================================================================
 // LOW-QUALITY PROCESSING  
-// Medium output: 640px width, WebP quality 65%
-// Target size: ~50-150KB for typical images (largest processed, still < original)
+// Medium output: 512px max dimension
+// Returns raw RGB to be encoded as WebP quality 70 in Go
 // ============================================================================
-uint8_t* cuda_process_low_quality(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    int width = 1920, height = 1080, channels = 3;
-    
-    // Calculate low-quality dimensions (largest processed output)
-    int lq_width, lq_height;
-    calculate_output_dimensions(width, height, LOW_QUALITY_MAX_WIDTH, &lq_width, &lq_height);
+uint8_t* cuda_process_low_quality(const uint8_t* input, int input_width, int input_height,
+                                  uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, LOW_QUALITY_SIZE, out_width, out_height);
 
-    size_t input_bytes = width * height * channels;
-    size_t output_bytes = lq_width * lq_height * channels;
+    size_t input_bytes = input_width * input_height * channels;
+    size_t output_bytes = (*out_width) * (*out_height) * channels;
 
     uint8_t* gpu_input;
     uint8_t* gpu_output;
     cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_output, output_bytes);
-
-    cudaMemcpy(gpu_input, input, min((size_t)input_size, input_bytes), cudaMemcpyHostToDevice);
+    cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     dim3 threads(16, 16);
-    dim3 blocks((lq_width + threads.x - 1) / threads.x,
-                (lq_height + threads.y - 1) / threads.y);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    kernel_downscale_quality<<<blocks, threads>>>(gpu_input, gpu_output,
-                                                   width, height,
-                                                   lq_width, lq_height, channels);
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_output,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
     uint8_t* host_output = (uint8_t*)malloc(output_bytes);
@@ -318,8 +299,6 @@ uint8_t* cuda_process_low_quality(const uint8_t* input, uint32_t input_size, uin
     cudaFree(gpu_input);
     cudaFree(gpu_output);
 
-    // Note: After WebP encoding at quality 65%, this will be the largest processed file
-    // but still smaller than the original due to dimension reduction
     *output_size = output_bytes;
     return host_output;
 }
