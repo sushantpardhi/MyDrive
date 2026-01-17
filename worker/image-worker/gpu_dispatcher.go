@@ -1,12 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/chai2010/webp"
+	"github.com/disintegration/imaging"
 )
 
 type ProcessResult struct {
@@ -159,76 +166,82 @@ func (gd *GPUDispatcher) executeOperation(op *gpuOperation) {
 }
 
 func (gd *GPUDispatcher) processThumbnail(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
+	// Decode image
+	img, _, err := image.Decode(bytes.NewReader(imageData))
 	if err != nil {
 		return nil, fmt.Errorf("decode failed: %w", err)
 	}
 
-	// Process with CUDA (resize to 64px)
-	processedRGB, outWidth, outHeight, err := CudaProcessThumbnail(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
+	// Resize to 48px max dimension using high-quality Lanczos resampling
+	resized := imaging.Fit(img, 48, 48, imaging.Lanczos)
 
-	// Encode to WebP with quality 30 (smallest)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("thumbnail"))
-	if err != nil {
+	// Encode to WebP with quality 20 (aggressive compression)
+	var buf bytes.Buffer
+	opts := &webp.Options{
+		Lossless: false,
+		Quality:  20,
+	}
+	if err := webp.Encode(&buf, resized, opts); err != nil {
 		return nil, fmt.Errorf("WebP encoding failed: %w", err)
 	}
 
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   buf.Bytes(),
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processBlur(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
+	// Decode image
+	img, _, err := image.Decode(bytes.NewReader(imageData))
 	if err != nil {
 		return nil, fmt.Errorf("decode failed: %w", err)
 	}
 
-	// Process with CUDA (resize to 256px + blur)
-	processedRGB, outWidth, outHeight, err := CudaProcessBlur(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
+	// Resize to 192px max dimension
+	resized := imaging.Fit(img, 192, 192, imaging.Lanczos)
 
-	// Encode to WebP with quality 50 (medium-small)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("blur"))
-	if err != nil {
+	// Apply Gaussian blur
+	blurred := imaging.Blur(resized, 3.0)
+
+	// Encode to WebP with quality 40
+	var buf bytes.Buffer
+	opts := &webp.Options{
+		Lossless: false,
+		Quality:  40,
+	}
+	if err := webp.Encode(&buf, blurred, opts); err != nil {
 		return nil, fmt.Errorf("WebP encoding failed: %w", err)
 	}
 
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   buf.Bytes(),
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processLowQuality(imageData []byte) (*ProcessResult, error) {
-	// Decode image to RGB
-	rgb, width, height, err := DecodeImage(imageData)
+	// Decode image
+	img, _, err := image.Decode(bytes.NewReader(imageData))
 	if err != nil {
 		return nil, fmt.Errorf("decode failed: %w", err)
 	}
 
-	// Process with CUDA (resize to 512px)
-	processedRGB, outWidth, outHeight, err := CudaProcessLowQuality(rgb, width, height)
-	if err != nil {
-		return nil, fmt.Errorf("CUDA processing failed: %w", err)
-	}
+	// Resize to 384px max dimension
+	resized := imaging.Fit(img, 384, 384, imaging.Lanczos)
 
-	// Encode to WebP with quality 70 (medium)
-	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("low-quality"))
-	if err != nil {
+	// Encode to WebP with quality 60
+	var buf bytes.Buffer
+	opts := &webp.Options{
+		Lossless: false,
+		Quality:  60,
+	}
+	if err := webp.Encode(&buf, resized, opts); err != nil {
 		return nil, fmt.Errorf("WebP encoding failed: %w", err)
 	}
 
 	return &ProcessResult{
-		Data:   webpData,
+		Data:   buf.Bytes(),
 		Format: "webp",
 	}, nil
 }
