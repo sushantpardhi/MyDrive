@@ -159,34 +159,76 @@ func (gd *GPUDispatcher) executeOperation(op *gpuOperation) {
 }
 
 func (gd *GPUDispatcher) processThumbnail(imageData []byte) (*ProcessResult, error) {
-	result := CudaProcessThumbnail(imageData)
-	if result == nil {
-		return nil, errors.New("thumbnail processing returned nil")
+	// Decode image to RGB
+	rgb, width, height, err := DecodeImage(imageData)
+	if err != nil {
+		return nil, fmt.Errorf("decode failed: %w", err)
 	}
+
+	// Process with CUDA (resize to 64px)
+	processedRGB, outWidth, outHeight, err := CudaProcessThumbnail(rgb, width, height)
+	if err != nil {
+		return nil, fmt.Errorf("CUDA processing failed: %w", err)
+	}
+
+	// Encode to WebP with quality 30 (smallest)
+	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("thumbnail"))
+	if err != nil {
+		return nil, fmt.Errorf("WebP encoding failed: %w", err)
+	}
+
 	return &ProcessResult{
-		Data:   result,
+		Data:   webpData,
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processBlur(imageData []byte) (*ProcessResult, error) {
-	result := CudaProcessBlur(imageData)
-	if result == nil {
-		return nil, errors.New("blur processing returned nil")
+	// Decode image to RGB
+	rgb, width, height, err := DecodeImage(imageData)
+	if err != nil {
+		return nil, fmt.Errorf("decode failed: %w", err)
 	}
+
+	// Process with CUDA (resize to 256px + blur)
+	processedRGB, outWidth, outHeight, err := CudaProcessBlur(rgb, width, height)
+	if err != nil {
+		return nil, fmt.Errorf("CUDA processing failed: %w", err)
+	}
+
+	// Encode to WebP with quality 50 (medium-small)
+	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("blur"))
+	if err != nil {
+		return nil, fmt.Errorf("WebP encoding failed: %w", err)
+	}
+
 	return &ProcessResult{
-		Data:   result,
+		Data:   webpData,
 		Format: "webp",
 	}, nil
 }
 
 func (gd *GPUDispatcher) processLowQuality(imageData []byte) (*ProcessResult, error) {
-	result := CudaProcessLowQuality(imageData)
-	if result == nil {
-		return nil, errors.New("low-quality processing returned nil")
+	// Decode image to RGB
+	rgb, width, height, err := DecodeImage(imageData)
+	if err != nil {
+		return nil, fmt.Errorf("decode failed: %w", err)
 	}
+
+	// Process with CUDA (resize to 512px)
+	processedRGB, outWidth, outHeight, err := CudaProcessLowQuality(rgb, width, height)
+	if err != nil {
+		return nil, fmt.Errorf("CUDA processing failed: %w", err)
+	}
+
+	// Encode to WebP with quality 70 (medium)
+	webpData, err := EncodeWebP(processedRGB, outWidth, outHeight, GetQuality("low-quality"))
+	if err != nil {
+		return nil, fmt.Errorf("WebP encoding failed: %w", err)
+	}
+
 	return &ProcessResult{
-		Data:   result,
+		Data:   webpData,
 		Format: "webp",
 	}, nil
 }
