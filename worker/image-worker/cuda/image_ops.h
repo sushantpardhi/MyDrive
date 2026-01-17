@@ -8,10 +8,10 @@ extern "C" {
 #include <stdint.h>
 
 // Quality ordering: thumbnail < blur < low-quality < original
-// Dimensions:
-#define THUMBNAIL_SIZE 64      // Smallest: 64px max dimension
-#define BLUR_SIZE 256          // Medium-small: 256px max dimension  
-#define LOW_QUALITY_SIZE 512   // Medium: 512px max dimension
+// Dimensions - more aggressive scaling for better size reduction:
+#define THUMBNAIL_SIZE 48      // Smallest: 48px max dimension (was 64)
+#define BLUR_SIZE 192          // Medium-small: 192px max dimension (was 256)
+#define LOW_QUALITY_SIZE 384   // Medium: 384px max dimension (was 512)
 
 // Initialize CUDA runtime
 // Returns: 0 on success, non-zero error code on failure
