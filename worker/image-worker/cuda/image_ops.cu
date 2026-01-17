@@ -12,14 +12,17 @@
 static cudaArray_t image_array = NULL;
 static cudaTextureObject_t tex_obj = 0;
 
-// CUDA kernel: bilinear resize
-// Downsamples 2D image texture to output size
-__global__ void kernel_resize_bilinear(uint8_t* output, int out_width, int out_height, 
-                                       int in_width, int in_height, float scale_x, float scale_y) {
+// CUDA kernel: bilinear resize with proper interpolation
+__global__ void kernel_resize_bilinear(const uint8_t* input, uint8_t* output, 
+                                       int in_width, int in_height,
+                                       int out_width, int out_height, int channels) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;w
 
     if (x >= out_width || y >= out_height) return;
+
+    float scale_x = (float)in_width / out_width;
+    float scale_y = (float)in_height / out_height;
 
     float src_x = x * scale_x;
     float src_y = y * scale_y;
@@ -32,12 +35,18 @@ __global__ void kernel_resize_bilinear(uint8_t* output, int out_width, int out_h
     float dx = src_x - x0;
     float dy = src_y - y0;
 
-    // Bilinear interpolation (placeholder - simplified for demo)
-    uint8_t p00 = 128, p10 = 128, p01 = 128, p11 = 128;
-    uint8_t result = (uint8_t)((1-dx)*(1-dy)*p00 + dx*(1-dy)*p10 + 
-                               (1-dx)*dy*p01 + dx*dy*p11);
+    // Bilinear interpolation for each channel
+    for (int c = 0; c < channels; c++) {
+        float p00 = input[(y0 * in_width + x0) * channels + c];
+        float p10 = input[(y0 * in_width + x1) * channels + c];
+        float p01 = input[(y1 * in_width + x0) * channels + c];
+        float p11 = input[(y1 * in_width + x1) * channels + c];
 
-    output[y * out_width + x] = result;
+        float result = (1-dx)*(1-dy)*p00 + dx*(1-dy)*p10 + 
+                       (1-dx)*dy*p01 + dx*dy*p11;
+
+        output[(y * out_width + x) * channels + c] = (uint8_t)min(255.f, max(0.f, result));
+    }
 }
 
 // CUDA kernel: Gaussian blur using shared memory
@@ -112,91 +121,122 @@ void cuda_free(void* ptr) {
     cudaFree(ptr);
 }
 
-// Thumbnail: resize to 256px width maintaining aspect ratio
-uint8_t* cuda_process_thumbnail(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    // Placeholder: In production, use nvJPEG for GPU decoding
-    // This is simplified for demonstration
+// Helper to calculate output dimensions maintaining aspect ratio
+static void calculate_dimensions(int in_width, int in_height, int max_size,
+                                 int* out_width, int* out_height) {
+    int max_dim = (in_width > in_height) ? in_width : in_height;
     
-    int width = 640, height = 480, channels = 3;  // Assume decoded dimensions
-    int thumb_width = 256;
-    int thumb_height = (height * thumb_width) / width;
+    if (max_dim <= max_size) {
+        *out_width = in_width;
+        *out_height = in_height;
+    } else {
+        float scale = (float)max_size / max_dim;
+        *out_width = (int)(in_width * scale);
+        *out_height = (int)(in_height * scale);
+        if (*out_width < 1) *out_width = 1;
+        if (*out_height < 1) *out_height = 1;
+    }
+}
 
-    size_t output_bytes = thumb_width * thumb_height * channels;
+// Thumbnail: resize to smallest dimensions (64px)
+uint8_t* cuda_process_thumbnail(const uint8_t* input, int input_width, int input_height,
+                                uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, THUMBNAIL_SIZE, out_width, out_height);
+
+    size_t input_bytes = input_width * input_height * channels;
+    size_t output_bytes = (*out_width) * (*out_height) * channels;
+
+    uint8_t* gpu_input;
     uint8_t* gpu_output;
+    cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_output, output_bytes);
+    cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     dim3 threads(16, 16);
-    dim3 blocks((thumb_width + threads.x - 1) / threads.x,
-                (thumb_height + threads.y - 1) / threads.y);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    float scale_x = (float)width / thumb_width;
-    float scale_y = (float)height / thumb_height;
-
-    kernel_resize_bilinear<<<blocks, threads>>>(gpu_output, thumb_width, thumb_height,
-                                                 width, height, scale_x, scale_y);
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_output,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
-    // Copy to host and encode as WebP (simplified - return raw)
     uint8_t* host_output = (uint8_t*)malloc(output_bytes);
     cudaMemcpy(host_output, gpu_output, output_bytes, cudaMemcpyDeviceToHost);
+
+    cudaFree(gpu_input);
     cudaFree(gpu_output);
 
     *output_size = output_bytes;
     return host_output;
 }
 
-// Blur: apply Gaussian blur
-uint8_t* cuda_process_blur(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    int width = 640, height = 480, channels = 3;
-    size_t data_size = width * height * channels;
+// Blur: resize to medium-small (256px) and apply Gaussian blur
+uint8_t* cuda_process_blur(const uint8_t* input, int input_width, int input_height,
+                           uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, BLUR_SIZE, out_width, out_height);
+
+    size_t input_bytes = input_width * input_height * channels;
+    size_t resized_bytes = (*out_width) * (*out_height) * channels;
 
     uint8_t* gpu_input;
+    uint8_t* gpu_resized;
     uint8_t* gpu_output;
-    cudaMalloc(&gpu_input, data_size);
-    cudaMalloc(&gpu_output, data_size);
-
-    cudaMemcpy(gpu_input, input, data_size, cudaMemcpyHostToDevice);
+    cudaMalloc(&gpu_input, input_bytes);
+    cudaMalloc(&gpu_resized, resized_bytes);
+    cudaMalloc(&gpu_output, resized_bytes);
+    cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     dim3 threads(16, 16);
-    dim3 blocks((width + threads.x - 1) / threads.x,
-                (height + threads.y - 1) / threads.y);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    kernel_gaussian_blur<<<blocks, threads>>>(gpu_input, gpu_output, width, height, channels);
+    // Step 1: Resize
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_resized,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
-    uint8_t* host_output = (uint8_t*)malloc(data_size);
-    cudaMemcpy(host_output, gpu_output, data_size, cudaMemcpyDeviceToHost);
+    // Step 2: Apply blur
+    kernel_gaussian_blur<<<blocks, threads>>>(gpu_resized, gpu_output, 
+                                              *out_width, *out_height, channels);
+    cudaDeviceSynchronize();
+
+    uint8_t* host_output = (uint8_t*)malloc(resized_bytes);
+    cudaMemcpy(host_output, gpu_output, resized_bytes, cudaMemcpyDeviceToHost);
 
     cudaFree(gpu_input);
+    cudaFree(gpu_resized);
     cudaFree(gpu_output);
 
-    *output_size = data_size;
+    *output_size = resized_bytes;
     return host_output;
 }
 
-// Low-quality: downscale to 50% and recompress
-uint8_t* cuda_process_low_quality(const uint8_t* input, uint32_t input_size, uint32_t* output_size) {
-    int width = 640, height = 480, channels = 3;
-    int scaled_width = width / 2;
-    int scaled_height = height / 2;
+// Low-quality: resize to medium size (512px)
+uint8_t* cuda_process_low_quality(const uint8_t* input, int input_width, int input_height,
+                                  uint32_t* output_size, int* out_width, int* out_height) {
+    const int channels = 3;
+    calculate_dimensions(input_width, input_height, LOW_QUALITY_SIZE, out_width, out_height);
 
-    size_t input_bytes = width * height * channels;
-    size_t output_bytes = scaled_width * scaled_height * channels;
+    size_t input_bytes = input_width * input_height * channels;
+    size_t output_bytes = (*out_width) * (*out_height) * channels;
 
     uint8_t* gpu_input;
     uint8_t* gpu_output;
     cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_output, output_bytes);
-
     cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     dim3 threads(16, 16);
-    dim3 blocks((scaled_width + threads.x - 1) / threads.x,
-                (scaled_height + threads.y - 1) / threads.y);
+    dim3 blocks((*out_width + threads.x - 1) / threads.x,
+                (*out_height + threads.y - 1) / threads.y);
 
-    kernel_downscale_nearest<<<blocks, threads>>>(gpu_input, gpu_output,
-                                                   width, height,
-                                                   scaled_width, scaled_height, channels);
+    kernel_resize_bilinear<<<blocks, threads>>>(gpu_input, gpu_output,
+                                                 input_width, input_height,
+                                                 *out_width, *out_height, channels);
     cudaDeviceSynchronize();
 
     uint8_t* host_output = (uint8_t*)malloc(output_bytes);
