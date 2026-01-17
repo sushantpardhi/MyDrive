@@ -51,9 +51,9 @@ jobs:
 
       - name: Restart worker service
         run: |
-          echo "🔄 Restarting image worker service..."
-          sudo systemctl restart image-worker
+          echo "🔄 Starting/restarting image worker service..."
+          sudo systemctl start image-worker || sudo systemctl restart image-worker
           sleep 2
           sudo systemctl status image-worker
-          echo "✅ Service restarted"
+          echo "✅ Service is running"
 
