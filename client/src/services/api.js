@@ -191,6 +191,24 @@ const api = {
       },
     }),
 
+  // Get blur image for progressive loading (very small, heavily blurred)
+  getFileBlur: (fileId) =>
+    axios.get(`${API_URL}/files/blur/${fileId}`, {
+      responseType: "blob",
+      headers: {
+        "Cache-Control": "public, max-age=31536000",
+      },
+    }),
+
+  // Get low-quality image for progressive loading (medium quality)
+  getFileLowQuality: (fileId) =>
+    axios.get(`${API_URL}/files/low-quality/${fileId}`, {
+      responseType: "blob",
+      headers: {
+        "Cache-Control": "public, max-age=31536000",
+      },
+    }),
+
   // Get file for preview (returns blob/url for streaming)
   getFilePreview: (fileId) =>
     axios.get(`${API_URL}/files/download/${fileId}`, {

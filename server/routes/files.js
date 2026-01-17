@@ -341,6 +341,80 @@ router.get("/thumbnail/:fileId", async (req, res) => {
   }
 });
 
+// Get blur image for progressive loading
+router.get("/blur/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Extract the file's base name (UUID-originalname without extension)
+    const filePath = file.path;
+    const fileName = path.basename(filePath, path.extname(filePath));
+    
+    // Construct path to processed blur image
+    const userDir = path.dirname(filePath);
+    const processedDir = path.join(userDir, "processed");
+    const blurPath = path.join(processedDir, `${fileName}_blur.webp`);
+
+    // Check if blur image exists
+    if (fs.existsSync(blurPath)) {
+      res.set({
+        "Content-Type": "image/webp",
+        "Cache-Control": "public, max-age=31536000",
+      });
+      return res.sendFile(path.resolve(blurPath));
+    }
+
+    // Fallback: return 404 if blur image not yet processed
+    res.status(404).json({ 
+      error: "Blur image not available yet",
+      message: "Image is still being processed"
+    });
+  } catch (error) {
+    logger.logError(error, "Error in blur route");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get low-quality image for progressive loading
+router.get("/low-quality/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Extract the file's base name (UUID-originalname without extension)
+    const filePath = file.path;
+    const fileName = path.basename(filePath, path.extname(filePath));
+    
+    // Construct path to processed low-quality image
+    const userDir = path.dirname(filePath);
+    const processedDir = path.join(userDir, "processed");
+    const lowQualityPath = path.join(processedDir, `${fileName}_low-quality.webp`);
+
+    // Check if low-quality image exists
+    if (fs.existsSync(lowQualityPath)) {
+      res.set({
+        "Content-Type": "image/webp",
+        "Cache-Control": "public, max-age=31536000",
+      });
+      return res.sendFile(path.resolve(lowQualityPath));
+    }
+
+    // Fallback: return 404 if low-quality image not yet processed
+    res.status(404).json({ 
+      error: "Low-quality image not available yet",
+      message: "Image is still being processed"
+    });
+  } catch (error) {
+    logger.logError(error, "Error in low-quality route");
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get file details with populated shared users
 router.get("/:fileId/details", async (req, res) => {
   try {
