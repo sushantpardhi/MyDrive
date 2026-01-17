@@ -14,15 +14,15 @@ import (
 
 // QualitySettings defines WebP encoding quality for each operation
 type QualitySettings struct {
-	Thumbnail  int // 30% - smallest file
-	Blur       int // 50% - medium-small file
-	LowQuality int // 70% - medium file
+	Thumbnail  int // Smallest file - very aggressive compression
+	Blur       int // Medium-small file
+	LowQuality int // Medium file
 }
 
 var qualitySettings = QualitySettings{
-	Thumbnail:  30,
-	Blur:       50,
-	LowQuality: 70,
+	Thumbnail:  20, // Very low quality - smallest files
+	Blur:       40, // Low-medium quality
+	LowQuality: 60, // Medium quality
 }
 
 // DecodeImage decodes JPEG/PNG/WebP to raw RGB pixels
@@ -56,6 +56,7 @@ func DecodeImage(imageData []byte) ([]byte, int, int, error) {
 }
 
 // EncodeWebP encodes RGB pixels to WebP with specified quality
+// Uses lossy compression to ensure file sizes scale with image complexity
 func EncodeWebP(rgb []byte, width, height, quality int) ([]byte, error) {
 	// Create NRGBA image from RGB data
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
@@ -72,9 +73,14 @@ func EncodeWebP(rgb []byte, width, height, quality int) ([]byte, error) {
 		}
 	}
 
-	// Encode to WebP
+	// Encode to WebP with lossy compression
+	// Quality: 0-100 where lower = smaller file, higher = better quality
 	var buf bytes.Buffer
-	if err := webp.Encode(&buf, img, &webp.Options{Quality: float32(quality)}); err != nil {
+	opts := &webp.Options{
+		Lossless: false, // Force lossy compression
+		Quality:  float32(quality),
+	}
+	if err := webp.Encode(&buf, img, opts); err != nil {
 		return nil, fmt.Errorf("failed to encode WebP: %w", err)
 	}
 
