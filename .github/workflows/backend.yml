@@ -29,5 +29,5 @@ jobs:
       - name: Install & restart
         run: |
           cd /home/sushant/MyDrive/server
-          npm ci
+          npm install
           pm2 startOrReload ecosystem.config.cjs --update-env
