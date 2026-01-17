@@ -21,7 +21,7 @@ __global__ void kernel_resize_bilinear(const uint8_t* input, uint8_t* output,
                                        int out_width, int out_height, 
                                        int channels) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;w
 
     if (x >= out_width || y >= out_height) return;
 
@@ -198,6 +198,7 @@ uint8_t* cuda_process_thumbnail(const uint8_t* input, uint32_t input_size, uint3
     uint8_t* gpu_output;
     cudaMalloc(&gpu_input, input_bytes);
     cudaMalloc(&gpu_output, output_bytes);
+    cudaMemcpy(gpu_input, input, input_bytes, cudaMemcpyHostToDevice);
 
     // Copy input to GPU (in production, decode directly on GPU with nvJPEG)
     cudaMemcpy(gpu_input, input, min((size_t)input_size, input_bytes), cudaMemcpyHostToDevice);
