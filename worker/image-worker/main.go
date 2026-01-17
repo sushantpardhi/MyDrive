@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	workerCount = flag.Int("workers", 4, "Number of CPU worker goroutines")
+	workerCount = flag.Int("workers", 5, "Number of CPU worker goroutines")
 	redisAddr   = flag.String("redis", "localhost:6379", "Redis address")
 	redisDB     = flag.Int("db", 0, "Redis database")
 	maxRetries  = flag.Int("max-retries", 3, "Maximum retry attempts per job")
