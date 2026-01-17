@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'worker/image-worker/**'
+      - '.github/workflows/image-worker.yml'
 
 jobs:
   deploy:
