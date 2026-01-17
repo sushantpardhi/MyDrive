@@ -11,8 +11,94 @@ const {
   deleteFilesRecursively,
 } = require("../utils/shareHelpers");
 const emailService = require("../utils/emailService");
+const ZipStreamService = require("../utils/zipStreamService");
+const DownloadHelpers = require("../utils/downloadHelpers");
 
 const router = express.Router();
+
+// Mark a folder and all its descendants (folders + files) as trashed/restored
+const markFolderTrashState = async (
+  folderId,
+  userId,
+  trashState,
+  trashedAt = null
+) => {
+  const timestamp = trashState ? trashedAt || new Date() : null;
+  const queue = [folderId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+
+    // Update the current folder
+    await Folder.updateOne(
+      { _id: currentId, owner: userId },
+      { trash: trashState, trashedAt: timestamp }
+    );
+
+    // Update files directly under this folder
+    await File.updateMany(
+      { parent: currentId, owner: userId },
+      { trash: trashState, trashedAt: timestamp }
+    );
+
+    // Queue child folders for processing
+    const childFolders = await Folder.find(
+      { parent: currentId, owner: userId },
+      "_id"
+    );
+
+    childFolders.forEach((child) => queue.push(child._id));
+  }
+};
+
+// Verify folder download permissions and return metadata
+router.get("/verify-download/:folderId", async (req, res) => {
+  try {
+    const folder = await Folder.findById(req.params.folderId);
+    if (!folder) {
+      logger.warn(
+        `Download verification failed - Folder not found: ${req.params.folderId} - User: ${req.user.id} - IP: ${req.ip}`
+      );
+      return res.status(404).json({ error: "Folder not found" });
+    }
+
+    // Count files recursively
+    async function countFolderContents(folderId) {
+      const files = await File.find({ parent: folderId, isDeleted: false });
+      const subfolders = await Folder.find({ parent: folderId, isDeleted: false });
+      
+      let totalFiles = files.length;
+      let totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      
+      for (const subfolder of subfolders) {
+        const subStats = await countFolderContents(subfolder._id);
+        totalFiles += subStats.files;
+        totalSize += subStats.size;
+      }
+      
+      return { files: totalFiles, size: totalSize };
+    }
+
+    const stats = await countFolderContents(req.params.folderId);
+
+    // Return folder metadata for frontend to initiate download
+    res.json({
+      id: folder._id,
+      name: folder.name,
+      totalFiles: stats.files,
+      totalSize: stats.size,
+      verified: true
+    });
+  } catch (error) {
+    logger.logError(error, {
+      operation: "verify-download",
+      userId: req.user.id,
+      ip: req.ip,
+      additionalInfo: req.params.folderId,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Get folder contents or trash contents
 router.get("/:folderId", async (req, res) => {
@@ -47,21 +133,41 @@ router.get("/:folderId", async (req, res) => {
       isSharedFolder = parentFolder.shared.includes(req.user.id);
     }
 
-    // Build the query based on whether it's a shared folder or not
-    const query = isTrash
-      ? { trash: true, owner: req.user.id }
-      : isSharedFolder
-      ? {
-          parent: folderId,
-          trash: { $ne: true },
-          // For shared folders, show items that are shared with the user
-          shared: req.user.id,
+    // Build the query based on whether it's trash, shared, or regular drive
+    let query;
+
+    if (isTrash) {
+      if (folderId !== null) {
+        const trashedFolder = await Folder.findOne({
+          _id: folderId,
+          owner: req.user.id,
+          trash: true,
+        });
+
+        if (!trashedFolder) {
+          return res.status(404).json({ error: "Folder not found" });
         }
-      : {
-          parent: folderId,
-          trash: { $ne: true },
-          owner: req.user.id, // Only show items owned by the user in My Drive
-        };
+
+        // When inside Trash, scope results to the selected folder
+        query = { parent: folderId, trash: true, owner: req.user.id };
+      } else {
+        // Root Trash view still returns all trashed items
+        query = { trash: true, owner: req.user.id };
+      }
+    } else if (isSharedFolder) {
+      query = {
+        parent: folderId,
+        trash: { $ne: true },
+        // For shared folders, show items that are shared with the user
+        shared: req.user.id,
+      };
+    } else {
+      query = {
+        parent: folderId,
+        trash: { $ne: true },
+        owner: req.user.id, // Only show items owned by the user in My Drive
+      };
+    }
 
     // Get total counts
     const totalFolders = await Folder.countDocuments(query);
@@ -373,10 +479,9 @@ router.delete("/:id", async (req, res) => {
       await Folder.findByIdAndDelete(id);
       res.json({ message: "Permanently deleted" });
     } else {
-      // Move to trash
-      item.trash = true;
-      item.trashedAt = new Date();
-      await item.save();
+      // Move folder and all descendants to trash
+      const trashedAt = new Date();
+      await markFolderTrashState(id, req.user.id, true, trashedAt);
       res.json({ message: "Moved to trash" });
     }
   } catch (error) {
@@ -401,9 +506,8 @@ router.post("/:id/restore", async (req, res) => {
         .json({ error: "You can only restore items you own" });
     }
 
-    item.trash = false;
-    item.trashedAt = null;
-    await item.save();
+    // Restore folder and all descendants
+    await markFolderTrashState(id, req.user.id, false, null);
     res.json({ message: "Restored successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -696,12 +800,21 @@ router.put("/:id/move", async (req, res) => {
 
 // Download folder as ZIP
 router.get("/download/:folderId", async (req, res) => {
+  const startTime = Date.now();
+  let archive = null;
+  let filesProcessed = 0;
+
   try {
     const folderId = req.params.folderId;
 
     // Get the folder
     const folder = await Folder.findById(folderId);
     if (!folder) {
+      logger.warn("Folder download failed - not found", {
+        folderId,
+        userId: req.user.id,
+        ip: req.ip,
+      });
       return res.status(404).json({ error: "Folder not found" });
     }
 
@@ -711,136 +824,138 @@ router.get("/download/:folderId", async (req, res) => {
       folder.shared.includes(req.user.id);
 
     if (!hasAccess) {
+      logger.warn("Folder download failed - access denied", {
+        folderId,
+        userId: req.user.id,
+        ip: req.ip,
+      });
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // Helper function to recursively collect all files in a folder
-    const collectFilesRecursively = async (folderId) => {
-      const files = [];
-      const folders = [];
+    logger.info("Folder download initiated", {
+      folderId,
+      folderName: folder.name,
+      userId: req.user.id,
+      ip: req.ip,
+    });
 
-      // Get all files in current folder
-      const currentFiles = await File.find({
-        parent: folderId,
-        trash: false,
-      });
-      files.push(...currentFiles);
-
-      // Get all subfolders
-      const subfolders = await Folder.find({
-        parent: folderId,
-        trash: false,
-      });
-      folders.push(...subfolders);
-
-      // Recursively collect files from subfolders
-      for (const subfolder of subfolders) {
-        const subfolderData = await collectFilesRecursively(subfolder._id);
-        files.push(...subfolderData.files);
-        folders.push(...subfolderData.folders);
-      }
-
-      return { files, folders };
-    };
-
-    // Collect all files recursively
-    const { files } = await collectFilesRecursively(folderId);
+    // Get all files in folder recursively using helper
+    const resolvedFiles = await DownloadHelpers.getFolderFilesRecursive(
+      folderId,
+      req.user.id,
+      "" // No base path - use folder name as root
+    );
 
     // If folder is empty, return error
-    if (files.length === 0) {
+    if (resolvedFiles.length === 0) {
+      logger.warn("Folder download failed - empty folder", {
+        folderId,
+        folderName: folder.name,
+        userId: req.user.id,
+      });
       return res.status(400).json({ error: "Folder is empty" });
     }
 
     // Calculate total size
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = resolvedFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+    const totalFiles = resolvedFiles.length;
 
-    // Set response headers for download
+    logger.info("Starting folder ZIP stream", {
+      folderId,
+      folderName: folder.name,
+      totalFiles,
+      totalSize: DownloadHelpers.formatSize(totalSize),
+      userId: req.user.id,
+    });
+
+    // Generate ZIP filename
     const zipFilename = `${folder.name}.zip`;
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(zipFilename)}"`
-    );
-    // Add custom header for total files count and size
-    res.setHeader("X-Total-Files", files.length.toString());
+
+    // Add custom headers for progress tracking
+    res.setHeader("X-Total-Files", totalFiles.toString());
     res.setHeader("X-Total-Size", totalSize.toString());
 
-    // Create archiver instance
-    const archive = archiver("zip", {
-      zlib: { level: 6 }, // Compression level
+    // Create ZIP stream using service
+    archive = ZipStreamService.createZipStream(res, zipFilename, {
+      compressionLevel: 6,
+      comment: `MyDrive folder: ${folder.name} - ${totalFiles} file(s)`,
     });
 
-    let processedFiles = 0;
-    let processedBytes = 0;
-
-    // Track progress
-    archive.on("entry", (entry) => {
-      processedFiles++;
+    // Handle client disconnect
+    ZipStreamService.handleClientDisconnect(req, archive, () => {
+      logger.warn("Client disconnected during folder download", {
+        folderId,
+        folderName: folder.name,
+        filesProcessed,
+        totalFiles,
+        userId: req.user.id,
+      });
     });
 
-    archive.on("progress", (progress) => {
-      processedBytes = progress.fs.processedBytes;
-    });
-
-    // Handle archiver warnings
-    archive.on("warning", (err) => {
-      if (err.code !== "ENOENT") {
-        throw err;
-      }
-    });
-
-    // Handle archiver errors
-    archive.on("error", (err) => {
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Error creating ZIP file" });
-      }
-    });
-
-    // Pipe archive to response
-    archive.pipe(res);
-
-    // Helper function to get relative path for a file
-    const getRelativePath = async (file) => {
-      const pathSegments = [];
-      let currentParent = file.parent;
-
-      // Build path from file's parent up to the root folder
-      while (
-        currentParent &&
-        currentParent.toString() !== folderId.toString()
-      ) {
-        const parentFolder = await Folder.findById(currentParent);
-        if (parentFolder) {
-          pathSegments.unshift(parentFolder.name);
-          currentParent = parentFolder.parent;
-        } else {
-          break;
-        }
-      }
-
-      return pathSegments.join("/");
-    };
-
-    // Add files to archive
-    for (const file of files) {
+    // Add all files to ZIP
+    for (const fileEntry of resolvedFiles) {
       try {
-        const relativePath = await getRelativePath(file);
-        const filePathInZip = relativePath
-          ? `${relativePath}/${file.name}`
-          : file.name;
-
-        archive.file(file.path, { name: filePathInZip });
-      } catch (err) {
-        logger.logError(err, `Error adding file ${file.name} to archive`);
+        // Use folder name as root in zip path
+        const zipPath = `${folder.name}/${fileEntry.zipPath}`;
+        
+        await ZipStreamService.addFileToZip(
+          archive,
+          fileEntry.filePath,
+          zipPath
+        );
+        filesProcessed++;
+      } catch (error) {
+        logger.error("Error adding file to folder ZIP", {
+          folderId,
+          fileId: fileEntry.fileDoc._id,
+          fileName: fileEntry.fileDoc.name,
+          error: error.message,
+          userId: req.user.id,
+        });
+        // Continue with other files
       }
     }
 
-    // Finalize the archive
-    await archive.finalize();
+    // Finalize ZIP
+    await ZipStreamService.finalizeZip(archive);
+
+    const duration = Date.now() - startTime;
+
+    logger.info("Folder download completed", {
+      folderId,
+      folderName: folder.name,
+      filesProcessed,
+      totalFiles,
+      totalSize: DownloadHelpers.formatSize(totalSize),
+      duration: `${(duration / 1000).toFixed(2)}s`,
+      avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+      userId: req.user.id,
+      ip: req.ip,
+    });
+
+    // Note: Response is already sent via stream
   } catch (error) {
-    logger.logError(error, "Error downloading folder");
+    logger.error("Folder download failed", {
+      folderId: req.params.folderId,
+      filesProcessed,
+      error: error.message,
+      stack: error.stack,
+      userId: req.user.id,
+      ip: req.ip,
+    });
+
+    // Abort archive if it exists
+    if (archive && !archive.destroyed) {
+      archive.abort();
+      archive.destroy();
+    }
+
+    // Only send error response if headers not sent
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ 
+        error: "Folder download failed",
+        message: error.message
+      });
     }
   }
 });

@@ -160,6 +160,12 @@ const api = {
     return axios.post(`${API_URL}/files/upload`, formData, config);
   },
 
+  verifyFileDownload: (fileId) =>
+    axios.get(`${API_URL}/files/verify-download/${fileId}`),
+
+  verifyFolderDownload: (folderId) =>
+    axios.get(`${API_URL}/folders/verify-download/${folderId}`),
+
   downloadFile: (fileId) =>
     axios.get(`${API_URL}/files/download/${fileId}`, { responseType: "blob" }),
 
@@ -167,6 +173,14 @@ const api = {
     axios.get(`${API_URL}/folders/download/${folderId}`, {
       responseType: "blob",
     }),
+
+  // Multi-file/folder download
+  downloadMultiple: (fileIds = [], folderIds = []) =>
+    axios.post(
+      `${API_URL}/files/download`,
+      { files: fileIds, folders: folderIds },
+      { responseType: "blob", timeout: 30 * 60 * 1000 } // 30 min timeout
+    ),
 
   // Get thumbnail for file card previews (optimized, cached)
   getFileThumbnail: (fileId) =>

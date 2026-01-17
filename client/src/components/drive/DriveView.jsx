@@ -55,6 +55,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setHasMore,
     currentFolderId,
     updateCurrentFolder,
+    updateDriveType,
     reloadTrigger,
   } = useDriveContext();
 
@@ -94,7 +95,6 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Refs
   const fileInputRef = useRef(null);
   const driveViewRef = useRef(null);
-  const typeRef = useRef(type);
   const sortByRef = useRef("createdAt");
   const sortOrderRef = useRef("desc");
   const dragCounterRef = useRef(0);
@@ -165,7 +165,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         logger.logError(error, "Failed to load folder contents", {
           folderId,
           page,
-          isInitialLoad,
+          append,
           type,
         });
       } finally {
@@ -341,23 +341,12 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     loadMoreSearchResults,
   });
 
-  // Reset to root folder when type changes (but not on initial mount)
-  const initialMountRef = useRef(true);
+  // Sync drive type and restore its last visited folder
   useEffect(() => {
-    // Skip on initial mount - let DriveContext's saved lastFolderId take effect
-    if (initialMountRef.current) {
-      initialMountRef.current = false;
-      typeRef.current = type;
-      return;
-    }
-
-    // Only reset if type actually changed
-    if (typeRef.current !== type) {
-      typeRef.current = type;
-      updateCurrentFolder("root");
-      // Breadcrumb will auto-update via useBreadcrumbs hook
-    }
-  }, [type, updateCurrentFolder]);
+    // When switching sections (drive/shared/trash), force that section's root
+    updateDriveType(type, "root");
+    updateCurrentFolder("root", type);
+  }, [type, updateDriveType, updateCurrentFolder]);
 
   // Load folder contents when currentFolderId changes or reloadTrigger fires
   useEffect(() => {

@@ -242,23 +242,17 @@ export const useUploadProgress = () => {
       setUploadProgress((prev) => {
         const current = prev[fileId];
         if (current) {
-          // Mark as cancelled instead of removing immediately for chunked uploads
-          if (current.isChunked) {
-            return {
-              ...prev,
-              [fileId]: {
-                ...current,
-                status: "cancelled",
-                completedTime: Date.now(),
-              },
-            };
-          }
+          // Mark as cancelled instead of removing immediately
+          return {
+            ...prev,
+            [fileId]: {
+              ...current,
+              status: "cancelled",
+              completedTime: Date.now(),
+            },
+          };
         }
-
-        // For regular uploads, remove immediately
-        const newProgress = { ...prev };
-        delete newProgress[fileId];
-        return newProgress;
+        return prev;
       });
 
       delete progressDataRef.current[fileId];

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "react-toastify";
 import { downloadFile } from "../utils/helpers";
 import { useSelectionContext } from "../contexts/SelectionContext";
-import { useUIContext } from "../contexts";
+import { useUIContext, useTransfer } from "../contexts";
 import logger from "../utils/logger";
 
 export const useSelection = (api, folders, files, type) => {
@@ -13,6 +13,14 @@ export const useSelection = (api, folders, files, type) => {
     clearSelection,
   } = useSelectionContext();
   const { refreshStorage } = useUIContext();
+  const { 
+    startDownload, 
+    updateZippingProgress, 
+    updateDownloadProgress,
+    completeDownload,
+    failDownload,
+    cancelDownload 
+  } = useTransfer();
 
   const selectAll = useCallback(() => {
     const allItemIds = [
@@ -146,21 +154,221 @@ export const useSelection = (api, folders, files, type) => {
   }, [selectedItems, files, folders]);
 
   const bulkDownload = useCallback(async () => {
-    const selectedFiles = files.filter((f) => selectedItems.has(f._id));
-    if (!selectedFiles.length) return false;
+    if (!selectedItems.size) {
+      toast.warning("Please select items to download");
+      return false;
+    }
+
+    const selectedFilesList = files.filter((f) => selectedItems.has(f._id));
+    const selectedFoldersList = folders.filter((f) => selectedItems.has(f._id));
+    
+    const fileIds = selectedFilesList.map(f => f._id);
+    const folderIds = selectedFoldersList.map(f => f._id);
+
+    // Validate that we have valid items
+    if (fileIds.length === 0 && folderIds.length === 0) {
+      toast.error("No valid items found to download");
+      return false;
+    }
+
+    // Handle single file download (existing behavior)
+    if (fileIds.length === 1 && folderIds.length === 0) {
+      const file = selectedFilesList[0];
+      try {
+        await downloadFile(api, file._id, file.name);
+        toast.success("File downloaded successfully");
+        return true;
+      } catch (error) {
+        toast.error("Download failed");
+        console.error(error);
+        return false;
+      }
+    }
+
+    // All other cases (single folder, multiple files, multiple folders, mixed) 
+    // use the multi-download endpoint
+
+    // Handle multi-item download with ZIP
+    const downloadId = `multi-download-${Date.now()}`;
+    const totalItems = selectedItems.size;
+    
+    // Estimate total size (sum of file sizes)
+    const estimatedSize = selectedFilesList.reduce((sum, f) => sum + (f.size || 0), 0);
 
     try {
-      for (const file of selectedFiles) {
-        await downloadFile(api, file._id, file.name);
+      // Determine filename
+      let downloadName = "download.zip";
+      if (folderIds.length === 1 && fileIds.length === 0) {
+        downloadName = `${selectedFoldersList[0].name}.zip`;
+      } else if (fileIds.length > 0 && folderIds.length === 0) {
+        downloadName = `${fileIds.length}-files.zip`;
+      } else {
+        downloadName = `${totalItems}-items.zip`;
       }
-      toast.success("Files downloaded successfully");
+
+      // Start download progress tracking
+      startDownload(downloadId, downloadName, estimatedSize, totalItems);
+
+      logger.info("Starting multi-item download", {
+        downloadId,
+        fileCount: fileIds.length,
+        folderCount: folderIds.length,
+        totalItems,
+        fileIds,
+        folderIds,
+      });
+
+      // Show initial zipping progress
+      updateZippingProgress(downloadId, 0, totalItems);
+
+      // Make API call with XMLHttpRequest for progress tracking
+      const token = localStorage.getItem("token");
+      const API_URL = process.env.REACT_APP_API_URL;
+      
+      console.log("Download request details:", {
+        url: `${API_URL}/files/download`,
+        fileIds,
+        folderIds,
+        hasToken: !!token,
+      });
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_URL}/files/download`, true);
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.responseType = "blob";
+      xhr.timeout = 30 * 60 * 1000; // 30 minutes
+
+      let lastLoaded = 0;
+      let lastTime = Date.now();
+      let isFirstProgress = true;
+
+      // Track download progress
+      xhr.onprogress = (event) => {
+        // On first progress event, we know zipping is complete and download has started
+        if (isFirstProgress && event.loaded > 0) {
+          isFirstProgress = false;
+          // Mark zipping as complete
+          updateZippingProgress(downloadId, totalItems, totalItems);
+        }
+        
+        if (event.lengthComputable) {
+          const now = Date.now();
+          const timeDiff = (now - lastTime) / 1000;
+          const bytesDiff = event.loaded - lastLoaded;
+          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+
+          lastLoaded = event.loaded;
+          lastTime = now;
+
+          updateDownloadProgress(downloadId, event.loaded, event.total, speed);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const blob = xhr.response;
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", downloadName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+
+          completeDownload(downloadId, true);
+          toast.success(`Downloaded ${totalItems} item${totalItems > 1 ? 's' : ''} successfully`);
+
+          logger.info("Multi-item download completed", {
+            downloadId,
+            totalItems,
+          });
+        } else {
+          // Try to parse error message from blob response
+          let errorMsg = xhr.statusText || "Download failed";
+          
+          // If response is JSON error, extract message
+          if (xhr.response && xhr.response.type === 'application/json') {
+            try {
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const error = JSON.parse(reader.result);
+                  const errorMessage = error.error || error.message || errorMsg;
+                  failDownload(downloadId);
+                  toast.error(errorMessage);
+                  logger.error("Multi-item download failed", {
+                    downloadId,
+                    status: xhr.status,
+                    error: errorMessage,
+                  });
+                } catch (e) {
+                  failDownload(downloadId);
+                  toast.error(errorMsg);
+                }
+              };
+              reader.readAsText(xhr.response);
+              return;
+            } catch (e) {
+              // Fall through to default error handling
+            }
+          }
+          
+          failDownload(downloadId);
+          toast.error(errorMsg);
+          logger.error("Multi-item download failed", {
+            downloadId,
+            status: xhr.status,
+            error: errorMsg,
+          });
+        }
+      };
+
+      xhr.onerror = () => {
+        failDownload(downloadId);
+        toast.error("Download failed");
+        logger.error("Multi-item download error", { downloadId });
+      };
+
+      xhr.onabort = () => {
+        cancelDownload(downloadId);
+        toast.info("Download cancelled");
+        logger.info("Multi-item download cancelled", { downloadId });
+      };
+
+      xhr.ontimeout = () => {
+        failDownload(downloadId);
+        toast.error("Download timed out");
+        logger.error("Multi-item download timeout", { downloadId });
+      };
+
+      // Send request
+      xhr.send(JSON.stringify({ files: fileIds, folders: folderIds }));
+
       return true;
     } catch (error) {
-      toast.error("Bulk download failed");
+      failDownload(downloadId);
+      toast.error("Download failed");
+      logger.error("Multi-item download error", {
+        downloadId,
+        error: error.message,
+      });
       console.error(error);
       return false;
     }
-  }, [selectedItems, files, api]);
+  }, [
+    selectedItems, 
+    files, 
+    folders, 
+    api,
+    startDownload,
+    updateZippingProgress,
+    updateDownloadProgress,
+    completeDownload,
+    failDownload,
+    cancelDownload,
+  ]);
 
   const bulkCopy = useCallback(
     async (targetParent, onComplete) => {

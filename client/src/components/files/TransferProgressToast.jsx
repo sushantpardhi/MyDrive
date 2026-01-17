@@ -506,9 +506,29 @@ const TransferProgressToast = ({
                               <X size={16} />
                             </button>
                           )}
+                          {(transfer.status === "completed" ||
+                            transfer.status === "error" ||
+                            transfer.status === "cancelled") && (
+                            <button
+                              className={styles.actionBtn}
+                              title="Remove"
+                              onClick={() => {
+                                if (isDownload) {
+                                  onCancelDownload && onCancelDownload(itemId);
+                                } else {
+                                  onStopUpload && onStopUpload(itemId);
+                                }
+                              }}
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
                           {transfer.status !== "uploading" &&
                             transfer.status !== "downloading" &&
-                            transfer.status !== "cancelling" && (
+                            transfer.status !== "cancelling" &&
+                            transfer.status !== "completed" &&
+                            transfer.status !== "error" &&
+                            transfer.status !== "cancelled" && (
                               <div className={styles.progressPercent}>
                                 {Math.round(transfer.progress)}%
                               </div>

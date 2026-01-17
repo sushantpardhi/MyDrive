@@ -107,15 +107,23 @@ export const useDownloadProgress = () => {
       };
     });
 
-    // Auto-remove after 5 seconds if successful
-    if (success) {
-      setTimeout(() => {
-        setDownloadProgress((prev) => {
-          const { [downloadId]: _, ...rest } = prev;
-          return rest;
-        });
-      }, 5000);
-    }
+    // Note: Downloads will persist until manually removed by user
+  }, []);
+
+  const failDownload = useCallback((downloadId) => {
+    setDownloadProgress((prev) => {
+      const current = prev[downloadId];
+      if (!current) return prev;
+
+      return {
+        ...prev,
+        [downloadId]: {
+          ...current,
+          status: "error",
+          phase: "error",
+        },
+      };
+    });
   }, []);
 
   const cancelDownload = useCallback((downloadId) => {
@@ -123,6 +131,11 @@ export const useDownloadProgress = () => {
       const { [downloadId]: _, ...rest } = prev;
       return rest;
     });
+  }, []);
+
+  const cancelAll = useCallback(() => {
+    // Clear all downloads
+    setDownloadProgress({});
   }, []);
 
   const resetProgress = useCallback(() => {
@@ -135,7 +148,9 @@ export const useDownloadProgress = () => {
     updateZippingProgress,
     updateProgress,
     completeDownload,
+    failDownload,
     cancelDownload,
+    cancelAll,
     resetProgress,
   };
 };
