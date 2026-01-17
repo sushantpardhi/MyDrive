@@ -1,0 +1,59 @@
+name: Deploy Image Worker
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'worker/image-worker/**'
+  
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: dev
+    steps:
+      - name: Pull latest changes from main
+        run: |
+          cd /home/sushant/MyDrive
+          git pull origin main
+
+      - name: Compile CUDA kernels
+        run: |
+          cd /home/sushant/MyDrive/worker/image-worker
+          echo "🔨 Compiling CUDA kernels..."
+          nvcc -c -arch=sm_75 \
+            -Xcompiler -fPIC \
+            --generate-code arch=compute_75,code=sm_75 \
+            cuda/image_ops.cu -o cuda/image_ops.o
+
+      - name: Create Static Library from CUDA obj file
+        run: |
+          cd /home/sushant/MyDrive/worker/image-worker
+          echo "📚 Creating static library from CUDA object file..."
+          ar rcs cuda/libimage_ops.a cuda/image_ops.o
+          ls -lh cuda/libimage_ops.a
+
+      - name: Build worker
+        run: |
+          cd /home/sushant/MyDrive/worker/image-worker
+          echo "🔨 Building image worker..."
+          export CGO_ENABLED=1
+          export CGO_CFLAGS="-I$(pwd)/cuda"
+          export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
+          go build -v -o image-worker
+          echo "✅ Build completed successfully"
+          ls -lh image-worker
+
+      - name: Copy binary to service location
+        run: |
+          echo "📦 Copying binary to service location..."
+          sudo cp /home/sushant/MyDrive/worker/image-worker/image-worker /usr/local/bin/image-worker
+          sudo chmod +x /usr/local/bin/image-worker
+
+      - name: Restart worker service
+        run: |
+          echo "🔄 Restarting image worker service..."
+          sudo systemctl restart image-worker
+          sleep 2
+          sudo systemctl status image-worker
+          echo "✅ Service restarted"
+

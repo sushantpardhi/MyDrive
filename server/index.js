@@ -33,6 +33,9 @@ const { initializeCleanupScheduler } = require("./utils/cleanupScheduler");
 // Import email configuration
 const { verifyEmailConfig } = require("./config/emailConfig");
 
+// Import Redis queue
+const redisQueue = require("./utils/redisQueue");
+
 // Import routes
 const authRouter = require("./routes/auth");
 const filesRouter = require("./routes/files");
@@ -157,6 +160,9 @@ mongoose.connection.once("open", async () => {
 
   // Verify email configuration
   await verifyEmailConfig();
+
+  // Initialize Redis connection
+  await redisQueue.connect();
 });
 
 // Error logging middleware (should be after routes)
@@ -193,10 +199,14 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 });
 
 // Graceful shutdown handlers
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
   logger.info(`${signal} received: closing HTTP server gracefully`);
-  server.close(() => {
+  server.close(async () => {
     logger.info("HTTP server closed");
+    
+    // Close Redis connection
+    await redisQueue.disconnect();
+    
     mongoose.connection.close(false, () => {
       logger.info("MongoDB connection closed");
       process.exit(0);

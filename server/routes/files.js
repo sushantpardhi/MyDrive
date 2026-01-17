@@ -26,6 +26,7 @@ const {
   calculateUploadStats,
   generateUploadId,
 } = require("../utils/chunkHelpers");
+const redisQueue = require("../utils/redisQueue");
 
 const router = express.Router();
 
@@ -102,6 +103,22 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         error: error.message,
       });
     });
+
+    // Send image files to Redis queue for processing
+    if (redisQueue.isImageFile(req.file.mimetype)) {
+      redisQueue.sendImageJob({
+        filePath: req.file.path,
+        fileName: req.file.originalname,
+        userId: req.user.id,
+        mimetype: req.file.mimetype,
+      }).catch((error) => {
+        logger.error("Failed to send image to processing queue", {
+          userId: req.user.id,
+          fileName: req.file.originalname,
+          error: error.message,
+        });
+      });
+    }
 
     logger.logFileOperation("upload", file, req.user.id, {
       fileSize: file.size,
@@ -1187,6 +1204,22 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
           error: error.message,
         });
       });
+
+      // Send image files to Redis queue for processing
+      if (redisQueue.isImageFile(session.fileType)) {
+        redisQueue.sendImageJob({
+          filePath: finalFilePath,
+          fileName: finalFileName,
+          userId: req.user.id,
+          mimetype: session.fileType,
+        }).catch((error) => {
+          logger.error("Failed to send image to processing queue", {
+            userId: req.user.id,
+            fileName: finalFileName,
+            error: error.message,
+          });
+        });
+      }
 
       // Update session
       session.status = "completed";
