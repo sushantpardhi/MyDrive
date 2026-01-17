@@ -211,12 +211,12 @@ const ProgressiveImage = ({
     <div className={`${styles.progressiveImageContainer} ${className}`} style={style}>
       {currentSrc && (
         <img
+          key={currentSrc}
           src={currentSrc}
           alt={alt}
           className={`${styles.progressiveImage} ${
             isBlurPlaceholder ? styles.blur : ""
           } ${isFullyLoaded ? styles.loaded : ""}`}
-          loading="lazy"
         />
       )}
       
