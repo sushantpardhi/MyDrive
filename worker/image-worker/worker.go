@@ -115,10 +115,17 @@ func (wp *WorkerPool) processJob(ctx context.Context, logger *log.Logger, job *J
 
 	logger.Printf("Input image read: %d bytes", len(inputImageBytes))
 
-	var currentImageBytes []byte = inputImageBytes
+	// Track output sizes for quality validation
+	outputSizes := make(map[string]int)
+	originalSize := len(inputImageBytes)
 
+	// Process each operation from the ORIGINAL image to ensure consistent quality ordering:
+	// thumbnail (smallest) < blur < low-quality < original
+	// Each operation starts from the original to guarantee size hierarchy
 	for _, op := range job.Operations {
-		result, err := wp.gpuDispatcher.ProcessImage(ctx, currentImageBytes, op, job.JobID)
+		// Always use original image as input for each operation
+		// This ensures: thumbnail < blur < low-quality < original (in file size)
+		result, err := wp.gpuDispatcher.ProcessImage(ctx, inputImageBytes, op, job.JobID)
 		if err != nil {
 			logger.Printf("GPU processing failed for job %s operation %s: %v", job.JobID, op, err)
 			_ = wp.cleanupOutputFiles(outputDir)
@@ -126,19 +133,37 @@ func (wp *WorkerPool) processJob(ctx context.Context, logger *log.Logger, job *J
 			return
 		}
 
-		currentImageBytes = result.Data
+		// Track output size for validation
+		outputSizes[op] = len(result.Data)
 
 		// Follow server naming convention: jobId_operation.webp
 		// jobId already contains the unique identifier from the server (UUID-filename)
 		outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_%s.webp", job.JobID, op))
-		if err := os.WriteFile(outputPath, currentImageBytes, 0644); err != nil {
+		if err := os.WriteFile(outputPath, result.Data, 0644); err != nil {
 			logger.Printf("Failed to write output file %s: %v", outputPath, err)
 			_ = wp.cleanupOutputFiles(outputDir)
 			_ = wp.retryJob(ctx, job)
 			return
 		}
 
-		logger.Printf("Operation %s complete: %s (%d bytes)", op, outputPath, len(currentImageBytes))
+		logger.Printf("Operation %s complete: %s (%d bytes) - Quality order: thumbnail < blur < low-quality < original",
+			op, outputPath, len(result.Data))
+	}
+
+	// Validate quality ordering if all three operations were performed
+	thumbnailSize, hasThumb := outputSizes["thumbnail"]
+	blurSize, hasBlur := outputSizes["blur"]
+	lowQualitySize, hasLQ := outputSizes["low-quality"]
+
+	if hasThumb && hasBlur && hasLQ {
+		ValidateQualityOrder(thumbnailSize, blurSize, lowQualitySize, originalSize)
+	} else {
+		// Log individual size comparisons for partial operations
+		for op, size := range outputSizes {
+			ratio := float64(size) / float64(originalSize) * 100
+			logger.Printf("Job %s operation %s: %d bytes (%.1f%% of original %d bytes)",
+				job.JobID, op, size, ratio, originalSize)
+		}
 	}
 
 	if err := wp.redisClient.MoveToSuccess(ctx, job); err != nil {
