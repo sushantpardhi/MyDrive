@@ -28,6 +28,7 @@ import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts";
 import OwnerAvatar from "../common/OwnerAvatar";
 import SearchHighlight from "../common/SearchHighlight";
+import ProgressiveImage from "../common/ProgressiveImage";
 import api from "../../services/api";
 import logger from "../../utils/logger";
 import useLazyLoad from "../../hooks/useLazyLoad";
@@ -374,14 +375,12 @@ const FileCard = ({
           title={safeFile.name}
         >
           {fileType === "image" && thumbnailUrl && !thumbnailError ? (
-            <div className={styles.thumbnail}>
-              <img
-                src={thumbnailUrl}
-                alt={safeFile.name}
-                className={styles.thumbnailImage}
-                onError={() => setThumbnailError(true)}
-              />
-            </div>
+            <ProgressiveImage
+              thumbnailUrl={thumbnailUrl}
+              alt={safeFile.name}
+              mode="thumbnail"
+              className={styles.thumbnail}
+            />
           ) : fileType === "image" && thumbnailLoading && !thumbnailError ? (
             <div className={styles.thumbnailLoading}>
               <div className={styles.spinner}></div>

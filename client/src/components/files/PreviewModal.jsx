@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import ProgressiveImage from "../common/ProgressiveImage";
 import {
   X,
   Download,
@@ -190,6 +191,11 @@ const PreviewModal = () => {
   const [fileContent, setFileContent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Progressive image loading URLs
+  const [blurUrl, setBlurUrl] = useState(null);
+  const [lowQualityUrl, setLowQualityUrl] = useState(null);
+  const [originalUrl, setOriginalUrl] = useState(null);
 
   // PDF-specific state - store as ArrayBuffer for better compatibility
   const [pdfData, setPdfData] = useState(null);
@@ -623,6 +629,10 @@ const PreviewModal = () => {
       setWordHtml(null);
       setUseGoogleViewer(false);
       setError(null);
+      // Clean up progressive image URLs
+      setBlurUrl(null);
+      setLowQualityUrl(null);
+      setOriginalUrl(null);
       return;
     }
 
@@ -634,24 +644,41 @@ const PreviewModal = () => {
 
       try {
         const fileType = getFileType(previewFile.name);
-        const response = await api.getFilePreview(previewFile._id);
 
-        // Handle PDFs differently - use blob URL to avoid cloning issues
-        if (fileType === "pdf") {
-          if (cancelled) return;
-          // Use blob URL - most reliable approach for react-pdf
-          const url = URL.createObjectURL(response.data);
-          setPdfData(url);
-        }
-        // Create blob URL for other media files
-        else if (["image", "video", "audio", "svg"].includes(fileType)) {
+        // Handle images with progressive loading
+        if (fileType === "image") {
           if (cancelled) return;
 
-          const url = URL.createObjectURL(response.data);
-          setFileUrl(url);
+          // Load all image variants for progressive loading
+          try {
+            // Load blur image
+            const blurResponse = await api.getFileBlur(previewFile._id);
+            if (!cancelled) {
+              const blurBlobUrl = URL.createObjectURL(blurResponse.data);
+              setBlurUrl(blurBlobUrl);
+            }
+          } catch (error) {
+            console.log("Blur image not available:", error);
+          }
 
-          // Get image dimensions
-          if (fileType === "image" || fileType === "svg") {
+          try {
+            // Load low-quality image
+            const lowQualityResponse = await api.getFileLowQuality(previewFile._id);
+            if (!cancelled) {
+              const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
+              setLowQualityUrl(lowQualityBlobUrl);
+            }
+          } catch (error) {
+            console.log("Low-quality image not available:", error);
+          }
+
+          // Load original image
+          const originalResponse = await api.getFilePreview(previewFile._id);
+          if (!cancelled) {
+            const originalBlobUrl = URL.createObjectURL(originalResponse.data);
+            setOriginalUrl(originalBlobUrl);
+
+            // Get image dimensions from original
             const img = new Image();
             img.onload = () => {
               if (!cancelled) {
@@ -664,9 +691,47 @@ const PreviewModal = () => {
                 setLoading(false);
               }
             };
+            img.src = originalBlobUrl;
+          }
+
+          return;
+        }
+
+        // Handle PDFs differently - use blob URL to avoid cloning issues
+        if (fileType === "pdf") {
+          if (cancelled) return;
+          const response = await api.getFilePreview(previewFile._id);
+          // Use blob URL - most reliable approach for react-pdf
+          const url = URL.createObjectURL(response.data);
+          setPdfData(url);
+        }
+        // Create blob URL for other media files
+        else if (["video", "audio", "svg"].includes(fileType)) {
+          if (cancelled) return;
+          const response = await api.getFilePreview(previewFile._id);
+
+          const url = URL.createObjectURL(response.data);
+          setFileUrl(url);
+
+          // Get image dimensions for SVG
+          if (fileType === "svg") {
+            const img = new Image();
+            img.onload = () => {
+              if (!cancelled) {
+                setImageDimensions({ width: img.width, height: img.height });
+              }
+            };
+            img.onerror = (e) => {
+              if (!cancelled) {
+                setError("Failed to load SVG");
+                setLoading(false);
+              }
+            };
             img.src = url;
           }
         }
+
+        const response = await api.getFilePreview(previewFile._id);
 
         // Read text content for text files
         if (fileType === "text") {
@@ -823,6 +888,16 @@ const PreviewModal = () => {
         pdfData.startsWith("blob:")
       ) {
         URL.revokeObjectURL(pdfData);
+      }
+      // Clean up progressive image URLs
+      if (blurUrl) {
+        URL.revokeObjectURL(blurUrl);
+      }
+      if (lowQualityUrl) {
+        URL.revokeObjectURL(lowQualityUrl);
+      }
+      if (originalUrl) {
+        URL.revokeObjectURL(originalUrl);
       }
     };
   }, [previewModalOpen, previewFile]);
@@ -1384,11 +1459,19 @@ const PreviewModal = () => {
             </div>
           )}
 
-          {!loading && !error && fileType === "image" && fileUrl && (
+          {!loading && !error && fileType === "image" && originalUrl && (
             <div className={styles.imagePreview}>
-              <img
-                src={fileUrl}
+              <ProgressiveImage
+                thumbnailUrl={null}
+                blurUrl={blurUrl}
+                lowQualityUrl={lowQualityUrl}
+                originalUrl={originalUrl}
                 alt={previewFile.name}
+                mode="progressive"
+                onLoad={() => {
+                  // Callback when original image fully loads
+                  console.log("Image fully loaded:", previewFile.name);
+                }}
                 style={{
                   transform: `scale(${
                     imageZoom / 100
