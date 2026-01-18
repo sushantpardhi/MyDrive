@@ -1498,3 +1498,107 @@
     padding: 0.5rem;
   }
 }
+
+/* File Navigation Arrows */
+.navArrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  z-index: 10002;
+  transition: all 0.2s ease;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.navArrow:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  transform: translateY(-50%) scale(1.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.navArrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.navArrow:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5), 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.navArrowLeft {
+  left: 1.5rem;
+}
+
+.navArrowRight {
+  right: 1.5rem;
+}
+
+/* File Counter */
+.fileCounter {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 0.5rem 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 10002;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  -webkit-user-select: none;
+  user-select: none;
+  letter-spacing: 0.5px;
+}
+
+/* Fullscreen adjustments for navigation */
+.fullScreen .navArrowLeft {
+  left: 1rem;
+}
+
+.fullScreen .navArrowRight {
+  right: 1rem;
+}
+
+.fullScreen .fileCounter {
+  bottom: 1rem;
+}
+
+/* Mobile responsiveness for navigation */
+@media (max-width: 768px) {
+  .navArrow {
+    width: 44px;
+    height: 44px;
+  }
+
+  .navArrowLeft {
+    left: 0.5rem;
+  }
+
+  .navArrowRight {
+    right: 0.5rem;
+  }
+
+  .fileCounter {
+    bottom: 1rem;
+    padding: 0.375rem 1rem;
+    font-size: 0.75rem;
+  }
+}

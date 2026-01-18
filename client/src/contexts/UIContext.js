@@ -39,6 +39,8 @@ export const UIProvider = ({ children }) => {
 
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
+  const [previewFileList, setPreviewFileList] = useState([]);
+  const [previewFileIndex, setPreviewFileIndex] = useState(-1);
 
   const [propertiesModalOpen, setPropertiesModalOpen] = useState(false);
   const [propertiesItem, setPropertiesItem] = useState(null);
@@ -129,15 +131,47 @@ export const UIProvider = ({ children }) => {
     setCopyMoveOperation("copy");
   }, []);
 
-  const openPreviewModal = useCallback((file) => {
+  const openPreviewModal = useCallback((file, fileList = []) => {
     setPreviewFile(file);
+    setPreviewFileList(fileList);
+    const index = fileList.findIndex((f) => f._id === file._id);
+    setPreviewFileIndex(index);
     setPreviewModalOpen(true);
   }, []);
 
   const closePreviewModal = useCallback(() => {
     setPreviewModalOpen(false);
     setPreviewFile(null);
+    setPreviewFileList([]);
+    setPreviewFileIndex(-1);
   }, []);
+
+  const navigatePreviewFile = useCallback((direction) => {
+    if (previewFileList.length === 0) return;
+    
+    let newIndex = previewFileIndex + direction;
+    
+    // Wrap around
+    if (newIndex < 0) {
+      newIndex = previewFileList.length - 1;
+    } else if (newIndex >= previewFileList.length) {
+      newIndex = 0;
+    }
+    
+    const newFile = previewFileList[newIndex];
+    if (newFile) {
+      setPreviewFile(newFile);
+      setPreviewFileIndex(newIndex);
+    }
+  }, [previewFileList, previewFileIndex]);
+
+  const goToPreviousFile = useCallback(() => {
+    navigatePreviewFile(-1);
+  }, [navigatePreviewFile]);
+
+  const goToNextFile = useCallback(() => {
+    navigatePreviewFile(1);
+  }, [navigatePreviewFile]);
 
   const openPropertiesModal = useCallback((item, itemType) => {
     setPropertiesItem(item);
@@ -190,8 +224,12 @@ export const UIProvider = ({ children }) => {
 
     previewModalOpen,
     previewFile,
+    previewFileList,
+    previewFileIndex,
     openPreviewModal,
     closePreviewModal,
+    goToPreviousFile,
+    goToNextFile,
 
     propertiesModalOpen,
     propertiesItem,

@@ -35,6 +35,7 @@ import useLazyLoad from "../../hooks/useLazyLoad";
 
 const FileCard = ({
   file,
+  filesList = [],
   onDownload,
   onDelete,
   onShare,
@@ -303,7 +304,7 @@ const FileCard = ({
 
   const handlePreview = () => {
     if (isPreviewable(safeFile.name)) {
-      openPreviewModal(safeFile);
+      openPreviewModal(safeFile, filesList);
     }
   };
 

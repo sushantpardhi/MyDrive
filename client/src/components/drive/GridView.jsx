@@ -74,6 +74,7 @@ const GridView = ({
         <FileCard
           key={file._id}
           file={file}
+          filesList={files}
           onDownload={() => onFileDownload(file._id, file.name)}
           onDelete={() => onFileDelete(file._id)}
           onShare={() => onFileShare(file)}
