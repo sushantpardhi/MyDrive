@@ -31,4 +31,4 @@ jobs:
         run: |
           cd /home/sushant/app/prod/MyDrive/server
           npm install
-          pm2 restart backend-8001 --update-env
+          pm2 restart backend-8080 --update-env
