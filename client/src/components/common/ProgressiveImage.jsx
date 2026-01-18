@@ -5,21 +5,21 @@ import styles from "./ProgressiveImage.module.css";
 /**
  * ProgressiveImage Component
  * 
- * Implements progressive image loading similar to BlurHash/LQIP pattern.
+ * Implements progressive image loading with independent loading of each quality level.
  * 
  * Features:
- * - Shows blur image immediately for fast perceived load
- * - Detects network speed to optimize loading strategy
- * - On fast networks (4g): loads original directly, skips low-quality
- * - On slow networks: loads low-quality first, then original
- * - Smooth transitions with fade effects
- * - Gracefully handles browsers without Network Information API
+ * - Shows blur image immediately when available (instant placeholder)
+ * - Replaces with low-quality image when it loads independently
+ * - Replaces with original image when it loads independently
+ * - Each quality level loads independently via separate API calls
+ * - Smooth transitions with fade effects between quality levels
+ * - Graceful fallbacks if any quality level is unavailable
  * 
  * @param {Object} props
  * @param {string} props.thumbnailUrl - Always shown in file cards (small, optimized)
  * @param {string} props.blurUrl - Tiny blurred placeholder (shown immediately in preview)
- * @param {string} props.lowQualityUrl - Medium quality image for slow networks
- * @param {string} props.originalUrl - Full quality original image
+ * @param {string} props.lowQualityUrl - Medium quality image loaded independently
+ * @param {string} props.originalUrl - Full quality original image loaded independently
  * @param {string} props.alt - Alt text for accessibility
  * @param {string} props.mode - 'thumbnail' (file card) or 'progressive' (preview modal)
  * @param {Function} props.onLoad - Callback when final image loads
@@ -41,73 +41,8 @@ const ProgressiveImage = ({
   const [isLoading, setIsLoading] = useState(true);
   const [loadedImages, setLoadedImages] = useState(new Set());
   
-  // Refs to track component mount state and image elements
+  // Refs to track component mount state
   const isMountedRef = useRef(true);
-  const imageRefs = useRef({});
-
-  /**
-   * Detect effective network speed
-   * Returns 'fast' for 4g/good connections, 'slow' otherwise
-   */
-  const getNetworkSpeed = () => {
-    // Check if Network Information API is available
-    if (!navigator.connection && !navigator.mozConnection && !navigator.webkitConnection) {
-      // Fallback: assume moderate speed if API unavailable
-      return "moderate";
-    }
-
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const effectiveType = connection.effectiveType;
-    const downlink = connection.downlink; // Mbps
-
-    // Consider it fast if:
-    // - effectiveType is '4g', OR
-    // - downlink >= 5 Mbps (configurable threshold)
-    if (effectiveType === "4g" || downlink >= 5) {
-      return "fast";
-    }
-
-    return "slow";
-  };
-
-  /**
-   * Preload an image and return a promise
-   */
-  const preloadImage = (url) => {
-    return new Promise((resolve, reject) => {
-      if (!url) {
-        reject(new Error("No URL provided"));
-        return;
-      }
-
-      const img = new Image();
-      img.onload = () => resolve(url);
-      img.onerror = () => reject(new Error(`Failed to load: ${url}`));
-      img.src = url;
-      
-      // Store reference for cleanup
-      imageRefs.current[url] = img;
-    });
-  };
-
-  /**
-   * Mark an image as loaded
-   */
-  const markImageLoaded = (url) => {
-    if (isMountedRef.current) {
-      setLoadedImages(prev => new Set([...prev, url]));
-    }
-  };
-
-  /**
-   * Update current displayed source with smooth transition
-   */
-  const updateCurrentSrc = (url) => {
-    if (isMountedRef.current && url) {
-      setCurrentSrc(url);
-      markImageLoaded(url);
-    }
-  };
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -121,85 +56,53 @@ const ProgressiveImage = ({
       return;
     }
 
-    // PROGRESSIVE MODE: Smart loading based on network speed
+    // PROGRESSIVE MODE: Show progressively as each quality level becomes available
+    // The URLs are loaded independently by the parent component (PreviewModal)
+    // This component simply displays whatever is available at each moment
     if (mode === "progressive") {
-      const loadProgressively = async () => {
-        try {
-          // Step 1: Show blur image immediately (smallest, loads instantly)
-          if (blurUrl) {
-            updateCurrentSrc(blurUrl);
-            // Hide loading spinner once blur is shown - user perceives content is loading
-            setIsLoading(false);
-          }
-
-          // Step 2: Detect network speed
-          const networkSpeed = getNetworkSpeed();
-
-          // Step 3: Load based on network conditions
-          if (networkSpeed === "fast") {
-            // FAST NETWORK: Load original directly, skip low-quality
-            console.log("[ProgressiveImage] Fast network detected, loading original directly");
-            
-            try {
-              await preloadImage(originalUrl);
-              updateCurrentSrc(originalUrl);
-              onLoad?.();
-            } catch (error) {
-              console.error("[ProgressiveImage] Failed to load original:", error);
-              // Fallback to low-quality if original fails
-              if (lowQualityUrl) {
-                try {
-                  await preloadImage(lowQualityUrl);
-                  updateCurrentSrc(lowQualityUrl);
-                } catch (lqError) {
-                  console.error("[ProgressiveImage] Failed to load low-quality fallback:", lqError);
-                }
-              }
-            }
-          } else {
-            // SLOW NETWORK: Load low-quality first, then original
-            console.log("[ProgressiveImage] Slow network detected, loading progressively");
-            
-            // Load low-quality first
-            if (lowQualityUrl) {
-              try {
-                await preloadImage(lowQualityUrl);
-                updateCurrentSrc(lowQualityUrl);
-              } catch (error) {
-                console.error("[ProgressiveImage] Failed to load low-quality:", error);
-              }
-            }
-
-            // Then load original in background
-            if (originalUrl) {
-              try {
-                await preloadImage(originalUrl);
-                updateCurrentSrc(originalUrl);
-                onLoad?.();
-              } catch (error) {
-                console.error("[ProgressiveImage] Failed to load original:", error);
-              }
-            }
-          }
-        } catch (error) {
-          console.error("[ProgressiveImage] Progressive loading error:", error);
+      // Priority order: original > low-quality > blur
+      // Always show the highest quality available
+      
+      if (originalUrl) {
+        // Original is available - show it
+        console.log("[ProgressiveImage] Displaying original image");
+        setCurrentSrc(originalUrl);
+        setIsLoading(false);
+        
+        // Mark as loaded and trigger callback
+        if (!loadedImages.has(originalUrl)) {
+          setLoadedImages(prev => new Set([...prev, originalUrl]));
+          onLoad?.();
         }
-      };
-
-      loadProgressively();
+      } else if (lowQualityUrl) {
+        // Low-quality is available but not original yet - show low-quality
+        console.log("[ProgressiveImage] Displaying low-quality image");
+        setCurrentSrc(lowQualityUrl);
+        setIsLoading(false);
+        
+        if (!loadedImages.has(lowQualityUrl)) {
+          setLoadedImages(prev => new Set([...prev, lowQualityUrl]));
+        }
+      } else if (blurUrl) {
+        // Only blur is available - show it
+        console.log("[ProgressiveImage] Displaying blur image");
+        setCurrentSrc(blurUrl);
+        setIsLoading(false); // Hide spinner once we have blur
+        
+        if (!loadedImages.has(blurUrl)) {
+          setLoadedImages(prev => new Set([...prev, blurUrl]));
+        }
+      } else {
+        // Nothing available yet - show loading
+        setIsLoading(true);
+      }
     }
 
     // Cleanup function
     return () => {
       isMountedRef.current = false;
-      // Clean up image references
-      Object.values(imageRefs.current).forEach(img => {
-        img.onload = null;
-        img.onerror = null;
-      });
-      imageRefs.current = {};
     };
-  }, [mode, thumbnailUrl, blurUrl, lowQualityUrl, originalUrl, onLoad]);
+  }, [mode, thumbnailUrl, blurUrl, lowQualityUrl, originalUrl, onLoad, loadedImages]);
 
   // Determine if current image is the blur placeholder
   const isBlurPlaceholder = currentSrc === blurUrl;

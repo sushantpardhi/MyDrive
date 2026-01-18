@@ -649,50 +649,69 @@ const PreviewModal = () => {
         if (fileType === "image") {
           if (cancelled) return;
 
-          // Load all image variants for progressive loading
-          try {
-            // Load blur image
-            const blurResponse = await api.getFileBlur(previewFile._id);
-            if (!cancelled) {
-              const blurBlobUrl = URL.createObjectURL(blurResponse.data);
-              setBlurUrl(blurBlobUrl);
-            }
-          } catch (error) {
-            console.log("Blur image not available:", error);
-          }
-
-          try {
-            // Load low-quality image
-            const lowQualityResponse = await api.getFileLowQuality(previewFile._id);
-            if (!cancelled) {
-              const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
-              setLowQualityUrl(lowQualityBlobUrl);
-            }
-          } catch (error) {
-            console.log("Low-quality image not available:", error);
-          }
-
-          // Load original image
-          const originalResponse = await api.getFilePreview(previewFile._id);
-          if (!cancelled) {
-            const originalBlobUrl = URL.createObjectURL(originalResponse.data);
-            setOriginalUrl(originalBlobUrl);
-
-            // Get image dimensions from original
-            const img = new Image();
-            img.onload = () => {
+          // Load all image variants independently (parallel, non-blocking)
+          // Each variant loads independently and updates the UI as soon as it's ready
+          
+          // 1. Load blur image immediately (smallest, fastest)
+          api.getFileBlur(previewFile._id)
+            .then(blurResponse => {
               if (!cancelled) {
-                setImageDimensions({ width: img.width, height: img.height });
+                const blurBlobUrl = URL.createObjectURL(blurResponse.data);
+                setBlurUrl(blurBlobUrl);
+                setLoading(false); // Hide loading spinner as soon as blur is ready
+                console.log("[PreviewModal] Blur image loaded");
               }
-            };
-            img.onerror = (e) => {
+            })
+            .catch(error => {
+              console.log("[PreviewModal] Blur image not available:", error.message);
+            });
+
+          // 2. Load low-quality image independently (medium size, medium speed)
+          api.getFileLowQuality(previewFile._id)
+            .then(lowQualityResponse => {
               if (!cancelled) {
-                setError("Failed to load image");
+                const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
+                setLowQualityUrl(lowQualityBlobUrl);
+                setLoading(false); // Hide loading spinner if not already hidden
+                console.log("[PreviewModal] Low-quality image loaded");
+              }
+            })
+            .catch(error => {
+              console.log("[PreviewModal] Low-quality image not available:", error.message);
+            });
+
+          // 3. Load original image independently (largest, slowest)
+          api.getFilePreview(previewFile._id)
+            .then(originalResponse => {
+              if (!cancelled) {
+                const originalBlobUrl = URL.createObjectURL(originalResponse.data);
+                setOriginalUrl(originalBlobUrl);
+                setLoading(false); // Hide loading spinner if not already hidden
+                console.log("[PreviewModal] Original image loaded");
+
+                // Get image dimensions from original
+                const img = new Image();
+                img.onload = () => {
+                  if (!cancelled) {
+                    setImageDimensions({ width: img.width, height: img.height });
+                  }
+                };
+                img.onerror = (e) => {
+                  if (!cancelled) {
+                    setError("Failed to load image");
+                    setLoading(false);
+                  }
+                };
+                img.src = originalBlobUrl;
+              }
+            })
+            .catch(error => {
+              console.error("[PreviewModal] Failed to load original image:", error);
+              if (!cancelled) {
+                setError("Failed to load original image");
                 setLoading(false);
               }
-            };
-            img.src = originalBlobUrl;
-          }
+            });
 
           return;
         }
@@ -1459,7 +1478,7 @@ const PreviewModal = () => {
             </div>
           )}
 
-          {!loading && !error && fileType === "image" && originalUrl && (
+          {!loading && !error && fileType === "image" && (blurUrl || lowQualityUrl || originalUrl) && (
             <div className={styles.imagePreview}>
               <ProgressiveImage
                 thumbnailUrl={null}
