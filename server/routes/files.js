@@ -232,7 +232,7 @@ router.get("/download/:fileId", async (req, res) => {
   }
 });
 
-// Get thumbnail for preview (optimized with caching)
+// Get thumbnail for preview (from worker-processed images)
 router.get("/thumbnail/:fileId", async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
@@ -271,70 +271,29 @@ router.get("/thumbnail/:fileId", async (req, res) => {
       return res.status(404).json({ error: "File not found on disk" });
     }
 
-    // Create thumbnail cache directory
-    const thumbnailDir = path.join(
-      __dirname,
-      "..",
-      "uploads",
-      "thumbnails",
-      req.user.id
-    );
+    // Extract the file's base name (UUID-originalname without extension)
+    const filePath = file.path;
+    const fileName = path.basename(filePath, path.extname(filePath));
+    
+    // Construct path to worker-processed thumbnail image
+    const userDir = path.dirname(filePath);
+    const processedDir = path.join(userDir, "processed");
+    const thumbnailPath = path.join(processedDir, `${fileName}_thumbnail.webp`);
 
-    if (!fs.existsSync(thumbnailDir)) {
-      fs.mkdirSync(thumbnailDir, { recursive: true });
-    }
-
-    // Generate thumbnail filename based on file ID
-    const thumbnailPath = path.join(
-      thumbnailDir,
-      `${req.params.fileId}-thumb.jpg`
-    );
-
-    // Check if thumbnail already exists
+    // Check if worker-generated thumbnail exists
     if (fs.existsSync(thumbnailPath)) {
       res.set({
-        "Content-Type": "image/jpeg",
+        "Content-Type": "image/webp",
         "Cache-Control": "public, max-age=31536000",
       });
       return res.sendFile(path.resolve(thumbnailPath));
     }
 
-    // Generate thumbnail (max 400px width, maintaining aspect ratio)
-    try {
-      await sharp(file.path)
-        .rotate() // Auto-rotate based on EXIF
-        .resize(400, 400, {
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality: 85, progressive: true })
-        .toFile(thumbnailPath);
-
-      // Serve the newly created thumbnail
-      res.set({
-        "Content-Type": "image/jpeg",
-        "Cache-Control": "public, max-age=31536000",
-      });
-      res.sendFile(path.resolve(thumbnailPath));
-    } catch (conversionError) {
-      logger.logError(conversionError, "Error generating thumbnail");
-      // Fallback: send converted JPEG directly without caching
-      try {
-        const buffer = await sharp(file.path)
-          .resize(400, 400, { fit: "inside", withoutEnlargement: true })
-          .jpeg({ quality: 85 })
-          .toBuffer();
-
-        res.set({
-          "Content-Type": "image/jpeg",
-          "Cache-Control": "public, max-age=31536000",
-        });
-        res.send(buffer);
-      } catch (fallbackError) {
-        logger.logError(fallbackError, "Fallback conversion failed");
-        res.status(500).json({ error: "Failed to generate thumbnail" });
-      }
-    }
+    // Fallback: return 404 if thumbnail not yet processed by worker
+    res.status(404).json({ 
+      error: "Thumbnail not available yet",
+      message: "Image is still being processed"
+    });
   } catch (error) {
     logger.logError(error, "Error in thumbnail route");
     res.status(500).json({ error: error.message });
