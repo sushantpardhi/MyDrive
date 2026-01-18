@@ -52,15 +52,20 @@ jobs:
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/client
+          export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
+          export REACT_APP_SHOW_DEV_BANNER=false
           npm install
           npm run build
-          [ -d build ] || (echo "Build failed: no build directory" && exit 1)
 
       - name: Restart frontend
         run: |
-          pm2 restart frontend-3000
+          set -e
+          cd /home/sushant/app/prod/MyDrive/client
+          pm2 delete frontend-3000 || true
+          pm2 start serve --name frontend-3000 -- -s build -l 3000
 
   deploy-image-worker:
+    needs: deploy-frontend   # ← waits for frontend
     runs-on: self-hosted
     environment: production
 
