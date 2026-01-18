@@ -32,6 +32,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import { TransferProvider, useTransfer } from "./contexts/TransferContext";
 import { AdminProvider } from "./contexts/AdminContext";
+import DevelopmentBanner from "./components/common/DevelopmentBanner.jsx";
 import styles from "./App.module.css";
 
 // Protected Route Component
@@ -174,6 +175,7 @@ const App = () => {
       <AuthProvider>
         <UserSettingsProvider>
           <BrowserRouter>
+            <DevelopmentBanner />
             <Routes>
               {/* Auth Routes */}
               <Route

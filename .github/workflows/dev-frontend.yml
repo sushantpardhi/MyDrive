@@ -19,14 +19,9 @@ jobs:
           cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
-      - name: Setup env
-        run: |
-          cd /home/sushant/app/dev/MyDrive/client
-          echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}" > .env
-
       - name: Install & restart
         run: |
           cd /home/sushant/app/dev/MyDrive/client
           npm install
-          npm run build
+          REACT_APP_SHOW_DEV_BANNER=true npm run build
           pm2 restart dev-frontend-3001 --update-env

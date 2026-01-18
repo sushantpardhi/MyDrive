@@ -24,10 +24,6 @@ jobs:
           cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
-      - name: Setup env
-        run: |
-          cd /home/sushant/app/dev/MyDrive/server
-
       - name: Install & restart
         run: |
           cd /home/sushant/app/dev/MyDrive/server
