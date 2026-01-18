@@ -45,7 +45,7 @@ const sharedRouter = require("./routes/shared");
 const adminRouter = require("./routes/admin");
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT;
 const UPLOAD_TIMEOUT = process.env.UPLOAD_TIMEOUT
   ? parseInt(process.env.UPLOAD_TIMEOUT)
   : 600000; // 10 minutes default
