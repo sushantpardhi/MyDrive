@@ -109,5 +109,5 @@ jobs:
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload
-          sudo systemctl restart image-worker
-          sudo systemctl status image-worker --no-pager
+          sudo systemctl restart image-worker-prod  
+          sudo systemctl status image-worker-prod --no-pager

@@ -56,10 +56,6 @@ jobs:
           npm run build
           [ -d build ] || (echo "Build failed: no build directory" && exit 1)
 
-      - name: Restart frontend
-        run: |
-          pm2 restart dev-frontend-3001
-
   deploy-image-worker:
     runs-on: self-hosted
     environment: dev
@@ -109,5 +105,5 @@ jobs:
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload
-          sudo systemctl restart image-worker
-          sudo systemctl status image-worker --no-pager
+          sudo systemctl restart image-worker-dev
+          sudo systemctl status image-worker-dev --no-pager
