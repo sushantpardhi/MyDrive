@@ -16,17 +16,17 @@ jobs:
     steps:
       - name: Pull latest code
         run: |
-          cd /home/sushant/MyDrive
+          cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
       - name: Setup env
         run: |
-          cd /home/sushant/MyDrive/client
+          cd /home/sushant/app/dev/MyDrive/client
           echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}" > .env
 
       - name: Install & restart
         run: |
-          cd /home/sushant/MyDrive/client
+          cd /home/sushant/app/dev/MyDrive/client
           npm install
           npm run build
           pm2 restart dev-frontend-3001 --update-env
