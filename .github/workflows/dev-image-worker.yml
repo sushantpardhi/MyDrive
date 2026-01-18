@@ -1,4 +1,4 @@
-name: Deploy Image Worker
+name: Deploy Dev Image Worker
 
 on:
   push:
