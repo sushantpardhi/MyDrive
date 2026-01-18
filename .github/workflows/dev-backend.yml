@@ -1,11 +1,11 @@
-name: Deploy Backend
+name: Deploy Dev Backend
 
 on:
   push:
     paths:
       - "server/**"
-      - ".github/workflows/backend.yml"
-    branches: [main]
+      - ".github/workflows/dev-backend.yml"
+    branches: [dev]
 
 jobs:
   deploy:
@@ -21,7 +21,7 @@ jobs:
       - name: Pull latest code
         run: |
           cd /home/sushant/MyDrive
-          git pull
+          git pull origin dev
 
       - name: Setup env
         run: |
