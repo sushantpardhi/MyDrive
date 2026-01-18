@@ -19,11 +19,6 @@ jobs:
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
 
-      - name: Setup env
-        run: |
-          cd /home/sushant/app/prod/MyDrive/client
-          echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}" > .env
-
       - name: Install & restart
         run: |
           cd /home/sushant/app/prod/MyDrive/client
