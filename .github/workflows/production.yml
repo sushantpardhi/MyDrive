@@ -16,16 +16,21 @@ jobs:
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       NODE_ENV: production
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Pull latest code
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
 
       - name: Install & restart
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/server
           npm install
-          pm2 restart backend-8080 --update-env
+          pm2 restart backend-8080 || pm2 start index.js --name backend-8080
 
   deploy-frontend:
     needs: deploy-backend   # ← waits for backend
@@ -34,31 +39,45 @@ jobs:
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Pull latest code
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
 
-      - name: Install & restart
+      - name: Install & build
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/client
           npm install
           REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }} REACT_APP_SHOW_DEV_BANNER=false npm run build
-          pm2 restart frontend-3000 --update-env
+          [ -d build ] || (echo "Build failed: no build directory" && exit 1)
+
+      - name: Restart frontend
+        run: |
+          pm2 restart frontend-3000
 
   deploy-image-worker:
     runs-on: self-hosted
     environment: production
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Pull latest changes
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive
           git fetch origin
           git reset --hard origin/main
 
       - name: Compile CUDA kernels
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/worker/image-worker
           nvcc -c -arch=sm_75 \
             -Xcompiler -fPIC \
@@ -66,19 +85,23 @@ jobs:
 
       - name: Create CUDA static library
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/worker/image-worker
           ar rcs cuda/libimage_ops.a cuda/image_ops.o
 
       - name: Build worker binary
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/worker/image-worker
           export CGO_ENABLED=1
           export CGO_CFLAGS="-I$(pwd)/cuda"
           export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
           go build -o image-worker
+          [ -f image-worker ] || (echo "Build failed: no image-worker binary" && exit 1)
 
       - name: Install new binary
         run: |
+          set -e
           sudo install -m 755 \
             /home/sushant/app/prod/MyDrive/worker/image-worker/image-worker \
             /usr/local/bin/image-worker
