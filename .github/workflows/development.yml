@@ -1,0 +1,119 @@
+name: Development Deployment
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy-backend:
+    runs-on: self-hosted
+    environment: dev
+    env:
+      PORT: ${{ secrets.PORT }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      NODE_ENV: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Pull latest code
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive
+          git pull origin dev
+
+      - name: Install & restart
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/server
+          npm install
+          pm2 restart dev-backend-8001 || pm2 start index.js --name dev-backend-8001 
+
+
+  deploy-frontend:
+    needs: deploy-backend   # ← waits for backend
+    runs-on: self-hosted
+    environment: dev
+    env:
+      REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Pull latest code
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive
+          git pull origin dev
+
+      - name: Install & build
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/client
+          export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
+          export REACT_APP_SHOW_DEV_BANNER=true
+          npm install
+          npm run build
+
+      - name: Restart frontend
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/client
+          pm2 delete dev-frontend-3001 || true
+          pm2 start serve --name dev-frontend-3001 -- -s build -l 3001
+
+  deploy-image-worker:
+    needs: deploy-frontend   # ← waits for frontend
+    runs-on: self-hosted
+    environment: dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Pull latest changes
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive
+          git fetch origin
+          git reset --hard origin/dev
+
+      - name: Compile CUDA kernels
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
+          nvcc -c -arch=sm_75 \
+            -Xcompiler -fPIC \
+            cuda/image_ops.cu -o cuda/image_ops.o
+
+      - name: Create CUDA static library
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
+          ar rcs cuda/libimage_ops.a cuda/image_ops.o
+
+      - name: Build worker binary
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
+          export CGO_ENABLED=1
+          export CGO_CFLAGS="-I$(pwd)/cuda"
+          export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
+          go build -o image-worker
+          [ -f image-worker ] || (echo "Build failed: no image-worker binary" && exit 1)
+
+      - name: Install new binary
+        run: |
+          set -e
+          sudo install -m 755 \
+            /home/sushant/app/dev/MyDrive/worker/image-worker/image-worker \
+            /usr/local/bin/image-worker
+
+      - name: Restart worker service
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl restart image-worker-dev
+          sudo systemctl status image-worker-dev --no-pager
