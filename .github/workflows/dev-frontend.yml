@@ -1,23 +1,23 @@
-name: Deploy Frontend
+name: Deploy Dev Frontend
 
 on:
   push:
     paths:
       - "client/**"
-      - ".github/workflows/frontend.yml"
-    branches: [main]
+      - ".github/workflows/dev-frontend.yml"
+    branches: [dev]
 
 jobs:
   deploy:
     runs-on: self-hosted
-    environment: production
+    environment: dev
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
     steps:
       - name: Pull latest code
         run: |
           cd /home/sushant/MyDrive
-          git pull origin main
+          git pull origin dev
 
       - name: Setup env
         run: |
@@ -29,4 +29,4 @@ jobs:
           cd /home/sushant/MyDrive/client
           npm install
           npm run build
-          pm2 restart frontend-3000 --update-env
+          pm2 restart dev-frontend-3001 --update-env

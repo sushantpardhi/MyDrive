@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "backend",
+      name: "dev-backend-8001",
       script: "./index.js",
     },
   ],

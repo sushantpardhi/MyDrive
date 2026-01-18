@@ -2,22 +2,22 @@ name: Deploy Image Worker
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dev ]
     paths:
       - 'worker/image-worker/**'
-      - '.github/workflows/image-worker.yml'
+      - '.github/workflows/dev-image-worker.yml'
 
 jobs:
   deploy:
     runs-on: self-hosted
-    environment: production
+    environment: dev
 
     steps:
       - name: Pull latest changes
         run: |
           cd /home/sushant/MyDrive
           git fetch origin
-          git reset --hard origin/main
+          git reset --hard origin/dev
 
       - name: Compile CUDA kernels
         run: |
