@@ -66,7 +66,7 @@ const DriveContent = ({
           <div className={styles.emptyContent}>
             <FolderPlus size={64} strokeWidth={1} />
             <h3>This folder is empty</h3>
-            <p>Drag and drop files here or use the upload button</p>
+            <p>Drag and drop files here or use the upload button 📍</p>
           </div>
         </div>
       </div>
