@@ -43,7 +43,7 @@ jobs:
       - name: Wait for backend
         run: |
           for i in {1..20}; do
-            if curl -sf ${{ secrets.REACT_APP_API_URL }}/health; then
+            if curl -sf ${{ secrets.REACT_APP_API_URL }}; then
               echo "Backend ready"
               exit 0
             fi
@@ -52,7 +52,7 @@ jobs:
           done
           echo "Backend not ready"
           exit 1
-          
+
       - name: Checkout code
         uses: actions/checkout@v3
 

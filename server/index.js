@@ -122,7 +122,7 @@ mongoose
   });
 
 // Health check endpoint (before auth middleware)
-app.get("/api/health", async (req, res) => {
+app.get("/health", async (req, res) => {
   const health = {
     uptime: process.uptime(),
     timestamp: Date.now(),
