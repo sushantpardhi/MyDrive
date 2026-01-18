@@ -56,6 +56,18 @@ jobs:
           npm run build
           [ -d build ] || (echo "Build failed: no build directory" && exit 1)
 
+      - name: Restart frontend
+        run: |
+          set -e
+          pm2 restart dev-frontend-3001 || pm2 start serve --name dev-frontend-3001 -- -s build -l 3001
+
+      - name: Build Again
+        run: |
+          set -e
+          cd /home/sushant/app/dev/MyDrive/client
+          npm run build
+          [ -d build ] || (echo "Build failed: no build directory" && exit 1)
+
   deploy-image-worker:
     runs-on: self-hosted
     environment: dev
