@@ -29,4 +29,4 @@ jobs:
           cd /home/sushant/MyDrive/client
           npm install
           npm run build
-          pm2 restart frontend --update-env
+          pm2 restart dev-frontend-3001 --update-env
