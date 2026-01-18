@@ -32,6 +32,7 @@ jobs:
           npm install
           pm2 restart dev-backend-8001 || pm2 start index.js --name dev-backend-8001 
 
+
   deploy-frontend:
     needs: deploy-backend   # ← waits for backend
     runs-on: self-hosted
@@ -39,6 +40,19 @@ jobs:
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
     steps:
+      - name: Wait for backend
+        run: |
+          for i in {1..20}; do
+            if curl -sf ${{ secrets.REACT_APP_API_URL }}/health; then
+              echo "Backend ready"
+              exit 0
+            fi
+            echo "Waiting for backend..."
+            sleep 5
+          done
+          echo "Backend not ready"
+          exit 1
+          
       - name: Checkout code
         uses: actions/checkout@v3
 
