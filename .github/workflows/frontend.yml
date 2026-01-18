@@ -28,5 +28,5 @@ jobs:
         run: |
           cd /home/sushant/app/prod/MyDrive/client
           npm install
-          npm run build
+          REACT_APP_SHOW_DEV_BANNER=false npm run build
           pm2 restart frontend-3000 --update-env

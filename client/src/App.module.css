@@ -3,6 +3,12 @@
   height: 100vh;
   overflow: hidden;
   position: relative;
+  padding-top: var(--dev-banner-height, 0);
+}
+
+/* Development banner height variable */
+:root {
+  --dev-banner-height: 34px;
 }
 
 .sidebar {
