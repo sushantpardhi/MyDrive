@@ -18,14 +18,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for backend changes
+        id: backend-changes
+        run: |
+          if git diff origin/dev...HEAD --name-only | grep -q "^server/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in server directory, skipping deployment"
+          fi
 
       - name: Pull latest code
+        if: steps.backend-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
       - name: Install & restart
+        if: steps.backend-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/server
@@ -40,29 +54,30 @@ jobs:
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
     steps:
-      - name: Wait for backend
-        run: |
-          for i in {1..20}; do
-            if curl -sf ${{ secrets.REACT_APP_API_URL }}; then
-              echo "Backend ready"
-              exit 0
-            fi
-            echo "Waiting for backend..."
-            sleep 5
-          done
-          echo "Backend not ready"
-          exit 1
-
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for frontend changes
+        id: frontend-changes
+        run: |
+          if git diff origin/dev...HEAD --name-only | grep -q "^client/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in client directory, skipping deployment"
+          fi
 
       - name: Pull latest code
+        if: steps.frontend-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
       - name: Install & build
+        if: steps.frontend-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/client
@@ -72,6 +87,7 @@ jobs:
           npm run build
 
       - name: Restart frontend
+        if: steps.frontend-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/client
@@ -85,8 +101,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for image-worker changes
+        id: worker-changes
+        run: |
+          if git diff origin/dev...HEAD --name-only | grep -q "^worker/image-worker/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in worker/image-worker directory, skipping deployment"
+          fi
 
       - name: Pull latest changes
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive
@@ -94,6 +123,7 @@ jobs:
           git reset --hard origin/dev
 
       - name: Compile CUDA kernels
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/worker/image-worker
@@ -102,12 +132,14 @@ jobs:
             cuda/image_ops.cu -o cuda/image_ops.o
 
       - name: Create CUDA static library
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/worker/image-worker
           ar rcs cuda/libimage_ops.a cuda/image_ops.o
 
       - name: Build worker binary
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/worker/image-worker
@@ -118,6 +150,7 @@ jobs:
           [ -f image-worker ] || (echo "Build failed: no image-worker binary" && exit 1)
 
       - name: Install new binary
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           set -e
           sudo install -m 755 \
@@ -125,6 +158,7 @@ jobs:
             /usr/local/bin/image-worker
 
       - name: Restart worker service
+        if: steps.worker-changes.outputs.changed == 'true'
         run: |
           sudo systemctl daemon-reload
           sudo systemctl restart image-worker-dev
