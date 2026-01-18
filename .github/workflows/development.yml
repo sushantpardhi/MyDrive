@@ -57,7 +57,6 @@ jobs:
           export REACT_APP_SHOW_DEV_BANNER=true
           npm install
           npm run build
-          grep REACT_APP_API_URL build/static/js/*.js
 
       - name: Restart frontend
         run: |
