@@ -15,25 +15,25 @@ jobs:
     steps:
       - name: Pull latest changes
         run: |
-          cd /home/sushant/MyDrive
+          cd /home/sushant/app/dev/MyDrive
           git fetch origin
           git reset --hard origin/dev
 
       - name: Compile CUDA kernels
         run: |
-          cd /home/sushant/MyDrive/worker/image-worker
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
           nvcc -c -arch=sm_75 \
             -Xcompiler -fPIC \
             cuda/image_ops.cu -o cuda/image_ops.o
 
       - name: Create CUDA static library
         run: |
-          cd /home/sushant/MyDrive/worker/image-worker
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
           ar rcs cuda/libimage_ops.a cuda/image_ops.o
 
       - name: Build worker binary
         run: |
-          cd /home/sushant/MyDrive/worker/image-worker
+          cd /home/sushant/app/dev/MyDrive/worker/image-worker
           export CGO_ENABLED=1
           export CGO_CFLAGS="-I$(pwd)/cuda"
           export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
@@ -42,7 +42,7 @@ jobs:
       - name: Install new binary
         run: |
           sudo install -m 755 \
-            /home/sushant/MyDrive/worker/image-worker/image-worker \
+            /home/sushant/app/dev/MyDrive/worker/image-worker/image-worker \
             /usr/local/bin/image-worker
 
       - name: Restart worker service

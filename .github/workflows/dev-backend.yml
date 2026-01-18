@@ -20,15 +20,15 @@ jobs:
     steps:
       - name: Pull latest code
         run: |
-          cd /home/sushant/MyDrive
+          cd /home/sushant/app/dev/MyDrive
           git pull origin dev
 
       - name: Setup env
         run: |
-          cd /home/sushant/MyDrive/server
+          cd /home/sushant/app/dev/MyDrive/server
 
       - name: Install & restart
         run: |
-          cd /home/sushant/MyDrive/server
+          cd /home/sushant/app/dev/MyDrive/server
           npm install
           pm2 restart dev-backend-8001 --update-env
