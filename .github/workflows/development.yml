@@ -1,14 +1,52 @@
-name: Deploy Dev Image Worker
+name: Development Deployment
 
 on:
   push:
-    branches: [ dev ]
-    paths:
-      - 'worker/image-worker/**'
-      - '.github/workflows/dev-image-worker.yml'
+    branches: [dev]
 
 jobs:
-  deploy:
+  deploy-backend:
+    runs-on: self-hosted
+    environment: dev
+    env:
+      PORT: ${{ secrets.PORT }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      NODE_ENV: development
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/sushant/app/dev/MyDrive
+          git pull origin dev
+
+      - name: Install & restart
+        run: |
+          cd /home/sushant/app/dev/MyDrive/server
+          npm install
+          pm2 restart dev-backend-8001 --update-env
+
+  deploy-frontend:
+    needs: deploy-backend   # ← waits for backend
+    runs-on: self-hosted
+    environment: dev
+    env:
+      REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/sushant/app/dev/MyDrive
+          git pull origin dev
+
+      - name: Install & restart
+        run: |
+          cd /home/sushant/app/dev/MyDrive/client
+          npm install
+          REACT_APP_SHOW_DEV_BANNER=true npm run build
+          pm2 restart dev-frontend-3001 --update-env
+
+  deploy-image-worker:
     runs-on: self-hosted
     environment: dev
 

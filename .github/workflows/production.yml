@@ -1,14 +1,52 @@
-name: Deploy Image Worker
+name: Production Deployment
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'worker/image-worker/**'
-      - '.github/workflows/image-worker.yml'
+    branches: [main]
 
 jobs:
-  deploy:
+  deploy-backend:
+    runs-on: self-hosted
+    environment: production
+    env:
+      PORT: ${{ secrets.PORT }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      NODE_ENV: production
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/sushant/app/prod/MyDrive
+          git pull origin main
+
+      - name: Install & restart
+        run: |
+          cd /home/sushant/app/prod/MyDrive/server
+          npm install
+          pm2 restart backend-8080 --update-env
+
+  deploy-frontend:
+    needs: deploy-backend   # ← waits for backend
+    runs-on: self-hosted
+    environment: production
+    env:
+      REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/sushant/app/prod/MyDrive
+          git pull origin main
+
+      - name: Install & restart
+        run: |
+          cd /home/sushant/app/prod/MyDrive/client
+          npm install
+          REACT_APP_SHOW_DEV_BANNER=false npm run build
+          pm2 restart frontend-3000 --update-env
+
+  deploy-image-worker:
     runs-on: self-hosted
     environment: production
 
