@@ -6,9 +6,9 @@
   padding-top: var(--dev-banner-height, 0);
 }
 
-/* Development banner height variable */
+/* Development banner height variable - default to 0, set by DevelopmentBanner component */
 :root {
-  --dev-banner-height: 34px;
+  --dev-banner-height: 0px;
 }
 
 .sidebar {
