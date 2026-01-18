@@ -60,6 +60,7 @@ jobs:
       - name: Restart frontend
         run: |
           set -e
+          cd /home/sushant/app/dev/MyDrive/client
           pm2 delete dev-frontend-3001 || true
           pm2 start serve --name dev-frontend-3001 -- -s build -l 3001
 
