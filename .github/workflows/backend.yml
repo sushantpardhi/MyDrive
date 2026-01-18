@@ -17,6 +17,7 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      NODE_ENV: production
     steps:
       - name: Pull latest code
         run: |
