@@ -1,16 +1,16 @@
-name: Deploy Dev Backend
+name: Deploy Backend
 
 on:
   push:
     paths:
       - "server/**"
-      - ".github/workflows/dev-backend.yml"
-    branches: [dev]
+      - ".github/workflows/backend.yml"
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: self-hosted
-    environment: dev
+    environment: production
     env:
       PORT: ${{ secrets.PORT }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -21,7 +21,7 @@ jobs:
       - name: Pull latest code
         run: |
           cd /home/sushant/MyDrive
-          git pull origin dev
+          git pull origin main
 
       - name: Setup env
         run: |
@@ -31,4 +31,4 @@ jobs:
         run: |
           cd /home/sushant/MyDrive/server
           npm install
-          pm2 restart dev-backend-8001 --update-env
+          pm2 restart backend-8001 --update-env
