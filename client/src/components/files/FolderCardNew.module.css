@@ -56,6 +56,12 @@
   transition: transform 0.1s ease;
 }
 
+/* Disable active animation for list view */
+.card.list:active {
+  transform: scale(1);
+  transition: none;
+}
+
 /* ============================================
    GRID VIEW
    ============================================ */
