@@ -10,6 +10,46 @@
   padding: 2rem 0;
   transition: background-color var(--transition-normal);
   scroll-behavior: smooth;
+  position: relative;
+}
+
+/* Mobile Hamburger Menu Button */
+.mobileMenuButton {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.mobileMenuButton:hover {
+  background: var(--card-hover-bg);
+  transform: scale(1.05);
+}
+
+.mobileMenuButton:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .mobileMenuButton {
+    display: flex;
+  }
+  
+  .profileWrapper {
+    padding-top: 4.5rem;
+  }
 }
 
 .profileContainer {

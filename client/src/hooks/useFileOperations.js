@@ -7,6 +7,10 @@ import {
   createChunkedUploadService,
   CHUNK_SIZE,
 } from "../services/chunkedUpload";
+import {
+  createChunkedDownloadService,
+  CHUNK_SIZE as DOWNLOAD_CHUNK_SIZE,
+} from "../services/chunkedDownload";
 import logger from "../utils/logger";
 
 export const useFileOperations = (
@@ -770,19 +774,195 @@ export const useFileOperations = (
     [api, uploadProgressHook]
   );
 
+  // Chunked download with pause/resume/cancel support
+  const handleChunkedDownload = useCallback(
+    async (fileId, fileName, useChunked = true) => {
+      const clientDownloadId = `chunked-download-${Date.now()}-${fileId}`;
+
+      try {
+        // Verify first to get file size
+        const verifyResponse = await api.verifyFileDownload(fileId);
+        const fileData = verifyResponse.data;
+        const fileSize = fileData.size;
+
+        // Use chunked download for files > 5MB
+        const chunkedThreshold = 5 * 1024 * 1024; // 5MB
+        const shouldUseChunked = useChunked && fileSize > chunkedThreshold;
+        const totalChunks = shouldUseChunked
+          ? Math.ceil(fileSize / DOWNLOAD_CHUNK_SIZE)
+          : 0;
+
+        // Start download progress tracking
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(
+            clientDownloadId,
+            fileName || fileData.name,
+            fileSize,
+            1,
+            shouldUseChunked,
+            totalChunks
+          );
+        }
+
+        if (shouldUseChunked) {
+          logger.info("Starting chunked download", {
+            fileId,
+            fileName,
+            fileSize,
+            totalChunks,
+          });
+
+          // Create chunked download service
+          const chunkService = createChunkedDownloadService(
+            api,
+            // Progress callback
+            (
+              downloadId,
+              downloadedBytes,
+              totalBytes,
+              downloadedChunks,
+              totalChunksCount
+            ) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.updateProgress(
+                  clientDownloadId,
+                  downloadedBytes,
+                  totalBytes
+                );
+              }
+            },
+            // Chunk progress callback
+            (downloadId, chunkIndex, chunkStatus, retryAttempt) => {
+              if (downloadProgressHook && downloadProgressHook.updateChunkProgress) {
+                downloadProgressHook.updateChunkProgress(
+                  clientDownloadId,
+                  chunkIndex,
+                  chunkStatus,
+                  retryAttempt
+                );
+              }
+            }
+          );
+
+          // Register chunk service for pause/resume/cancel operations
+          if (downloadProgressHook && downloadProgressHook.registerChunkService) {
+            downloadProgressHook.registerChunkService(clientDownloadId, chunkService);
+          }
+
+          toast.info("Starting chunked download...");
+
+          const result = await chunkService.downloadFile(
+            fileId,
+            fileName || fileData.name,
+            clientDownloadId
+          );
+
+          if (result.paused) {
+            logger.info("Chunked download paused", { fileId, clientDownloadId });
+            return { paused: true, downloadId: result.downloadId };
+          }
+
+          if (downloadProgressHook) {
+            downloadProgressHook.completeDownload(clientDownloadId, true);
+            if (downloadProgressHook.unregisterChunkService) {
+              downloadProgressHook.unregisterChunkService(clientDownloadId);
+            }
+          }
+
+          toast.success("Download completed");
+          return result;
+        } else {
+          // Use regular download for smaller files
+          toast.info("Starting download...");
+
+          await downloadFile(api, fileId, fileName || fileData.name, {
+            onProgress: (loaded, total, speed) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.updateProgress(
+                  clientDownloadId,
+                  loaded,
+                  total,
+                  speed
+                );
+              }
+            },
+            onComplete: (success) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.completeDownload(clientDownloadId, success);
+              }
+              if (success) {
+                toast.success("Download completed");
+              }
+            },
+            onCancel: () => {
+              if (downloadProgressHook) {
+                downloadProgressHook.cancelDownload(clientDownloadId);
+              }
+            },
+          });
+
+          return { success: true };
+        }
+      } catch (error) {
+        toast.error(`Download failed: ${error.message}`);
+        logger.logError(error, "Chunked download failed", { fileId });
+
+        if (downloadProgressHook) {
+          downloadProgressHook.failDownload(clientDownloadId);
+          if (downloadProgressHook.unregisterChunkService) {
+            downloadProgressHook.unregisterChunkService(clientDownloadId);
+          }
+        }
+
+        return { success: false, error: error.message };
+      }
+    },
+    [api, downloadProgressHook]
+  );
+
+  // Get active download sessions
+  const getActiveDownloads = useCallback(async () => {
+    try {
+      const response = await api.getActiveDownloadSessions();
+      return response.data.sessions;
+    } catch (error) {
+      logger.logError(error, "Failed to get active downloads");
+      return [];
+    }
+  }, [api]);
+
+  // Cancel a chunked download
+  const cancelChunkedDownload = useCallback(
+    async (downloadId) => {
+      try {
+        await api.cancelChunkedDownload(downloadId);
+        toast.info("Download cancelled");
+        return true;
+      } catch (error) {
+        logger.logError(error, "Failed to cancel download");
+        toast.error("Failed to cancel download");
+        return false;
+      }
+    },
+    [api]
+  );
+
   return {
     createFolder,
     uploadFiles,
     deleteItem,
     handleDownload,
     handleFolderDownload,
+    handleChunkedDownload,
     restoreItem,
     emptyTrash,
     renameItem,
     copyItem,
     moveItem,
     cancelChunkedUpload,
+    cancelChunkedDownload,
     getActiveUploads,
+    getActiveDownloads,
     resumeChunkedUpload,
     uploadLoading,
     deleteLoading,

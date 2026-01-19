@@ -881,8 +881,8 @@ router.get("/download/:folderId", async (req, res) => {
       comment: `MyDrive folder: ${folder.name} - ${totalFiles} file(s)`,
     });
 
-    // Handle client disconnect
-    ZipStreamService.handleClientDisconnect(req, archive, () => {
+    // Handle client disconnect - returns abort checker
+    const disconnectHandler = ZipStreamService.handleClientDisconnect(req, archive, () => {
       logger.warn("Client disconnected during folder download", {
         folderId,
         folderName: folder.name,
@@ -894,6 +894,18 @@ router.get("/download/:folderId", async (req, res) => {
 
     // Add all files to ZIP
     for (const fileEntry of resolvedFiles) {
+      // Check if client disconnected - stop processing immediately
+      if (disconnectHandler.isAborted()) {
+        logger.info("Stopping folder processing - client disconnected", {
+          folderId,
+          folderName: folder.name,
+          filesProcessed,
+          totalFiles,
+          userId: req.user.id,
+        });
+        break;
+      }
+      
       try {
         // Use folder name as root in zip path
         const zipPath = `${folder.name}/${fileEntry.zipPath}`;
@@ -905,6 +917,18 @@ router.get("/download/:folderId", async (req, res) => {
         );
         filesProcessed++;
       } catch (error) {
+        // Check if error is due to client disconnect
+        if (disconnectHandler.isAborted()) {
+          logger.info("Folder processing stopped due to client disconnect", {
+            folderId,
+            folderName: folder.name,
+            filesProcessed,
+            totalFiles,
+            userId: req.user.id,
+          });
+          break;
+        }
+        
         logger.error("Error adding file to folder ZIP", {
           folderId,
           fileId: fileEntry.fileDoc._id,
@@ -916,22 +940,34 @@ router.get("/download/:folderId", async (req, res) => {
       }
     }
 
-    // Finalize ZIP
-    await ZipStreamService.finalizeZip(archive);
+    // Only finalize if client is still connected
+    if (!disconnectHandler.isAborted()) {
+      // Finalize ZIP
+      await ZipStreamService.finalizeZip(archive);
 
-    const duration = Date.now() - startTime;
+      const duration = Date.now() - startTime;
 
-    logger.info("Folder download completed", {
-      folderId,
-      folderName: folder.name,
-      filesProcessed,
-      totalFiles,
-      totalSize: DownloadHelpers.formatSize(totalSize),
-      duration: `${(duration / 1000).toFixed(2)}s`,
-      avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
-      userId: req.user.id,
-      ip: req.ip,
-    });
+      logger.info("Folder download completed", {
+        folderId,
+        folderName: folder.name,
+        filesProcessed,
+        totalFiles,
+        totalSize: DownloadHelpers.formatSize(totalSize),
+        duration: `${(duration / 1000).toFixed(2)}s`,
+        avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+        userId: req.user.id,
+        ip: req.ip,
+      });
+    } else {
+      logger.info("Folder download aborted by client", {
+        folderId,
+        folderName: folder.name,
+        filesProcessed,
+        totalFiles,
+        userId: req.user.id,
+        ip: req.ip,
+      });
+    }
 
     // Note: Response is already sent via stream
   } catch (error) {

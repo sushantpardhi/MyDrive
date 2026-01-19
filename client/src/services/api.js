@@ -405,6 +405,56 @@ const api = {
   resumeUpload: (uploadId) =>
     axios.get(`${API_URL}/files/chunked-upload/${uploadId}/status`),
 
+  // ========== CHUNKED DOWNLOAD OPERATIONS ==========
+
+  // Initiate chunked download
+  initiateChunkedDownload: (downloadData) =>
+    axios.post(`${API_URL}/files/chunked-download/initiate`, downloadData),
+
+  // Download a chunk
+  downloadChunk: (downloadId, chunkIndex, abortSignal = null) => {
+    const config = {
+      responseType: "arraybuffer",
+      timeout: 60000, // 60 second timeout per chunk
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    };
+
+    if (abortSignal) {
+      config.signal = abortSignal;
+    }
+
+    return axios.get(
+      `${API_URL}/files/chunked-download/${downloadId}/chunk/${chunkIndex}`,
+      config
+    );
+  },
+
+  // Get download session status
+  getDownloadStatus: (downloadId) =>
+    axios.get(`${API_URL}/files/chunked-download/${downloadId}/status`),
+
+  // Pause chunked download
+  pauseChunkedDownload: (downloadId) =>
+    axios.post(`${API_URL}/files/chunked-download/${downloadId}/pause`),
+
+  // Resume chunked download
+  resumeChunkedDownload: (downloadId) =>
+    axios.post(`${API_URL}/files/chunked-download/${downloadId}/resume`),
+
+  // Cancel chunked download
+  cancelChunkedDownload: (downloadId) =>
+    axios.post(`${API_URL}/files/chunked-download/${downloadId}/cancel`),
+
+  // Delete download session
+  deleteDownloadSession: (downloadId) =>
+    axios.delete(`${API_URL}/files/chunked-download/${downloadId}`),
+
+  // List active download sessions
+  getActiveDownloadSessions: () =>
+    axios.get(`${API_URL}/files/chunked-download/sessions`),
+
   // Admin operations
   admin: {
     // System statistics

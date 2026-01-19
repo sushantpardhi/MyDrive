@@ -421,6 +421,17 @@ const FileCard = ({
       )}
       {/* Menu and actions */}
       <div className={styles.menuWrapper} ref={menuRef}>
+        {/* Mobile backdrop overlay */}
+        {menuOpen && (
+          <div 
+            className={styles.mobileMenuBackdrop} 
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(false);
+            }}
+          />
+        )}
+        
         {!hasMultipleSelections && (
           <button
             className={styles.menuButton}

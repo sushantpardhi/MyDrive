@@ -1,14 +1,13 @@
 .gridView {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  grid-auto-rows: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
   padding: 24px;
   background: var(--bg-secondary);
   transition: background-color var(--transition-normal);
   min-height: calc(100vh - 200px);
   justify-items: center;
-  align-items: stretch;
+  align-items: start;
 }
 
 /* Grid view animations */
@@ -17,11 +16,10 @@
   animation-delay: calc(var(--item-index, 0) * 0.03s);
   transform-origin: center;
   width: 100%;
-  height: 100%;
+  max-width: 200px;
   margin: 0;
   opacity: 0;
   justify-self: center;
-  align-self: stretch;
 }
 
 @keyframes fadeInScale {
@@ -46,9 +44,12 @@
 @media (min-width: 1401px) {
   .gridView {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    grid-auto-rows: 200px;
     gap: 20px;
     padding: 28px;
+  }
+
+  .gridView > * {
+    max-width: 220px;
   }
 }
 
@@ -56,9 +57,12 @@
 @media (min-width: 1025px) and (max-width: 1400px) {
   .gridView {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    grid-auto-rows: 180px;
     gap: 16px;
     padding: 24px;
+  }
+
+  .gridView > * {
+    max-width: 200px;
   }
 }
 
@@ -66,51 +70,47 @@
 @media (min-width: 769px) and (max-width: 1024px) {
   .gridView {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    grid-auto-rows: 160px;
     gap: 14px;
     padding: 20px;
     min-height: calc(100vh - 180px);
   }
+
+  .gridView > * {
+    max-width: 180px;
+  }
 }
 
-/* Mobile Responsive */
+/* Mobile Responsive - 3 columns */
 @media (max-width: 768px) {
   .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    grid-auto-rows: 140px;
-    padding: 16px 12px;
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 12px;
+    gap: 10px;
     min-height: calc(100vh - 160px);
   }
-}
 
-/* Small Mobile */
-@media (max-width: 640px) {
-  .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    grid-auto-rows: 120px;
-    gap: 12px;
-    padding: 16px;
-    min-height: calc(100vh - 150px);
+  .gridView > * {
+    max-width: none;
+    width: 100%;
   }
 }
 
+/* Small Mobile - 2 columns */
 @media (max-width: 480px) {
   .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    grid-auto-rows: 110px;
-    padding: 12px 8px;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    padding: 10px;
+    gap: 8px;
     min-height: calc(100vh - 140px);
   }
 }
 
+/* Very Small Mobile - 2 columns tighter */
 @media (max-width: 360px) {
   .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    grid-auto-rows: 100px;
-    gap: 8px;
-    padding: 10px 6px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 8px;
   }
 }
 

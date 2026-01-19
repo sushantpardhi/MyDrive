@@ -55,6 +55,7 @@ const AppLayout = () => {
     downloadProgress,
     cancelUpload,
     cancelDownload,
+    removeDownload,
     cancelAll,
     resetProgress,
   } = useTransfer();
@@ -162,6 +163,7 @@ const AppLayout = () => {
           onClose={resetProgress}
           onStopUpload={cancelUpload}
           onCancelDownload={cancelDownload}
+          onRemoveDownload={removeDownload}
           onStopAll={cancelAll}
         />
       )}

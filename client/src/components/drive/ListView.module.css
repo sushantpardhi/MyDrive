@@ -56,13 +56,13 @@
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .listView {
-    margin: 0 12px 12px;
+    margin: 0 10px 10px;
     border-radius: 8px;
     overflow: hidden;
   }
 
   .listHeader {
-    grid-template-columns: 32px 1fr 32px;
+    grid-template-columns: 28px 1fr 28px;
     gap: 8px;
     padding: 10px 12px;
     border-radius: 8px 8px 0 0;
@@ -74,12 +74,22 @@
     display: none;
   }
 
+  .headerName {
+    font-size: 10px;
+  }
+
   .headerActions {
     text-align: center;
+    font-size: 10px;
   }
 
   .listBody {
     border-radius: 0 0 8px 8px;
+  }
+
+  .selectAllBtn {
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -91,13 +101,19 @@
   }
 
   .listHeader {
+    grid-template-columns: 24px 1fr 24px;
     padding: 8px 10px;
     gap: 6px;
   }
 
   .selectAllBtn {
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .headerName,
+  .headerActions {
+    font-size: 9px;
   }
 }
 

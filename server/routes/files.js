@@ -8,6 +8,7 @@ const logger = require("../utils/logger");
 const File = require("../models/File");
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
+const DownloadSession = require("../models/DownloadSession");
 const { ensureUserDir, getUserFilePath } = require("../utils/fileHelpers");
 const emailService = require("../utils/emailService");
 const {
@@ -168,9 +169,32 @@ router.get("/verify-download/:fileId", async (req, res) => {
   }
 });
 
-// Download file
+// Download file with proper client disconnect handling
 router.get("/download/:fileId", async (req, res) => {
   const startTime = Date.now();
+  let fileStream = null;
+  let isAborted = false;
+  
+  // Handle client disconnect
+  const handleDisconnect = () => {
+    if (isAborted) return;
+    isAborted = true;
+    
+    logger.warn("Client disconnected during file download", {
+      fileId: req.params.fileId,
+      userId: req.user.id,
+      ip: req.ip,
+    });
+    
+    // Destroy the file stream if it exists
+    if (fileStream && !fileStream.destroyed) {
+      fileStream.destroy();
+    }
+  };
+  
+  req.on("close", handleDisconnect);
+  req.on("aborted", handleDisconnect);
+  
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) {
@@ -190,6 +214,14 @@ router.get("/download/:fileId", async (req, res) => {
       try {
         const buffer = await sharp(file.path).jpeg({ quality: 90 }).toBuffer();
 
+        if (isAborted) {
+          logger.info("Download cancelled during HEIC conversion", {
+            fileId: req.params.fileId,
+            userId: req.user.id,
+          });
+          return;
+        }
+
         res.set({
           "Content-Type": "image/jpeg",
           "Content-Length": buffer.length,
@@ -205,32 +237,84 @@ router.get("/download/:fileId", async (req, res) => {
 
         res.send(buffer);
       } catch (conversionError) {
+        if (isAborted) return;
+        
         logger.logError(conversionError, {
           operation: "HEIC-conversion",
           userId: req.user.id,
           additionalInfo: file.name,
         });
-        // Fallback to original file if conversion fails
-        res.download(file.path, file.name);
+        // Fallback to streaming original file
+        if (!res.headersSent) {
+          await streamFileWithDisconnectHandling(res, file, isAborted, () => isAborted, logger, req.user.id, req.ip, startTime);
+        }
       }
     } else {
-      logger.logFileOperation("download", file, req.user.id, {
-        fileSize: file.size,
-        duration: Date.now() - startTime,
-        ip: req.ip,
-      });
-      res.download(file.path, file.name);
+      // Stream the file with disconnect handling
+      await streamFileWithDisconnectHandling(res, file, fileStream, () => isAborted, logger, req.user.id, req.ip, startTime);
     }
   } catch (error) {
+    if (isAborted) return;
+    
     logger.logError(error, {
       operation: "download",
       userId: req.user.id,
       ip: req.ip,
       additionalInfo: req.params.fileId,
     });
-    res.status(500).json({ error: error.message });
+    
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
+
+// Helper function to stream file with disconnect handling
+async function streamFileWithDisconnectHandling(res, file, streamRef, isAbortedFn, logger, userId, ip, startTime) {
+  return new Promise((resolve, reject) => {
+    if (isAbortedFn()) {
+      resolve();
+      return;
+    }
+    
+    const stream = fs.createReadStream(file.path);
+    streamRef = stream;
+    
+    // Set headers
+    res.set({
+      "Content-Type": file.mimeType || "application/octet-stream",
+      "Content-Length": file.size,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"`,
+    });
+    
+    stream.on("error", (err) => {
+      if (!isAbortedFn()) {
+        logger.logError(err, {
+          operation: "download-stream",
+          userId,
+          additionalInfo: file.name,
+        });
+      }
+      stream.destroy();
+      reject(err);
+    });
+    
+    stream.on("end", () => {
+      if (!isAbortedFn()) {
+        logger.logFileOperation("download", file, userId, {
+          fileSize: file.size,
+          duration: Date.now() - startTime,
+          ip,
+        });
+      }
+      resolve();
+    });
+    
+    stream.on("close", resolve);
+    
+    stream.pipe(res);
+  });
+}
 
 // Get thumbnail for preview (from worker-processed images)
 router.get("/thumbnail/:fileId", async (req, res) => {
@@ -1516,6 +1600,480 @@ router.get("/chunked-upload/health", async (req, res) => {
   }
 });
 
+// ========== CHUNKED DOWNLOAD ROUTES ==========
+
+/**
+ * Initiate a chunked download session
+ * POST /files/chunked-download/initiate
+ * Body: { fileId }
+ */
+router.post("/chunked-download/initiate", async (req, res) => {
+  try {
+    const { fileId } = req.body;
+
+    if (!fileId) {
+      return res.status(400).json({ error: "fileId is required" });
+    }
+
+    // Find the file and verify access
+    const file = await File.findById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Check if user has access to the file
+    const hasAccess =
+      file.owner.toString() === req.user.id ||
+      file.shared.includes(req.user.id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Verify file exists on disk
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
+    // Calculate total chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+    // Generate download session
+    const downloadId = DownloadSession.generateDownloadId();
+
+    const downloadSession = new DownloadSession({
+      downloadId,
+      fileId: file._id,
+      fileName: file.name,
+      fileSize: file.size,
+      filePath: file.path,
+      totalChunks,
+      chunkSize: CHUNK_SIZE,
+      owner: req.user.id,
+      status: "active",
+      metadata: {
+        userAgent: req.get("User-Agent"),
+        ipAddress: req.ip,
+      },
+    });
+
+    await downloadSession.save();
+
+    logger.info("Chunked download initiated", {
+      downloadId,
+      fileId,
+      fileName: file.name,
+      fileSize: file.size,
+      totalChunks,
+      userId: req.user.id,
+    });
+
+    res.json({
+      downloadId,
+      message: "Download session initiated successfully",
+      session: {
+        downloadId,
+        fileId: file._id,
+        fileName: file.name,
+        fileSize: file.size,
+        totalChunks,
+        chunkSize: CHUNK_SIZE,
+      },
+    });
+  } catch (error) {
+    logger.logError(error, "Error initiating chunked download");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Download a specific chunk
+ * GET /files/chunked-download/:downloadId/chunk/:chunkIndex
+ */
+router.get("/chunked-download/:downloadId/chunk/:chunkIndex", async (req, res) => {
+  try {
+    const { downloadId, chunkIndex } = req.params;
+    const index = parseInt(chunkIndex);
+
+    if (isNaN(index) || index < 0) {
+      return res.status(400).json({ error: "Invalid chunk index" });
+    }
+
+    // Find download session
+    const session = await DownloadSession.findOne({
+      downloadId,
+      owner: req.user.id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Download session not found" });
+    }
+
+    // Check if download is paused or cancelled
+    if (session.status === "paused") {
+      return res.status(409).json({
+        error: "Download is paused",
+        status: "paused",
+        canResume: true,
+      });
+    }
+
+    if (session.status === "cancelled") {
+      return res.status(410).json({
+        error: "Download session was cancelled",
+        status: "cancelled",
+      });
+    }
+
+    if (session.status === "completed") {
+      return res.status(400).json({
+        error: "Download already completed",
+        status: "completed",
+      });
+    }
+
+    // Validate chunk index
+    if (index >= session.totalChunks) {
+      return res.status(400).json({ error: "Chunk index out of range" });
+    }
+
+    // Check if chunk was already downloaded (idempotent support)
+    const existingChunk = session.downloadedChunks.find((c) => c.index === index);
+
+    // Calculate byte range
+    const startByte = index * session.chunkSize;
+    const endByte = Math.min(startByte + session.chunkSize - 1, session.fileSize - 1);
+    const chunkSize = endByte - startByte + 1;
+
+    // Verify file still exists
+    if (!fs.existsSync(session.filePath)) {
+      session.status = "failed";
+      await session.save();
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
+    // Set headers for chunk download
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Content-Length": chunkSize,
+      "Content-Range": `bytes ${startByte}-${endByte}/${session.fileSize}`,
+      "X-Chunk-Index": index,
+      "X-Total-Chunks": session.totalChunks,
+      "X-Download-Id": downloadId,
+      "Cache-Control": "no-store",
+    });
+
+    // Create read stream for the specific byte range
+    const stream = fs.createReadStream(session.filePath, {
+      start: startByte,
+      end: endByte,
+      highWaterMark: 64 * 1024, // 64KB buffer
+    });
+
+    // Handle stream errors
+    stream.on("error", (err) => {
+      logger.logError(err, "Error streaming chunk", {
+        downloadId,
+        chunkIndex: index,
+      });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error streaming chunk" });
+      }
+    });
+
+    // Track when chunk download completes
+    stream.on("end", async () => {
+      try {
+        // Mark chunk as downloaded (if not already)
+        if (!existingChunk) {
+          await session.markChunkDownloaded({
+            index,
+            size: chunkSize,
+            startByte,
+            endByte,
+          });
+        }
+
+        // Check if download is complete
+        const updatedSession = await DownloadSession.findById(session._id);
+        if (updatedSession.isComplete() && updatedSession.status !== "completed") {
+          updatedSession.status = "completed";
+          updatedSession.completedAt = new Date();
+          await updatedSession.save();
+
+          logger.info("Chunked download completed", {
+            downloadId,
+            fileName: session.fileName,
+            totalChunks: session.totalChunks,
+            userId: req.user.id,
+          });
+        }
+      } catch (updateError) {
+        logger.logError(updateError, "Error updating chunk status");
+      }
+    });
+
+    // Pipe stream to response
+    stream.pipe(res);
+  } catch (error) {
+    logger.logError(error, "Error downloading chunk");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get download session status
+ * GET /files/chunked-download/:downloadId/status
+ */
+router.get("/chunked-download/:downloadId/status", async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+
+    const session = await DownloadSession.findOne({
+      downloadId,
+      owner: req.user.id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Download session not found" });
+    }
+
+    // Calculate progress
+    const downloadedChunks = session.downloadedChunks.length;
+    const progress = (downloadedChunks / session.totalChunks) * 100;
+    const downloadedBytes = session.downloadedChunks.reduce(
+      (sum, c) => sum + c.size,
+      0
+    );
+
+    res.json({
+      downloadId,
+      status: session.status,
+      fileName: session.fileName,
+      fileSize: session.fileSize,
+      totalChunks: session.totalChunks,
+      downloadedChunks,
+      downloadedBytes,
+      progress: Math.round(progress * 100) / 100,
+      missingChunks: session.getMissingChunks(),
+      createdAt: session.createdAt,
+      completedAt: session.completedAt,
+      expiresAt: session.expiresAt,
+    });
+  } catch (error) {
+    logger.logError(error, "Error getting download status");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Pause a chunked download
+ * POST /files/chunked-download/:downloadId/pause
+ */
+router.post("/chunked-download/:downloadId/pause", async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+
+    const session = await DownloadSession.findOne({
+      downloadId,
+      owner: req.user.id,
+      status: "active",
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Download session not found or not active",
+      });
+    }
+
+    // Update session status to paused
+    session.status = "paused";
+    session.pausedAt = new Date();
+    await session.save();
+
+    logger.info("Chunked download paused", {
+      downloadId,
+      fileName: session.fileName,
+      progress: (session.downloadedChunks.length / session.totalChunks) * 100,
+      userId: req.user.id,
+    });
+
+    res.json({
+      message: "Download paused successfully",
+      downloadId,
+      status: "paused",
+      progress:
+        Math.round(
+          (session.downloadedChunks.length / session.totalChunks) * 10000
+        ) / 100,
+    });
+  } catch (error) {
+    logger.logError(error, "Error pausing download");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Resume a paused chunked download
+ * POST /files/chunked-download/:downloadId/resume
+ */
+router.post("/chunked-download/:downloadId/resume", async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+
+    const session = await DownloadSession.findOne({
+      downloadId,
+      owner: req.user.id,
+      status: "paused",
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Download session not found or not paused",
+      });
+    }
+
+    // Resume download
+    session.status = "active";
+    session.metadata.resumeCount = (session.metadata.resumeCount || 0) + 1;
+    delete session.pausedAt;
+    await session.save();
+
+    // Get missing chunks for client to resume
+    const missingChunks = session.getMissingChunks();
+
+    logger.info("Chunked download resumed", {
+      downloadId,
+      fileName: session.fileName,
+      missingChunks: missingChunks.length,
+      resumeCount: session.metadata.resumeCount,
+      userId: req.user.id,
+    });
+
+    res.json({
+      message: "Download resumed successfully",
+      downloadId,
+      status: "active",
+      missingChunks,
+      downloadedChunks: session.downloadedChunks.map((c) => c.index),
+      progress:
+        Math.round(
+          (session.downloadedChunks.length / session.totalChunks) * 10000
+        ) / 100,
+    });
+  } catch (error) {
+    logger.logError(error, "Error resuming download");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Cancel a chunked download
+ * POST /files/chunked-download/:downloadId/cancel
+ */
+router.post("/chunked-download/:downloadId/cancel", async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+
+    const session = await DownloadSession.findOne({
+      downloadId,
+      owner: req.user.id,
+      status: { $in: ["active", "paused"] },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Download session not found or already completed/cancelled",
+      });
+    }
+
+    // Mark as cancelled
+    session.status = "cancelled";
+    await session.save();
+
+    logger.info("Chunked download cancelled", {
+      downloadId,
+      fileName: session.fileName,
+      downloadedChunks: session.downloadedChunks.length,
+      userId: req.user.id,
+    });
+
+    res.json({
+      message: "Download cancelled successfully",
+      downloadId,
+      status: "cancelled",
+    });
+  } catch (error) {
+    logger.logError(error, "Error cancelling download");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Delete a download session (cleanup)
+ * DELETE /files/chunked-download/:downloadId
+ */
+router.delete("/chunked-download/:downloadId", async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+
+    const session = await DownloadSession.findOneAndDelete({
+      downloadId,
+      owner: req.user.id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Download session not found" });
+    }
+
+    logger.info("Download session deleted", {
+      downloadId,
+      fileName: session.fileName,
+      userId: req.user.id,
+    });
+
+    res.json({ message: "Download session deleted successfully" });
+  } catch (error) {
+    logger.logError(error, "Error deleting download session");
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * List active download sessions for user
+ * GET /files/chunked-download/sessions
+ */
+router.get("/chunked-download/sessions", async (req, res) => {
+  try {
+    const sessions = await DownloadSession.find({
+      owner: req.user.id,
+      status: { $in: ["active", "paused"] },
+    }).sort({ createdAt: -1 });
+
+    const sessionData = sessions.map((session) => ({
+      downloadId: session.downloadId,
+      fileId: session.fileId,
+      fileName: session.fileName,
+      fileSize: session.fileSize,
+      status: session.status,
+      progress:
+        Math.round(
+          (session.downloadedChunks.length / session.totalChunks) * 10000
+        ) / 100,
+      downloadedBytes: session.downloadedChunks.reduce(
+        (sum, c) => sum + c.size,
+        0
+      ),
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    }));
+
+    res.json({ sessions: sessionData });
+  } catch (error) {
+    logger.logError(error, "Error listing download sessions");
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /**
  * ========================================
  * MULTI-FILE/FOLDER DOWNLOAD ENDPOINT
@@ -1682,8 +2240,8 @@ router.post(
         comment: `MyDrive archive - ${totalFiles} file(s)`,
       });
 
-      // Handle client disconnect
-      ZipStreamService.handleClientDisconnect(req, archive, () => {
+      // Handle client disconnect - returns abort checker
+      const disconnectHandler = ZipStreamService.handleClientDisconnect(req, archive, () => {
         logger.warn("Client disconnected during multi-file download", {
           userId: req.user.id,
           zipFilename,
@@ -1694,6 +2252,16 @@ router.post(
 
       // Add all files to ZIP
       for (const fileEntry of resolvedFiles) {
+        // Check if client disconnected - stop processing immediately
+        if (disconnectHandler.isAborted()) {
+          logger.info("Stopping file processing - client disconnected", {
+            userId: req.user.id,
+            filesProcessed,
+            totalFiles,
+          });
+          break;
+        }
+        
         try {
           await ZipStreamService.addFileToZip(
             archive,
@@ -1702,6 +2270,16 @@ router.post(
           );
           filesProcessed++;
         } catch (error) {
+          // Check if error is due to client disconnect
+          if (disconnectHandler.isAborted()) {
+            logger.info("File processing stopped due to client disconnect", {
+              userId: req.user.id,
+              filesProcessed,
+              totalFiles,
+            });
+            break;
+          }
+          
           logger.error("Error adding file to ZIP", {
             userId: req.user.id,
             fileId: fileEntry.fileDoc._id,
@@ -1712,21 +2290,32 @@ router.post(
         }
       }
 
-      // Finalize ZIP
-      await ZipStreamService.finalizeZip(archive);
+      // Only finalize if client is still connected
+      if (!disconnectHandler.isAborted()) {
+        // Finalize ZIP
+        await ZipStreamService.finalizeZip(archive);
 
-      const duration = Date.now() - startTime;
+        const duration = Date.now() - startTime;
 
-      logger.info("Multi-download completed", {
-        userId: req.user.id,
-        zipFilename,
-        filesProcessed,
-        totalFiles,
-        totalSize: DownloadHelpers.formatSize(totalSize),
-        duration: `${(duration / 1000).toFixed(2)}s`,
-        avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
-        ip: req.ip,
-      });
+        logger.info("Multi-download completed", {
+          userId: req.user.id,
+          zipFilename,
+          filesProcessed,
+          totalFiles,
+          totalSize: DownloadHelpers.formatSize(totalSize),
+          duration: `${(duration / 1000).toFixed(2)}s`,
+          avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+          ip: req.ip,
+        });
+      } else {
+        logger.info("Multi-download aborted by client", {
+          userId: req.user.id,
+          zipFilename,
+          filesProcessed,
+          totalFiles,
+          ip: req.ip,
+        });
+      }
 
       // Note: Response is already sent via stream
     } catch (error) {

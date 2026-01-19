@@ -29,6 +29,7 @@ export const useUploadProgress = () => {
           speed: 0,
           startTime,
           status: "uploading",
+          type: "upload", // Mark as upload for UI differentiation
           // Chunked upload specific fields
           isChunked,
           totalChunks,

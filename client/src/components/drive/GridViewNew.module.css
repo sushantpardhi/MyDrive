@@ -1,0 +1,224 @@
+/* ============================================
+   GridViewNew - Modern Responsive Grid Layout
+   ============================================ */
+
+.container {
+  padding: 20px 24px;
+  min-height: calc(100vh - 200px);
+  background: var(--bg-secondary);
+}
+
+/* Sections */
+.section {
+  margin-bottom: 32px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 16px 4px;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  justify-items: stretch;
+}
+
+.grid > * {
+  animation: fadeIn 0.3s ease forwards;
+  animation-delay: calc(var(--item-index, 0) * 0.02s);
+  opacity: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Empty State */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--text-quaternary);
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.emptyText {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* ============================================
+   LARGE DESKTOP (min-width: 1401px)
+   ============================================ */
+@media (min-width: 1401px) {
+  .container {
+    padding: 24px 32px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* ============================================
+   DESKTOP (1025px - 1400px)
+   ============================================ */
+@media (min-width: 1025px) and (max-width: 1400px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* ============================================
+   TABLET (769px - 1024px)
+   ============================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 16px 20px;
+    min-height: calc(100vh - 180px);
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .sectionTitle {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+}
+
+/* ============================================
+   MOBILE (max-width: 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px 12px;
+    min-height: calc(100vh - 160px);
+  }
+
+  .section {
+    margin-bottom: 24px;
+  }
+
+  .sectionTitle {
+    font-size: 11px;
+    margin-bottom: 10px;
+    margin-left: 2px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    justify-items: stretch;
+  }
+
+  .grid > * {
+    max-width: 100%;
+  }
+
+  .empty {
+    min-height: 300px;
+    padding: 30px 16px;
+  }
+
+  .emptyIcon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .emptyTitle {
+    font-size: 16px;
+  }
+
+  .emptyText {
+    font-size: 13px;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE (max-width: 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  .container {
+    padding: 10px 8px;
+    min-height: calc(100vh - 140px);
+  }
+
+  .section {
+    margin-bottom: 20px;
+  }
+
+  .sectionTitle {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    justify-items: stretch;
+  }
+
+  .empty {
+    min-height: 250px;
+  }
+}
+
+/* ============================================
+   VERY SMALL MOBILE (max-width: 360px)
+   ============================================ */
+@media (max-width: 360px) {
+  .container {
+    padding: 8px 6px;
+  }
+
+  .grid {
+    gap: 6px;
+  }
+
+  .sectionTitle {
+    font-size: 9px;
+  }
+}

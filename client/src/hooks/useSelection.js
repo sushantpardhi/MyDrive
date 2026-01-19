@@ -19,7 +19,9 @@ export const useSelection = (api, folders, files, type) => {
     updateDownloadProgress,
     completeDownload,
     failDownload,
-    cancelDownload 
+    cancelDownload,
+    registerXhr,
+    unregisterXhr,
   } = useTransfer();
 
   const selectAll = useCallback(() => {
@@ -239,6 +241,9 @@ export const useSelection = (api, folders, files, type) => {
       xhr.responseType = "blob";
       xhr.timeout = 30 * 60 * 1000; // 30 minutes
 
+      // Register XHR for cancel functionality
+      registerXhr(downloadId, xhr);
+
       let lastLoaded = 0;
       let lastTime = Date.now();
       let isFirstProgress = true;
@@ -266,6 +271,9 @@ export const useSelection = (api, folders, files, type) => {
       };
 
       xhr.onload = () => {
+        // Unregister XHR on completion
+        unregisterXhr(downloadId);
+        
         if (xhr.status === 200) {
           const blob = xhr.response;
           const url = window.URL.createObjectURL(blob);
@@ -326,18 +334,22 @@ export const useSelection = (api, folders, files, type) => {
       };
 
       xhr.onerror = () => {
+        unregisterXhr(downloadId);
         failDownload(downloadId);
         toast.error("Download failed");
         logger.error("Multi-item download error", { downloadId });
       };
 
       xhr.onabort = () => {
-        cancelDownload(downloadId);
+        unregisterXhr(downloadId);
+        // Don't call cancelDownload here - it's already handled by the cancel action
+        // Just show the toast
         toast.info("Download cancelled");
         logger.info("Multi-item download cancelled", { downloadId });
       };
 
       xhr.ontimeout = () => {
+        unregisterXhr(downloadId);
         failDownload(downloadId);
         toast.error("Download timed out");
         logger.error("Multi-item download timeout", { downloadId });
@@ -368,6 +380,8 @@ export const useSelection = (api, folders, files, type) => {
     completeDownload,
     failDownload,
     cancelDownload,
+    registerXhr,
+    unregisterXhr,
   ]);
 
   const bulkCopy = useCallback(

@@ -1,0 +1,742 @@
+/* ============================================
+   FolderCardNew - Modern Responsive Folder Card
+   ============================================ */
+
+/* Base Card Styles */
+.card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  overflow: visible;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.card:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.card:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.card.selected {
+  background: var(--accent-bg-light);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+.card.menuOpen {
+  z-index: 100;
+}
+
+.card.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.card.dropTarget {
+  border-color: var(--accent-primary);
+  background: var(--accent-bg-light);
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+/* Touch feedback for mobile */
+.card:active:not(.dragging) {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* ============================================
+   GRID VIEW
+   ============================================ */
+.card.grid {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  min-height: 130px;
+  width: 100%;
+  max-width: 180px;
+  box-sizing: border-box;
+}
+
+.card.grid:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-color);
+}
+
+.card.grid.selected:hover {
+  box-shadow: 0 0 0 1px var(--accent-border-hover), var(--shadow-lg);
+}
+
+/* Grid Checkbox */
+.card.grid .checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  color: var(--text-tertiary);
+}
+
+.card.grid:hover .checkbox,
+.card.grid.selected .checkbox {
+  opacity: 1;
+}
+
+.card.grid.selected .checkbox {
+  color: var(--accent-primary);
+}
+
+/* Grid Content */
+.card.grid .content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  padding-top: 8px;
+}
+
+/* Grid Icon */
+.card.grid .icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--folder-bg);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  color: var(--folder-color);
+  transition: all 0.2s ease;
+}
+
+.card.grid:hover .icon {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Grid Info */
+.card.grid .info {
+  width: 100%;
+  min-width: 0;
+}
+
+.card.grid .name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.card.grid .meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Grid Actions */
+.card.grid .actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+}
+
+.card.grid .menuBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.card.grid:hover .menuBtn,
+.card.grid.selected .menuBtn,
+.card.grid.menuOpen .menuBtn {
+  opacity: 1;
+}
+
+.card.grid .menuBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Hide list-only elements in grid */
+.card.grid .sizeColumn,
+.card.grid .dateColumn {
+  display: none;
+}
+
+/* ============================================
+   LIST VIEW
+   ============================================ */
+.card.list {
+  display: grid;
+  grid-template-columns: 32px 1fr 100px 140px 48px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border-tertiary);
+  background: var(--card-bg);
+}
+
+.card.list:hover {
+  background: var(--bg-secondary);
+}
+
+.card.list.selected {
+  background: var(--accent-bg-light);
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
+.card.list.dropTarget {
+  background: var(--accent-bg-light);
+  border-bottom-color: var(--accent-primary);
+}
+
+/* List Checkbox */
+.card.list .checkbox {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.card.list:hover .checkbox,
+.card.list.selected .checkbox {
+  opacity: 1;
+}
+
+.card.list.selected .checkbox {
+  color: var(--accent-primary);
+}
+
+/* List Content */
+.card.list .content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* List Icon */
+.card.list .icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--folder-color);
+  transition: transform 0.15s ease;
+}
+
+.card.list:hover .icon {
+  transform: scale(1.08);
+}
+
+/* List Info */
+.card.list .info {
+  min-width: 0;
+  flex: 1;
+}
+
+.card.list .name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.card.list:hover .name {
+  color: var(--accent-primary);
+}
+
+.card.list .meta {
+  display: none;
+}
+
+/* List Columns */
+.sizeColumn,
+.dateColumn {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* List Actions */
+.card.list .actions {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.card.list .menuBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.card.list:hover .menuBtn,
+.card.list.selected .menuBtn,
+.card.list.menuOpen .menuBtn {
+  opacity: 1;
+}
+
+.card.list .menuBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* ============================================
+   DROPDOWN MENU
+   ============================================ */
+.backdrop {
+  display: none;
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: var(--modal-bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  max-width: calc(100vw - 32px);
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownIn 0.15s ease-out;
+}
+
+/* Open dropdown to the left when near screen edge */
+.dropdownLeft {
+  right: 0;
+  left: auto;
+}
+
+/* Open dropdown above when near bottom of screen */
+.dropdownAbove {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 8px;
+  animation: dropdownInAbove 0.15s ease-out;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownInAbove {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dropdownHeader {
+  display: none;
+}
+
+.dropdownBody {
+  padding: 6px;
+}
+
+.menuItem,
+.menuItemDanger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.menuItemDanger {
+  color: var(--error-color);
+}
+
+.menuItemDanger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 8px;
+}
+
+/* ============================================
+   LARGE DESKTOP (min-width: 1401px)
+   ============================================ */
+@media (min-width: 1401px) {
+  .card.list {
+    grid-template-columns: 32px 1fr 120px 160px 48px;
+    padding: 12px 20px;
+  }
+}
+
+/* ============================================
+   TABLET RESPONSIVE (769px - 1024px)
+   ============================================ */
+@media (max-width: 1024px) {
+  .card.list {
+    grid-template-columns: 28px 1fr 80px 110px 40px;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .card.grid {
+    padding: 10px;
+    min-height: 120px;
+  }
+
+  .card.grid .icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ============================================
+   MOBILE RESPONSIVE (max-width: 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  /* Grid Mobile */
+  .card.grid {
+    padding: 10px 8px;
+    min-height: 110px;
+    max-width: 100%;
+    border-radius: 10px;
+  }
+
+  .card.grid .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+
+  .card.grid .icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .card.grid .name {
+    font-size: 12px;
+  }
+
+  .card.grid .meta {
+    font-size: 10px;
+  }
+
+  .card.grid .checkbox {
+    width: 22px;
+    height: 22px;
+    opacity: 1;
+  }
+
+  .card.grid .menuBtn {
+    width: 26px;
+    height: 26px;
+    opacity: 1;
+    background: var(--card-bg);
+  }
+
+  /* List Mobile - Simplified */
+  .card.list {
+    grid-template-columns: 24px 1fr 32px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .card.list .sizeColumn,
+  .card.list .dateColumn {
+    display: none;
+  }
+
+  .card.list .meta {
+    display: block;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  .card.list .checkbox {
+    width: 18px;
+    height: 18px;
+    opacity: 1;
+  }
+
+  .card.list .icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .card.list .name {
+    font-size: 13px;
+  }
+
+  .card.list .menuBtn {
+    width: 28px;
+    height: 28px;
+    opacity: 1;
+    background: var(--bg-quaternary);
+  }
+
+  /* Mobile Dropdown - Bottom Sheet */
+  .backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9998;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .dropdown {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    min-width: 100%;
+    z-index: 9999;
+    animation: slideUp 0.25s ease-out;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .dropdownHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .dropdownTitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .closeBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+
+  .dropdownBody {
+    padding: 8px 12px 24px;
+  }
+
+  .menuItem,
+  .menuItemDanger {
+    padding: 14px 16px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE (max-width: 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  .card.grid {
+    padding: 8px 6px;
+    min-height: 95px;
+    border-radius: 8px;
+  }
+
+  .card.grid .icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+  }
+
+  .card.grid .icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .card.grid .name {
+    font-size: 11px;
+  }
+
+  .card.grid .meta {
+    font-size: 9px;
+  }
+
+  .card.grid .checkbox {
+    top: 4px;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .card.grid .menuBtn {
+    width: 22px;
+    height: 22px;
+  }
+
+  .card.grid .actions {
+    top: 4px;
+    right: 4px;
+  }
+
+  .card.list {
+    grid-template-columns: 20px 1fr 28px;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .card.list .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .card.list .name {
+    font-size: 12px;
+  }
+
+  .card.list .meta {
+    font-size: 10px;
+  }
+
+  .card.list .menuBtn {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ============================================
+   VERY SMALL MOBILE (max-width: 360px)
+   ============================================ */
+@media (max-width: 360px) {
+  .card.grid {
+    padding: 6px 4px;
+    min-height: 85px;
+  }
+
+  .card.grid .icon {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 4px;
+  }
+
+  .card.grid .name {
+    font-size: 10px;
+  }
+
+  .card.grid .meta {
+    font-size: 8px;
+  }
+
+  .card.list {
+    padding: 8px;
+    gap: 6px;
+  }
+}

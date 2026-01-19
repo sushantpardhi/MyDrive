@@ -59,6 +59,18 @@ export const TransferProvider = ({ children }) => {
     downloadProgressHook.resetProgress();
   }, [uploadProgressHook, downloadProgressHook]);
 
+  // Combined pauseAll for both uploads and downloads
+  const pauseAll = useCallback(() => {
+    uploadProgressHook.pauseAll();
+    downloadProgressHook.pauseAll();
+  }, [uploadProgressHook, downloadProgressHook]);
+
+  // Combined resumeAll for both uploads and downloads
+  const resumeAll = useCallback(() => {
+    uploadProgressHook.resumeAll();
+    downloadProgressHook.resumeAll();
+  }, [uploadProgressHook, downloadProgressHook]);
+
   const value = {
     // Upload methods and state
     uploadProgress: uploadProgressHook.uploadProgress,
@@ -68,8 +80,11 @@ export const TransferProvider = ({ children }) => {
     completeUpload: completeUploadWithRefresh, // Use wrapped version that refreshes storage
     failUpload: uploadProgressHook.failUpload,
     cancelUpload: uploadProgressHook.cancelUpload,
-    cancelAll: cancelAll, // Use combined cancelAll
-    resetProgress: resetProgress, // Use combined resetProgress
+    pauseUpload: uploadProgressHook.pauseUpload,
+    resumeUpload: uploadProgressHook.resumeUpload,
+    pauseAllUploads: uploadProgressHook.pauseAll,
+    resumeAllUploads: uploadProgressHook.resumeAll,
+    cancelAllUploads: uploadProgressHook.cancelAll,
     registerChunkService: uploadProgressHook.registerChunkService,
     unregisterChunkService: uploadProgressHook.unregisterChunkService,
     updateChunkProgress: uploadProgressHook.updateChunkProgress,
@@ -80,11 +95,28 @@ export const TransferProvider = ({ children }) => {
     downloadProgress: downloadProgressHook.downloadProgress,
     startDownload: downloadProgressHook.startDownload,
     updateDownloadProgress: downloadProgressHook.updateProgress,
+    updateDownloadChunkProgress: downloadProgressHook.updateChunkProgress,
     updateZippingProgress: downloadProgressHook.updateZippingProgress,
     completeDownload: downloadProgressHook.completeDownload,
     failDownload: downloadProgressHook.failDownload,
+    pauseDownload: downloadProgressHook.pauseDownload,
+    resumeDownload: downloadProgressHook.resumeDownload,
     cancelDownload: downloadProgressHook.cancelDownload,
+    removeDownload: downloadProgressHook.removeDownload,
+    pauseAllDownloads: downloadProgressHook.pauseAll,
+    resumeAllDownloads: downloadProgressHook.resumeAll,
+    cancelAllDownloads: downloadProgressHook.cancelAll,
     resetDownloadProgress: downloadProgressHook.resetProgress,
+    registerXhr: downloadProgressHook.registerXhr,
+    unregisterXhr: downloadProgressHook.unregisterXhr,
+    registerDownloadChunkService: downloadProgressHook.registerChunkService,
+    unregisterDownloadChunkService: downloadProgressHook.unregisterChunkService,
+
+    // Combined controls for both uploads and downloads
+    pauseAll,
+    resumeAll,
+    cancelAll,
+    resetProgress,
   };
 
   return (

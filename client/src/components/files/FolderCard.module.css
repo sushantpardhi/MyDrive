@@ -86,17 +86,17 @@
 
 /* Grid View Styles */
 .folderCard.grid {
-  /* width: 100%;
-  height: 100%; */
+  width: 100%;
   max-width: 200px;
   min-width: 0;
-  padding: 16px 12px 12px 12px;
+  padding: 12px 10px 10px 10px;
   display: flex;
   flex-direction: column;
   background: var(--card-bg);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
   overflow: visible;
+  min-height: 140px;
 }
 
 /* Elevate card when menu is open to prevent dropdown from going under other cards */
@@ -140,74 +140,118 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .grid .folderIcon {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--folder-bg);
-  border-radius: 12px;
-  margin-bottom: 10px;
+  border-radius: 10px;
+  margin-bottom: 8px;
   color: var(--folder-color);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
   position: relative;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
   .folderCard.grid {
     padding: 10px 8px 8px 8px;
+    max-width: none;
+    min-height: 120px;
+    border-radius: 12px;
   }
 
   .grid .folderIcon {
-    width: 40px;
-    height: 40px;
-    margin-bottom: 8px;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+  }
+
+  .grid .folderIcon svg {
+    width: 22px;
+    height: 22px;
   }
 
   .grid .folderName {
-    font-size: 12px;
-    min-height: 1.8em;
-    max-height: 1.8em;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    font-size: 11px;
+    min-height: 1.4em;
+    max-height: 2.8em;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.4;
+    word-break: break-word;
   }
 
   .grid .folderDetails {
-    font-size: 10px;
+    font-size: 9px;
+  }
+
+  .grid .folderContent {
+    margin-top: 4px;
+  }
+
+  .checkboxWrapper {
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .checkboxWrapper .checkbox {
+    width: 16px;
+    height: 16px;
   }
 }
 
 @media (max-width: 480px) {
   .folderCard.grid {
     padding: 8px 6px 6px 6px;
+    min-height: 100px;
+    border-radius: 10px;
+  }
+
+  .grid .folderContent {
+    margin-top: 2px;
   }
 
   .grid .folderIcon {
     width: 32px;
     height: 32px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+  }
+
+  .grid .folderIcon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .grid .folderName {
-    font-size: 11px;
-    min-height: 1.6em;
-    max-height: 1.6em;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    font-size: 10px;
+    min-height: 1.3em;
+    max-height: 2.6em;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.3;
   }
 
   .grid .folderDetails {
-    font-size: 9px;
+    font-size: 8px;
+    margin-top: 2px;
   }
-}
 
-@media (max-width: 480px) {
   .checkboxWrapper {
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
     opacity: 1 !important;
     pointer-events: auto;
   }
@@ -245,24 +289,67 @@
     opacity: 1 !important;
   }
 
+  /* Mobile menu dropdown - position fixed for better visibility */
   .menuDropdown {
-    z-index: 1001 !important;
-    right: 0;
-    left: auto;
-    min-width: 200px;
-    box-shadow: var(--shadow-xl);
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    z-index: 10000 !important;
+    padding: 12px 16px 24px !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15) !important;
+    animation: slideUpMenu 0.25s ease-out !important;
   }
 
-  .list .menuWrapper {
-    position: relative;
+  @keyframes slideUpMenu {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 
-  .list .menuDropdown {
+  .menuItem,
+  .menuItemDanger {
+    padding: 14px 16px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Mobile menu backdrop */
+  .mobileMenuBackdrop {
+    display: block;
     position: fixed;
-    top: auto;
-    bottom: auto;
-    margin-top: 4px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9999;
+    animation: fadeInBackdrop 0.2s ease;
   }
+
+  @keyframes fadeInBackdrop {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Hide backdrop on larger screens */
+.mobileMenuBackdrop {
+  display: none;
 }
 
 .folderCard.grid:hover .folderIcon,
@@ -315,9 +402,9 @@
 
 @media (max-width: 768px) {
   .folderCard.list {
-    grid-template-columns: 32px 1fr 32px;
+    grid-template-columns: 28px 1fr 28px;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 10px 12px;
     border-radius: 0;
   }
 
@@ -348,8 +435,8 @@
   .list .menuButton {
     opacity: 1 !important;
     display: flex !important;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background: var(--bg-quaternary);
     color: var(--text-secondary);
   }
@@ -357,6 +444,61 @@
   .list .menuButton:active {
     background: var(--bg-tertiary);
     transform: scale(0.95);
+  }
+
+  .list .folderContent {
+    gap: 8px;
+  }
+
+  .list .folderIcon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .list .folderIcon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .list .folderName {
+    font-size: 13px;
+  }
+
+  .list .checkboxWrapper {
+    width: 18px;
+    height: 18px;
+  }
+
+  .list .checkbox {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .folderCard.list {
+    grid-template-columns: 24px 1fr 24px;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .list .menuButton {
+    width: 24px;
+    height: 24px;
+  }
+
+  .list .folderIcon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .list .folderName {
+    font-size: 12px;
+  }
+
+  .list .checkboxWrapper {
+    width: 16px;
+    height: 16px;
   }
 }
 
@@ -632,8 +774,8 @@
 }
 
 .menuButton {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   border-radius: 6px;
@@ -642,20 +784,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 1;
+  opacity: 0;
   transition: all var(--transition-normal);
 }
 
 .folderCard.grid .menuButton {
-  opacity: 1 !important;
-  display: flex !important;
+  opacity: 0;
 }
 
 .folderCard.list .menuButton {
-  opacity: 1 !important;
-  display: flex !important;
-  background: var(--bg-quaternary) !important;
-  color: var(--text-secondary);
+  opacity: 0;
 }
 
 .folderCard:hover .menuButton,
@@ -664,6 +802,7 @@
 .menuWrapper:focus-within .menuButton,
 .folderCard.selected .menuButton {
   opacity: 1;
+  background: var(--bg-tertiary);
 }
 
 /* Keep menu button visible when menu is open */

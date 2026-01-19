@@ -238,23 +238,51 @@ class ZipStreamService {
    * @param {object} req - Express request object
    * @param {object} archive - Archiver instance
    * @param {Function} cleanupFn - Optional cleanup function
+   * @returns {object} Object with isAborted() method to check if client disconnected
    */
   static handleClientDisconnect(req, archive, cleanupFn = null) {
-    // Detect client disconnect
-    req.on("close", () => {
+    // Create abort state object to track disconnection
+    const state = { aborted: false };
+    
+    // Detect client disconnect via multiple events
+    const handleDisconnect = () => {
+      // Prevent multiple triggers
+      if (state.aborted) return;
+      state.aborted = true;
+      
       logger.warn("Client disconnected during ZIP download");
 
-      // Abort archive stream
+      // Abort archive stream immediately
       if (archive && !archive.destroyed) {
-        archive.abort();
-        archive.destroy();
+        try {
+          archive.abort();
+          archive.destroy();
+        } catch (err) {
+          logger.debug("Error aborting archive", { error: err.message });
+        }
       }
 
       // Run cleanup if provided
       if (cleanupFn && typeof cleanupFn === "function") {
-        cleanupFn();
+        try {
+          cleanupFn();
+        } catch (err) {
+          logger.debug("Error in cleanup function", { error: err.message });
+        }
       }
-    });
+    };
+
+    // Listen for various disconnect events
+    req.on("close", handleDisconnect);
+    req.on("aborted", handleDisconnect);
+    req.socket?.on("close", handleDisconnect);
+    req.socket?.on("error", handleDisconnect);
+    
+    // Return state object for checking abort status in loops
+    return {
+      isAborted: () => state.aborted,
+      abort: handleDisconnect,
+    };
   }
 
   /**
