@@ -811,6 +811,22 @@ router.post("/:id/copy", async (req, res) => {
       });
     });
 
+    // Send image files to Redis queue for processing (same as upload)
+    if (redisQueue.isImageFile(sourceFile.type)) {
+      redisQueue.sendImageJob({
+        filePath: newPath,
+        fileName: copyName,
+        userId: req.user.id,
+        mimetype: sourceFile.type,
+      }).catch((error) => {
+        logger.error("Failed to send copied image to processing queue", {
+          userId: req.user.id,
+          fileName: copyName,
+          error: error.message,
+        });
+      });
+    }
+
     res.json({ message: "File copied successfully", item: newFile });
   } catch (error) {
     res.status(500).json({ error: error.message });
