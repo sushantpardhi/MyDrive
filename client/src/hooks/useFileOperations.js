@@ -47,7 +47,7 @@ export const useFileOperations = (
   }, [api, currentFolderId]);
 
   const uploadFiles = useCallback(
-    async (files, onSuccess, useChunked = true) => {
+    async (files, onSuccess, useChunked = true, onFileComplete = null) => {
       if (!files?.length) return;
 
       logger.info("Starting file upload", {
@@ -184,7 +184,14 @@ export const useFileOperations = (
               }
             }
 
-            return response.data;
+            const fileData = response.data;
+            
+            // Immediately notify about completed file
+            if (onFileComplete) {
+              onFileComplete(fileData);
+            }
+
+            return fileData;
           } catch (error) {
             // Check if error is from paused upload
             const isPausedError = error.message === "Upload paused by user";

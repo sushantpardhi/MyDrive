@@ -407,10 +407,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     const uploadedFiles = Array.from(e.target.files || []);
     if (!uploadedFiles.length) return;
 
-    const newFiles = await uploadFiles(uploadedFiles);
-    if (newFiles.length > 0) {
-      setFiles((prev) => [...prev, ...newFiles]);
-    }
+    const newFiles = await uploadFiles(
+      uploadedFiles,
+      null,
+      true,
+      (completedFile) => {
+        // Add each file to UI as it completes
+        setFiles((prev) => [...prev, completedFile]);
+      }
+    );
     e.target.value = "";
   };
 
@@ -604,10 +609,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       const droppedFiles = Array.from(e.dataTransfer.files);
       if (droppedFiles.length > 0) {
         toast.info(`Uploading ${droppedFiles.length} file(s)...`);
-        const newFiles = await uploadFiles(droppedFiles);
-        if (newFiles.length > 0) {
-          setFiles((prev) => [...prev, ...newFiles]);
-        }
+        const newFiles = await uploadFiles(
+          droppedFiles,
+          null,
+          true,
+          (completedFile) => {
+            // Add each file to UI as it completes
+            setFiles((prev) => [...prev, completedFile]);
+          }
+        );
       }
     },
     [uploadFiles, setFiles, currentFolderId]
