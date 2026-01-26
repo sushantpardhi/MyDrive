@@ -45,7 +45,7 @@
   align-items: center;
   gap: 6px;
   max-width: 200px;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
   position: relative;
 }
 
@@ -60,9 +60,10 @@
 }
 
 .breadcrumbCurrent {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 600;
   background: var(--bg-tertiary);
+  cursor: default;
 }
 
 .breadcrumbIcon {

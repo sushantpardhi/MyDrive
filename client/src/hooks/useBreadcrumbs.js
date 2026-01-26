@@ -53,6 +53,8 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
   const previousTypeRef = useRef(type);
   const previousFolderIdRef = useRef(null); // Start with null to force initial build
   const isInitializedRef = useRef(false);
+  const skipBuildForFolderRef = useRef(null); // Track which folder ID to skip building for
+  const isBuildingRef = useRef(false); // Prevent concurrent builds
 
   // Reset path when type changes
   useEffect(() => {
@@ -72,6 +74,19 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
 
   // Build path from currentFolderId on mount and whenever it changes
   useEffect(() => {
+    // Skip if we just set the path manually for this specific folder (from openFolder or navigateTo)
+    // This handles multiple effect triggers for the same folder (e.g., context update + URL navigation)
+    if (skipBuildForFolderRef.current === currentFolderId) {
+      previousFolderIdRef.current = currentFolderId;
+      isInitializedRef.current = true;
+      return;
+    }
+    
+    // Clear the skip flag if we're now on a different folder
+    if (skipBuildForFolderRef.current !== null && skipBuildForFolderRef.current !== currentFolderId) {
+      skipBuildForFolderRef.current = null;
+    }
+    
     // Skip if type is not synchronized with context (during view transitions)
     if (driveType !== type) {
       logger.debug("Breadcrumb: Skipping path build - type not synchronized", {
@@ -85,19 +100,34 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
     const shouldBuild = !isInitializedRef.current || previousFolderIdRef.current !== currentFolderId;
     
     if (shouldBuild) {
+      // Prevent building if we're already in the process of building for this folder
+      if (isBuildingRef.current) {
+        return;
+      }
+      
       logger.debug("Breadcrumb: Building path", {
         currentFolderId,
         previousFolderId: previousFolderIdRef.current,
         isInitialized: isInitializedRef.current,
       });
       
+      const folderIdForBuild = currentFolderId;
       previousFolderIdRef.current = currentFolderId;
       isInitializedRef.current = true;
       
       if (currentFolderId === "root") {
         setPath(generateInitialPath(type));
       } else {
-        buildPathFromFolder(currentFolderId, type).then(setPath);
+        isBuildingRef.current = true;
+        buildPathFromFolder(currentFolderId, type).then((newPath) => {
+          isBuildingRef.current = false;
+          // Only set path if we're still on the same folder (avoid stale updates)
+          if (previousFolderIdRef.current === folderIdForBuild) {
+            setPath(newPath);
+          }
+        }).catch(() => {
+          isBuildingRef.current = false;
+        });
       }
     }
   }, [currentFolderId, type, driveType]);
@@ -122,7 +152,8 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
     const newPath = path.slice(0, index + 1);
     const newFolderId = newPath[newPath.length - 1].id;
     
-    // Update the ref to prevent the effect from rebuilding the path
+    // Mark this folder ID to skip building - persists across multiple effect triggers
+    skipBuildForFolderRef.current = newFolderId;
     previousFolderIdRef.current = newFolderId;
     
     setPath(newPath);
@@ -137,11 +168,12 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
   };
 
   const openFolder = (folder) => {
-    // Update the ref to prevent the effect from rebuilding the path
+    // Mark this folder ID to skip building - persists across multiple effect triggers
+    skipBuildForFolderRef.current = folder._id;
     previousFolderIdRef.current = folder._id;
     
-    updateCurrentFolder(folder._id);
     setPath([...path, { id: folder._id, name: folder.name }]);
+    updateCurrentFolder(folder._id);
   };
 
   return {
