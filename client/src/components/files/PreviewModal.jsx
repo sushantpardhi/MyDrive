@@ -667,11 +667,11 @@ const PreviewModal = () => {
                 const blurBlobUrl = URL.createObjectURL(blurResponse.data);
                 setBlurUrl(blurBlobUrl);
                 setLoading(false); // Hide loading spinner as soon as blur is ready
-                console.log("[PreviewModal] Blur image loaded");
+
               }
             })
             .catch(error => {
-              console.log("[PreviewModal] Blur image not available:", error.message);
+
             });
 
           // 2. Load low-quality image independently (medium size, medium speed)
@@ -681,11 +681,11 @@ const PreviewModal = () => {
                 const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
                 setLowQualityUrl(lowQualityBlobUrl);
                 setLoading(false); // Hide loading spinner if not already hidden
-                console.log("[PreviewModal] Low-quality image loaded");
+
               }
             })
             .catch(error => {
-              console.log("[PreviewModal] Low-quality image not available:", error.message);
+
             });
 
           // 3. Load original image independently (largest, slowest)
@@ -695,7 +695,7 @@ const PreviewModal = () => {
                 const originalBlobUrl = URL.createObjectURL(originalResponse.data);
                 setOriginalUrl(originalBlobUrl);
                 setLoading(false); // Hide loading spinner if not already hidden
-                console.log("[PreviewModal] Original image loaded");
+
 
                 // Get image dimensions from original
                 const img = new Image();
@@ -1587,7 +1587,7 @@ const PreviewModal = () => {
                 mode="progressive"
                 onLoad={() => {
                   // Callback when original image fully loads
-                  console.log("Image fully loaded:", previewFile.name);
+
                 }}
                 style={{
                   transform: `scale(${

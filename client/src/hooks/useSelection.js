@@ -258,13 +258,6 @@ export const useSelection = (api, folders, files, type) => {
       const token = localStorage.getItem("token");
       const API_URL = process.env.REACT_APP_API_URL;
       
-      console.log("Download request details:", {
-        url: `${API_URL}/files/download`,
-        fileIds,
-        folderIds,
-        hasToken: !!token,
-      });
-      
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API_URL}/files/download`, true);
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);

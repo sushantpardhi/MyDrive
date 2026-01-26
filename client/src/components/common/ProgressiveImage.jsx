@@ -65,7 +65,7 @@ const ProgressiveImage = ({
       
       if (originalUrl) {
         // Original is available - show it
-        console.log("[ProgressiveImage] Displaying original image");
+
         setCurrentSrc(originalUrl);
         setIsLoading(false);
         
@@ -76,7 +76,7 @@ const ProgressiveImage = ({
         }
       } else if (lowQualityUrl) {
         // Low-quality is available but not original yet - show low-quality
-        console.log("[ProgressiveImage] Displaying low-quality image");
+
         setCurrentSrc(lowQualityUrl);
         setIsLoading(false);
         
@@ -85,7 +85,7 @@ const ProgressiveImage = ({
         }
       } else if (blurUrl) {
         // Only blur is available - show it
-        console.log("[ProgressiveImage] Displaying blur image");
+
         setCurrentSrc(blurUrl);
         setIsLoading(false); // Hide spinner once we have blur
         

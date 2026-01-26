@@ -82,8 +82,6 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
     if (typeof skipValue === 'number') {
       const timeSinceNavigation = Date.now() - skipValue;
       if (timeSinceNavigation < 500) {
-        // Still within lock period - skip all builds
-        console.log("🔒 Breadcrumb: Within navigation lock period, skipping build");
         previousFolderIdRef.current = currentFolderId;
         isInitializedRef.current = true;
         return;
@@ -161,17 +159,15 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
     const newPath = path.slice(0, index + 1);
     const newFolderId = newPath[newPath.length - 1].id;
     
-    // Set timestamp lock to prevent race conditions with useEffect rebuilds
-    skipBuildForFolderRef.current = Date.now();
-    previousFolderIdRef.current = newFolderId;
-    
-    // Update path immediately
+    // Optimistically update path for immediate feedback
     setPath(newPath);
     
-    // Update context and URL
-    updateCurrentFolder(newFolderId);
+    // Set timestamp lock to prevent path rebuild when context updates
+    skipBuildForFolderRef.current = Date.now();
+    previousFolderIdRef.current = newFolderId;
 
-    // Update URL
+    // Update URL - this will trigger DriveView's effect to update the context
+    // We do NOT call updateCurrentFolder() here to avoid double-loading
     if (newFolderId === "root") {
       navigate(`/${type}`, { replace: false });
     } else {

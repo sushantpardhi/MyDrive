@@ -272,7 +272,7 @@ export const useDownloadProgress = () => {
         .pauseDownload(downloadId)
         .then((success) => {
           if (success) {
-            console.log("Download paused successfully:", downloadId);
+
           }
         })
         .catch((err) => {
@@ -311,7 +311,7 @@ export const useDownloadProgress = () => {
         .resumeDownload(downloadId)
         .then((success) => {
           if (success) {
-            console.log("Download resumed successfully:", downloadId);
+
           }
         })
         .catch((err) => {
@@ -351,7 +351,7 @@ export const useDownloadProgress = () => {
         .cancelDownload(downloadId)
         .then((success) => {
           if (success) {
-            console.log("Download cancelled successfully:", downloadId);
+
           }
         })
         .catch((err) => {

@@ -40,6 +40,9 @@ import api from "../../services/api";
 // Styles
 import styles from "./DriveView.module.css";
 
+// Global in-flight folder request ref to prevent duplicate parallel loads
+const inFlightFolderLoads = {};
+
 const DriveView = ({ type = "drive", onMenuClick }) => {
   const { folderId: urlFolderId } = useParams();
   const navigate = useNavigate();
@@ -128,62 +131,72 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const { viewMode, itemsPerPage, changeViewMode } = useUserSettings();
   const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type, navigate);
 
+  // Remove lastRequestedFolderRef and debounce logic. Add robust global in-flight lock.
   const loadFolderContents = useCallback(
     async (folderId = "root", page = 1, append = false) => {
-      try {
-        if (page === 1) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
-        }
-
-        let response;
-        if (type === "shared" && folderId === "root") {
-          response = await api.getSharedItems(page, itemsPerPage);
-        } else {
-          response = await api.getFolderContents(
-            folderId,
-            type === "trash",
-            page,
-            itemsPerPage,
-            sortByRef.current,
-            sortOrderRef.current
-          );
-        }
-
-        if (append) {
-          setFolders((prev) => {
-            const existingIds = new Set(prev.map((f) => f._id));
-            const newFolders = (response.data.folders || []).filter(
-              (f) => !existingIds.has(f._id)
-            );
-            return [...prev, ...newFolders];
-          });
-          setFiles((prev) => {
-            const existingIds = new Set(prev.map((f) => f._id));
-            const newFiles = (response.data.files || []).filter(
-              (f) => !existingIds.has(f._id)
-            );
-            return [...prev, ...newFiles];
-          });
-        } else {
-          setFolders(response.data.folders || []);
-          setFiles(response.data.files || []);
-        }
-
-        setHasMore(response.data.pagination?.hasMore || false);
-        setCurrentPage(page);
-      } catch (error) {
-        logger.logError(error, "Failed to load folder contents", {
-          folderId,
-          page,
-          append,
-          type,
-        });
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
+      // Compose a unique key for this folder/page/append
+      const lockKey = `${folderId}|${page}|${append}`;
+      if (inFlightFolderLoads[lockKey]) {
+        return inFlightFolderLoads[lockKey];
       }
+
+      let setLoadingFn = page === 1 && !append ? setLoading : setLoadingMore;
+      setLoadingFn(true);
+
+      const requestPromise = (async () => {
+        try {
+          let response;
+          if (type === "shared" && folderId === "root") {
+            response = await api.getSharedItems(page, itemsPerPage);
+          } else {
+            response = await api.getFolderContents(
+              folderId,
+              type === "trash",
+              page,
+              itemsPerPage,
+              sortByRef.current,
+              sortOrderRef.current
+            );
+          }
+
+          if (append) {
+            setFolders((prev) => {
+              const existingIds = new Set(prev.map((f) => f._id));
+              const newFolders = (response.data.folders || []).filter(
+                (f) => !existingIds.has(f._id)
+              );
+              return [...prev, ...newFolders];
+            });
+            setFiles((prev) => {
+              const existingIds = new Set(prev.map((f) => f._id));
+              const newFiles = (response.data.files || []).filter(
+                (f) => !existingIds.has(f._id)
+              );
+              return [...prev, ...newFiles];
+            });
+          } else {
+            setFolders(response.data.folders || []);
+            setFiles(response.data.files || []);
+          }
+
+          setHasMore(response.data.pagination?.hasMore || false);
+          setCurrentPage(page);
+        } catch (error) {
+          logger.logError(error, "Failed to load folder contents", {
+            folderId,
+            page,
+            append,
+            type,
+          });
+        } finally {
+          setLoading(false);
+          setLoadingMore(false);
+          // Clear in-flight lock for this key
+          delete inFlightFolderLoads[lockKey];
+        }
+      })();
+      inFlightFolderLoads[lockKey] = requestPromise;
+      return requestPromise;
     },
     [
       type,
