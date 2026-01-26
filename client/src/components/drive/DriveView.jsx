@@ -105,6 +105,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const sortOrderRef = useRef("desc");
   const dragCounterRef = useRef(0);
   const currentTypeRef = useRef(type);
+  const isProgrammaticNavRef = useRef(false); // Track programmatic navigation to skip URL-based loading
 
   // State for tracking initialization
   const [isInitialized, setIsInitialized] = useState(false);
@@ -363,6 +364,12 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Initialize from URL on mount or when type changes
   useEffect(() => {
+    // Skip URL-based loading if we're navigating programmatically (from folder click)
+    if (isProgrammaticNavRef.current) {
+      isProgrammaticNavRef.current = false;
+      return;
+    }
+    
     // When switching types, always go to root (ignore any folder ID from URL of previous type)
     // Only use urlFolderId if it's explicitly in the current URL path
     const targetFolder = urlFolderId || "root";
@@ -423,7 +430,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       logger.debug("DriveView: Opening folder", { folderId: folder._id, name: folder.name });
       // Clear search state when opening a folder
       clearSearch();
-      // Open the folder
+      // Mark as programmatic navigation to skip URL-based loading in useEffect
+      isProgrammaticNavRef.current = true;
+      // Open the folder (this updates context state and breadcrumbs)
       openFolder(folder);
       // Update URL to reflect current folder
       navigate(`/${type}/${folder._id}`, { replace: false });
