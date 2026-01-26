@@ -7,42 +7,59 @@
   position: relative;
 }
 
+/* Mobile-first: Filter toggle button */
 .filterToggle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 4px;
+  padding: 8px;
   background-color: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-primary);
   transition: all 0.2s ease;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (max-width: 768px) {
+/* Hide "Filters" text on mobile but keep badge visible */
+.filterToggle > span:not(.badge) {
+  display: none;
+}
+
+.badge {
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  position: absolute;
+  top: -4px;
+  right: -4px;
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
   .filterToggle {
-    padding: 8px;
-    gap: 4px;
-    font-size: 13px;
-    min-height: 44px; /* Match search bar height */
-    min-width: 44px; /* Square button on mobile */
-    justify-content: center;
+    padding: 8px 16px;
+    gap: 8px;
+    font-size: 14px;
+    min-height: auto;
+    min-width: auto;
+    justify-content: flex-start;
   }
-
-  /* Hide "Filters" text but keep badge visible */
+  
   .filterToggle > span:not(.badge) {
-    display: none;
+    display: inline;
   }
-
+  
   .badge {
-    min-width: 18px;
-    height: 18px;
-    font-size: 10px;
-    position: absolute;
-    top: -4px;
-    right: -4px;
+    position: static;
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
   }
 }
 
@@ -75,18 +92,72 @@
   color: white;
 }
 
-.filterPanel {
-  position: absolute;
-  top: calc(100% + 8px);
+/* Mobile Overlay - Similar to PropertiesModal */
+.mobileOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   right: 0;
-  width: 500px;
-  max-height: 600px;
-  overflow-y: auto;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 9999; /* Super high to beat FAB/Toast */
+  animation: fadeIn 0.2s ease-out;
+  overscroll-behavior: contain; /* Prevent scrolling body when touching overlay */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Base Panel Styles */
+.filterPanel {
   background-color: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
   box-shadow: var(--shadow-xl);
-  z-index: 1000;
+  z-index: 10000; /* Highest level */
+  overflow-y: auto; /* Restore scrollability */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overscroll-behavior: contain; /* containment */
+}
+
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .mobileOverlay {
+    display: none; /* No overlay on desktop */
+  }
+
+  .filterPanel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 500px;
+    max-height: 600px;
+    border-radius: 12px;
+    animation: fadeInScale 0.2s ease-out;
+  }
+  
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
 }
 
 .filterHeader {
@@ -369,10 +440,19 @@
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .filterPanel {
-    width: calc(100vw - 32px);
-    max-width: 400px;
+    position: fixed; /* Re-affirm fixed on mobile */
+    bottom: 0;
+    left: 0;
     right: 0;
+    width: 100%;
     max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    animation: slideUpMobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes slideUpMobile {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
   }
 
   .filterHeader {
@@ -449,8 +529,6 @@
 /* Small Mobile */
 @media (max-width: 480px) {
   .filterPanel {
-    width: calc(100vw - 24px);
-    right: -12px;
     max-height: 85vh;
   }
 

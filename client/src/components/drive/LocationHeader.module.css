@@ -1,19 +1,20 @@
-/* Location header styles */
+/* Location header styles - Mobile First */
 .locationHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 32px 12px 32px;
+  gap: 10px; /* Reduced gap for mobile */
+  padding: 12px 12px; /* Mobile padding */
   background: var(--bg-primary);
   border-bottom: 1px solid var(--border-color);
   transition: background-color var(--transition-normal),
     border-color var(--transition-normal);
+  height: 56px; /* Fixed height for consistency */
 }
 
-/* Breadcrumb Navigation */
+/* Breadcrumb Navigation - Hidden on mobile by default */
 .breadcrumbScroll {
   flex: 1;
-  display: flex;
+  display: none; /* Hidden on mobile */
   align-items: center;
   overflow-x: auto;
   white-space: nowrap;
@@ -91,48 +92,10 @@
   transition: opacity 0.2s ease;
 }
 
-/* Breadcrumb tooltip */
-.breadcrumbLink[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  transform: translateX(-50%);
-  margin-top: 8px;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-text);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 1002;
-  box-shadow: var(--shadow-lg);
-  pointer-events: none;
-  animation: tooltipFadeIn 0.2s ease-out;
-}
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* Disable tooltips on touch devices */
-@media (hover: none) and (pointer: coarse) {
-  .breadcrumbLink[title]:hover::after {
-    display: none;
-  }
-}
-
 .locationControls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px; /* Mobile gap */
   margin-left: auto;
 }
 
@@ -143,12 +106,13 @@
   background: transparent;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 0; /* Centered icon */
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-normal);
   font-size: 14px;
-  min-width: 40px;
+  width: 40px; /* Touch friendly square */
+  height: 40px;
 }
 
 .controlBtn:hover {
@@ -168,52 +132,35 @@
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
 }
 
-@media (max-width: 768px) {
-  .locationHeader {
-    padding: 14px 16px 10px 16px;
-  }
-
-  .breadcrumbScroll {
-    display: none;
-  }
-
-  .controlBtn {
-    padding: 6px 10px;
-    min-width: 36px;
-  }
-}
-
-@media (max-width: 480px) {
-  .locationControls {
-    gap: 4px;
-  }
-
-  .controlBtn {
-    padding: 6px 8px;
-    min-width: 32px;
-  }
-}
-
-/* Location name tooltip */
+/* Breadcrumb tooltip - Desktop only */
+.breadcrumbLink[title]:hover::after,
 .locationName[title]:hover::after {
+  display: none; /* Hide by default on mobile */
   content: attr(title);
   position: absolute;
-  left: 0;
   top: 100%;
   margin-top: 8px;
   background: var(--tooltip-bg);
   color: var(--tooltip-text);
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
   white-space: nowrap;
   z-index: 1002;
   box-shadow: var(--shadow-lg);
   pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.breadcrumbLink[title]:hover::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.locationName[title]:hover::after {
+  left: 0;
   max-width: 300px;
   word-wrap: break-word;
-  animation: tooltipFadeIn 0.2s ease-out;
 }
 
 @keyframes tooltipFadeIn {
@@ -227,9 +174,36 @@
   }
 }
 
-/* Disable tooltips on touch devices */
-@media (hover: none) and (pointer: coarse) {
-  .locationName[title]:hover::after {
-    display: none;
+/* ============================================
+   TABLET & DESKTOP (min-width: 769px)
+   ============================================ */
+@media (min-width: 769px) {
+  .locationHeader {
+    padding: 18px 32px 12px 32px;
+    height: auto;
+    gap: 12px;
+  }
+
+  .breadcrumbScroll {
+    display: flex; /* Show on desktop */
+  }
+
+  .locationControls {
+    gap: 6px;
+  }
+
+  .controlBtn {
+    padding: 8px 12px;
+    width: auto;
+    height: auto;
+    min-width: 40px;
+  }
+
+  /* Show tooltips on hover capable devices */
+  @media (hover: hover) {
+    .breadcrumbLink[title]:hover::after,
+    .locationName[title]:hover::after {
+      display: block;
+    }
   }
 }

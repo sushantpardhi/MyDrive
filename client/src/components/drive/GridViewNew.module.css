@@ -2,15 +2,16 @@
    GridViewNew - Modern Responsive Grid Layout
    ============================================ */
 
+/* Mobile-First Base Styles */
 .container {
-  padding: 20px 24px;
-  min-height: calc(100vh - 200px);
+  padding: 12px 12px;
+  min-height: calc(100vh - 160px);
   background: var(--bg-secondary);
 }
 
 /* Sections */
 .section {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .section:last-child {
@@ -18,19 +19,19 @@
 }
 
 .sectionTitle {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin: 0 0 16px 4px;
+  margin: 0 0 10px 4px; /* Mobile margin */
 }
 
-/* Grid Layout */
+/* Grid Layout - Mobile Default (3 columns on standard mobile, 2 on small) */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr); /* Default to 3 columns for mobile */
+  gap: 10px;
   justify-items: stretch;
 }
 
@@ -53,14 +54,14 @@
   }
 }
 
-/* Empty State */
+/* Empty State - Mobile Default */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
-  padding: 40px 20px;
+  min-height: 300px;
+  padding: 30px 16px;
   text-align: center;
 }
 
@@ -70,15 +71,20 @@
   opacity: 0.5;
 }
 
+.emptyIcon svg {
+  width: 48px;
+  height: 48px;
+}
+
 .emptyTitle {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 8px;
 }
 
 .emptyText {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   margin: 0;
   max-width: 300px;
@@ -86,99 +92,9 @@
 }
 
 /* ============================================
-   LARGE DESKTOP (min-width: 1401px)
-   ============================================ */
-@media (min-width: 1401px) {
-  .container {
-    padding: 24px 32px;
-  }
-
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 20px;
-  }
-}
-
-/* ============================================
-   DESKTOP (1025px - 1400px)
-   ============================================ */
-@media (min-width: 1025px) and (max-width: 1400px) {
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-  }
-}
-
-/* ============================================
-   TABLET (769px - 1024px)
-   ============================================ */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .container {
-    padding: 16px 20px;
-    min-height: calc(100vh - 180px);
-  }
-
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 14px;
-  }
-
-  .sectionTitle {
-    font-size: 12px;
-    margin-bottom: 12px;
-  }
-}
-
-/* ============================================
-   MOBILE (max-width: 768px)
-   ============================================ */
-@media (max-width: 768px) {
-  .container {
-    padding: 12px 12px;
-    min-height: calc(100vh - 160px);
-  }
-
-  .section {
-    margin-bottom: 24px;
-  }
-
-  .sectionTitle {
-    font-size: 11px;
-    margin-bottom: 10px;
-    margin-left: 2px;
-  }
-
-  .grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    justify-items: stretch;
-  }
-
-  .grid > * {
-    max-width: 100%;
-  }
-
-  .empty {
-    min-height: 300px;
-    padding: 30px 16px;
-  }
-
-  .emptyIcon svg {
-    width: 48px;
-    height: 48px;
-  }
-
-  .emptyTitle {
-    font-size: 16px;
-  }
-
-  .emptyText {
-    font-size: 13px;
-  }
-}
-
-/* ============================================
    SMALL MOBILE (max-width: 480px)
+   Target very small screens specifically if needed overrides
+   but generally base styles covered this.
    ============================================ */
 @media (max-width: 480px) {
   .container {
@@ -196,9 +112,8 @@
   }
 
   .grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on small screens */
     gap: 8px;
-    justify-items: stretch;
   }
 
   .empty {
@@ -220,5 +135,82 @@
 
   .sectionTitle {
     font-size: 9px;
+  }
+}
+
+/* ============================================
+   TABLET (min-width: 769px)
+   ============================================ */
+@media (min-width: 769px) {
+  .container {
+    padding: 16px 20px;
+    min-height: calc(100vh - 180px);
+  }
+
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .sectionTitle {
+    font-size: 12px;
+    margin: 0 0 12px 4px;
+  }
+
+  /* Tablet Grid */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .empty {
+    min-height: 400px;
+    padding: 40px 20px;
+  }
+
+  .emptyIcon svg {
+    width: auto; /* Reset */
+    height: auto;
+  }
+
+  .emptyTitle {
+    font-size: 18px;
+  }
+
+  .emptyText {
+    font-size: 14px;
+  }
+}
+
+/* ============================================
+   DESKTOP (min-width: 1025px)
+   ============================================ */
+@media (min-width: 1025px) {
+  .container {
+    padding: 20px 24px;
+    min-height: calc(100vh - 200px);
+  }
+
+  .sectionTitle {
+    font-size: 13px;
+    margin: 0 0 16px 4px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* ============================================
+   LARGE DESKTOP (min-width: 1401px)
+   ============================================ */
+@media (min-width: 1401px) {
+  .container {
+    padding: 24px 32px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
   }
 }

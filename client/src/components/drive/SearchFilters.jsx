@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Filter,
   X,
@@ -16,6 +17,7 @@ import styles from "./SearchFilters.module.css";
 
 const SearchFilters = ({ filters, onFiltersChange, onClear, isActive }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [localFilters, setLocalFilters] = useState({
     fileTypes: [],
     sizeMin: "",
@@ -35,25 +37,49 @@ const SearchFilters = ({ filters, onFiltersChange, onClear, isActive }) => {
     setLocalFilters(filters);
   }, [filters]);
 
-  // Close filter panel when clicking outside
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.matchMedia("(max-width: 768px)").matches);
+    };
+    
+    checkMobile(); // Initial check
+    
+    // Add listener
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handler = (e) => setIsMobile(e.matches);
+    
+    // Modern browsers
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
+    } else {
+      // Fallback
+      mediaQuery.addListener(handler);
+      return () => mediaQuery.removeListener(handler);
+    }
+  }, []);
+
+  // Close filter panel when clicking outside (Desktop only)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         filterContainerRef.current &&
         !filterContainerRef.current.contains(event.target) &&
-        isExpanded
+        isExpanded &&
+        !isMobile // Only needed for desktop inline rendering
       ) {
         setIsExpanded(false);
       }
     };
 
-    if (isExpanded) {
+    if (isExpanded && !isMobile) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [isExpanded]);
+  }, [isExpanded, isMobile]);
 
   const fileTypeCategories = [
     { name: "Documents", icon: FileText, types: ["pdf", "doc", "docx", "txt"] },
@@ -240,6 +266,210 @@ const SearchFilters = ({ filters, onFiltersChange, onClear, isActive }) => {
 
   const activeCount = getActiveFilterCount();
 
+  const renderFilterMenu = () => (
+    <>
+      {isMobile && (
+        <div
+          className={styles.mobileOverlay}
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+      <div className={styles.filterPanel}>
+        <div className={styles.filterHeader}>
+          <h3>Search Filters</h3>
+          <div className={styles.filterActions}>
+            <button onClick={handleClear} className={styles.clearBtn}>
+              Clear All
+            </button>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className={styles.closeBtn}
+              aria-label="Close filters"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.filterBody}>
+          {/* File Type Filter */}
+          <div className={styles.filterSection}>
+            <h4>
+              <Filter size={16} />
+              File Type
+            </h4>
+            <div className={styles.typeGrid}>
+              {fileTypeCategories.map((category) => {
+                const Icon = category.icon;
+                const isSelected = category.types.some((t) =>
+                  localFilters.fileTypes.includes(t)
+                );
+                return (
+                  <button
+                    key={category.name}
+                    className={`${styles.typeBtn} ${
+                      isSelected ? styles.selected : ""
+                    }`}
+                    onClick={() => handleFileTypeToggle(category.types)}
+                  >
+                    <Icon size={20} />
+                    <span>{category.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Size Filter */}
+          <div className={styles.filterSection}>
+            <h4>
+              <Archive size={16} />
+              File Size
+            </h4>
+            <div className={styles.presetButtons}>
+              {sizePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  className={styles.presetBtn}
+                  onClick={() => handleSizePreset(preset)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.rangeInputs}>
+              <div className={styles.inputGroup}>
+                <label>Min Size</label>
+                <div className={styles.sizeInputWrapper}>
+                  <input
+                    type="number"
+                    placeholder="Value"
+                    value={sizeMinDisplay}
+                    onChange={(e) => handleSizeMinChange(e.target.value)}
+                    className={styles.sizeInput}
+                  />
+                  <select
+                    value={sizeMinUnit}
+                    onChange={(e) => handleSizeMinUnitChange(e.target.value)}
+                    className={styles.unitSelect}
+                  >
+                    <option value="bytes">Bytes</option>
+                    <option value="kb">KB</option>
+                    <option value="mb">MB</option>
+                    <option value="gb">GB</option>
+                  </select>
+                </div>
+                {localFilters.sizeMin && (
+                  <span className={styles.inputHint}>
+                    {formatBytes(parseInt(localFilters.sizeMin))}
+                  </span>
+                )}
+              </div>
+              <div className={styles.inputGroup}>
+                <label>Max Size</label>
+                <div className={styles.sizeInputWrapper}>
+                  <input
+                    type="number"
+                    placeholder="Value"
+                    value={sizeMaxDisplay}
+                    onChange={(e) => handleSizeMaxChange(e.target.value)}
+                    className={styles.sizeInput}
+                  />
+                  <select
+                    value={sizeMaxUnit}
+                    onChange={(e) => handleSizeMaxUnitChange(e.target.value)}
+                    className={styles.unitSelect}
+                  >
+                    <option value="bytes">Bytes</option>
+                    <option value="kb">KB</option>
+                    <option value="mb">MB</option>
+                    <option value="gb">GB</option>
+                  </select>
+                </div>
+                {localFilters.sizeMax && (
+                  <span className={styles.inputHint}>
+                    {formatBytes(parseInt(localFilters.sizeMax))}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Date Filter */}
+          <div className={styles.filterSection}>
+            <h4>
+              <Calendar size={16} />
+              Date Created
+            </h4>
+            <div className={styles.presetButtons}>
+              {datePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  className={styles.presetBtn}
+                  onClick={() => handleDatePreset(preset)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.rangeInputs}>
+              <div className={styles.inputGroup}>
+                <label>Start Date</label>
+                <input
+                  type="date"
+                  value={localFilters.dateStart}
+                  onChange={(e) =>
+                    handleInputChange("dateStart", e.target.value)
+                  }
+                />
+              </div>
+              <div className={styles.inputGroup}>
+                <label>End Date</label>
+                <input
+                  type="date"
+                  value={localFilters.dateEnd}
+                  onChange={(e) =>
+                    handleInputChange("dateEnd", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sort Options */}
+          <div className={styles.filterSection}>
+            <h4>
+              <ArrowUpDown size={16} />
+              Sort By
+            </h4>
+            <div className={styles.sortControls}>
+              <select
+                value={localFilters.sortBy}
+                onChange={(e) => handleInputChange("sortBy", e.target.value)}
+                className={styles.sortSelect}
+              >
+                <option value="createdAt">Date Created</option>
+                <option value="updatedAt">Date Modified</option>
+                <option value="name">Name</option>
+                <option value="size">Size</option>
+              </select>
+              <select
+                value={localFilters.sortOrder}
+                onChange={(e) =>
+                  handleInputChange("sortOrder", e.target.value)
+                }
+                className={styles.sortSelect}
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className={styles.filterContainer} ref={filterContainerRef}>
       <button
@@ -252,201 +482,10 @@ const SearchFilters = ({ filters, onFiltersChange, onClear, isActive }) => {
         {isActive && <span className={styles.badge}>{activeCount}</span>}
       </button>
 
-      {isExpanded && (
-        <div className={styles.filterPanel}>
-          <div className={styles.filterHeader}>
-            <h3>Search Filters</h3>
-            <div className={styles.filterActions}>
-              <button onClick={handleClear} className={styles.clearBtn}>
-                Clear All
-              </button>
-              <button
-                onClick={() => setIsExpanded(false)}
-                className={styles.closeBtn}
-                aria-label="Close filters"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.filterBody}>
-            {/* File Type Filter */}
-            <div className={styles.filterSection}>
-              <h4>
-                <Filter size={16} />
-                File Type
-              </h4>
-              <div className={styles.typeGrid}>
-                {fileTypeCategories.map((category) => {
-                  const Icon = category.icon;
-                  const isSelected = category.types.some((t) =>
-                    localFilters.fileTypes.includes(t)
-                  );
-                  return (
-                    <button
-                      key={category.name}
-                      className={`${styles.typeBtn} ${
-                        isSelected ? styles.selected : ""
-                      }`}
-                      onClick={() => handleFileTypeToggle(category.types)}
-                    >
-                      <Icon size={20} />
-                      <span>{category.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Size Filter */}
-            <div className={styles.filterSection}>
-              <h4>
-                <Archive size={16} />
-                File Size
-              </h4>
-              <div className={styles.presetButtons}>
-                {sizePresets.map((preset) => (
-                  <button
-                    key={preset.label}
-                    className={styles.presetBtn}
-                    onClick={() => handleSizePreset(preset)}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <div className={styles.rangeInputs}>
-                <div className={styles.inputGroup}>
-                  <label>Min Size</label>
-                  <div className={styles.sizeInputWrapper}>
-                    <input
-                      type="number"
-                      placeholder="Value"
-                      value={sizeMinDisplay}
-                      onChange={(e) => handleSizeMinChange(e.target.value)}
-                      className={styles.sizeInput}
-                    />
-                    <select
-                      value={sizeMinUnit}
-                      onChange={(e) => handleSizeMinUnitChange(e.target.value)}
-                      className={styles.unitSelect}
-                    >
-                      <option value="bytes">Bytes</option>
-                      <option value="kb">KB</option>
-                      <option value="mb">MB</option>
-                      <option value="gb">GB</option>
-                    </select>
-                  </div>
-                  {localFilters.sizeMin && (
-                    <span className={styles.inputHint}>
-                      {formatBytes(parseInt(localFilters.sizeMin))}
-                    </span>
-                  )}
-                </div>
-                <div className={styles.inputGroup}>
-                  <label>Max Size</label>
-                  <div className={styles.sizeInputWrapper}>
-                    <input
-                      type="number"
-                      placeholder="Value"
-                      value={sizeMaxDisplay}
-                      onChange={(e) => handleSizeMaxChange(e.target.value)}
-                      className={styles.sizeInput}
-                    />
-                    <select
-                      value={sizeMaxUnit}
-                      onChange={(e) => handleSizeMaxUnitChange(e.target.value)}
-                      className={styles.unitSelect}
-                    >
-                      <option value="bytes">Bytes</option>
-                      <option value="kb">KB</option>
-                      <option value="mb">MB</option>
-                      <option value="gb">GB</option>
-                    </select>
-                  </div>
-                  {localFilters.sizeMax && (
-                    <span className={styles.inputHint}>
-                      {formatBytes(parseInt(localFilters.sizeMax))}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Date Filter */}
-            <div className={styles.filterSection}>
-              <h4>
-                <Calendar size={16} />
-                Date Created
-              </h4>
-              <div className={styles.presetButtons}>
-                {datePresets.map((preset) => (
-                  <button
-                    key={preset.label}
-                    className={styles.presetBtn}
-                    onClick={() => handleDatePreset(preset)}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <div className={styles.rangeInputs}>
-                <div className={styles.inputGroup}>
-                  <label>Start Date</label>
-                  <input
-                    type="date"
-                    value={localFilters.dateStart}
-                    onChange={(e) =>
-                      handleInputChange("dateStart", e.target.value)
-                    }
-                  />
-                </div>
-                <div className={styles.inputGroup}>
-                  <label>End Date</label>
-                  <input
-                    type="date"
-                    value={localFilters.dateEnd}
-                    onChange={(e) =>
-                      handleInputChange("dateEnd", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Sort Options */}
-            <div className={styles.filterSection}>
-              <h4>
-                <ArrowUpDown size={16} />
-                Sort By
-              </h4>
-              <div className={styles.sortControls}>
-                <select
-                  value={localFilters.sortBy}
-                  onChange={(e) => handleInputChange("sortBy", e.target.value)}
-                  className={styles.sortSelect}
-                >
-                  <option value="createdAt">Date Created</option>
-                  <option value="updatedAt">Date Modified</option>
-                  <option value="name">Name</option>
-                  <option value="size">Size</option>
-                </select>
-                <select
-                  value={localFilters.sortOrder}
-                  onChange={(e) =>
-                    handleInputChange("sortOrder", e.target.value)
-                  }
-                  className={styles.sortSelect}
-                >
-                  <option value="desc">Descending</option>
-                  <option value="asc">Ascending</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {isExpanded &&
+        (isMobile
+          ? createPortal(renderFilterMenu(), document.body)
+          : renderFilterMenu())}
     </div>
   );
 };

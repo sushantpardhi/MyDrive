@@ -1,103 +1,135 @@
+/* Mobile-first: List View */
 .listView {
   display: flex;
   flex-direction: column;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
-  overflow: visible;
-  margin: 0 24px 24px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 10px 10px;
   box-shadow: var(--shadow-sm);
   transition: background-color var(--transition-normal),
     border-color var(--transition-normal);
 }
 
-/* Modern table header */
+/* Tablet and up */
+@media (min-width: 769px) {
+  .listView {
+    border-radius: 12px;
+    margin: 0 16px 16px;
+    overflow: visible;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .listView {
+    margin: 0 24px 24px;
+  }
+}
+
+/* Mobile-first: List header */
 .listHeader {
   display: grid;
-  grid-template-columns:
-    48px minmax(200px, 3fr) minmax(80px, 1fr) minmax(120px, 1.2fr)
-    120px;
+  grid-template-columns: 28px 1fr 28px;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 8px;
+  padding: 10px 12px;
   background: var(--bg-secondary);
   border-bottom: 2px solid var(--border-color);
+  border-radius: 8px 8px 0 0;
   transition: background-color var(--transition-normal),
     border-color var(--transition-normal);
 }
 
-/* When owner column is present (shared view) */
-.listHeader:has(.headerOwner) {
-  grid-template-columns:
-    48px minmax(180px, 2.5fr) minmax(90px, 1fr) minmax(80px, 1fr) minmax(100px, 1fr)
-    100px;
+/* Hide columns on mobile */
+.headerSize,
+.headerMeta,
+.headerOwner {
+  display: none;
 }
 
-/* Tablet Responsive */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .listView {
-    margin: 0 16px 16px;
-  }
+.headerName {
+  font-size: 11px;
+}
 
+.headerActions {
+  text-align: center;
+  font-size: 11px;
+}
+
+.selectAllBtn {
+  width: 28px;
+  height: 28px;
+}
+
+/* Tablet */
+@media (min-width: 769px) {
   .listHeader {
     grid-template-columns:
       48px minmax(150px, 3fr) minmax(70px, 1fr) minmax(100px, 1.2fr)
       100px;
+    gap: 12px;
     padding: 12px 16px;
   }
-
+  
+  .headerSize,
+  .headerMeta {
+    display: block;
+  }
+  
+  .headerName {
+    font-size: 12px;
+  }
+  
+  .headerActions {
+    font-size: 12px;
+  }
+  
+  .selectAllBtn {
+    width: 32px;
+    height: 32px;
+  }
+  
   .listHeader:has(.headerOwner) {
     grid-template-columns:
       48px minmax(140px, 2.5fr) minmax(80px, 1fr) minmax(70px, 1fr) minmax(90px, 1fr)
       90px;
   }
+  
+  .listHeader:has(.headerOwner) .headerOwner {
+    display: block;
+  }
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .listView {
-    margin: 0 10px 10px;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
+/* Desktop */
+@media (min-width: 1025px) {
   .listHeader {
-    grid-template-columns: 28px 1fr 28px;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 8px 8px 0 0;
+    grid-template-columns:
+      48px minmax(200px, 3fr) minmax(80px, 1fr) minmax(120px, 1.2fr)
+      120px;
+    padding: 14px 20px;
   }
-
-  .headerSize,
-  .headerMeta,
-  .headerOwner {
-    display: none;
-  }
-
+  
   .headerName {
-    font-size: 10px;
+    font-size: 13px;
   }
-
+  
   .headerActions {
-    text-align: center;
-    font-size: 10px;
+    font-size: 13px;
   }
-
-  .listBody {
-    border-radius: 0 0 8px 8px;
-  }
-
+  
   .selectAllBtn {
-    width: 24px;
-    height: 24px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .listHeader:has(.headerOwner) {
+    grid-template-columns:
+      48px minmax(180px, 2.5fr) minmax(90px, 1fr) minmax(80px, 1fr) minmax(100px, 1fr)
+      100px;
   }
 }
-
-/* Small Mobile */
-@media (max-width: 480px) {
-  .listView {
-    margin: 0 8px 8px;
-    border-radius: 6px;
   }
 
   .listHeader {

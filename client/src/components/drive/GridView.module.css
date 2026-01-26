@@ -1,22 +1,70 @@
+/* Mobile-first: Grid View base styles */
 .gridView {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
-  padding: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 12px;
   background: var(--bg-secondary);
   transition: background-color var(--transition-normal);
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 160px);
   justify-items: center;
   align-items: start;
 }
 
-/* Grid view animations */
+/* Small tablets: 3 columns */
+@media (min-width: 481px) {
+  .gridView {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+/* Tablets: 4 columns */
+@media (min-width: 769px) {
+  .gridView {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    padding: 20px;
+    min-height: calc(100vh - 180px);
+  }
+  
+  .gridView > * {
+    max-width: 180px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .gridView {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .gridView > * {
+    max-width: 200px;
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1401px) {
+  .gridView {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 28px;
+  }
+
+  .gridView > * {
+    max-width: 220px;
+  }
+}
+
+/* Mobile-first: Grid animations */
 .gridView > * {
   animation: fadeInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   animation-delay: calc(var(--item-index, 0) * 0.03s);
   transform-origin: center;
   width: 100%;
-  max-width: 200px;
   margin: 0;
   opacity: 0;
   justify-self: center;
@@ -33,84 +81,12 @@
   }
 }
 
-/* Enhanced hover effects for grid items */
-.gridView > *:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  z-index: 2;
-}
-
-/* Large Desktop */
-@media (min-width: 1401px) {
-  .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
-    padding: 28px;
-  }
-
-  .gridView > * {
-    max-width: 220px;
-  }
-}
-
-/* Desktop */
-@media (min-width: 1025px) and (max-width: 1400px) {
-  .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
-    padding: 24px;
-  }
-
-  .gridView > * {
-    max-width: 200px;
-  }
-}
-
-/* Tablet Responsive */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .gridView {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 14px;
-    padding: 20px;
-    min-height: calc(100vh - 180px);
-  }
-
-  .gridView > * {
-    max-width: 180px;
-  }
-}
-
-/* Mobile Responsive - 3 columns */
-@media (max-width: 768px) {
-  .gridView {
-    grid-template-columns: repeat(3, 1fr);
-    padding: 12px;
-    gap: 10px;
-    min-height: calc(100vh - 160px);
-  }
-
-  .gridView > * {
-    max-width: none;
-    width: 100%;
-  }
-}
-
-/* Small Mobile - 2 columns */
-@media (max-width: 480px) {
-  .gridView {
-    grid-template-columns: repeat(2, 1fr);
-    padding: 10px;
-    gap: 8px;
-    min-height: calc(100vh - 140px);
-  }
-}
-
-/* Very Small Mobile - 2 columns tighter */
-@media (max-width: 360px) {
-  .gridView {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-    padding: 8px;
+/* Enhanced hover effects for grid items - tablet and up */
+@media (min-width: 769px) {
+  .gridView > *:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    z-index: 2;
   }
 }
 

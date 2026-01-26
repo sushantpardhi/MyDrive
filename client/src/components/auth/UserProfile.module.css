@@ -1,3 +1,4 @@
+/* Mobile-first: Profile wrapper */
 .profileWrapper {
   width: 100%;
   min-height: 100vh;
@@ -7,15 +8,22 @@
   background: var(--bg-secondary);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2rem 0;
+  padding: 5rem 0 2rem;
   transition: background-color var(--transition-normal);
   scroll-behavior: smooth;
   position: relative;
 }
 
-/* Mobile Hamburger Menu Button */
+/* Tablet and up */
+@media (min-width: 769px) {
+  .profileWrapper {
+    padding: 2rem 0;
+  }
+}
+
+/* Mobile-first: Mobile menu button visible by default */
 .mobileMenuButton {
-  display: none;
+  display: flex;
   position: fixed;
   top: 16px;
   left: 16px;
@@ -31,6 +39,7 @@
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobileMenuButton:hover {
@@ -42,23 +51,28 @@
   transform: scale(0.95);
 }
 
-@media (max-width: 768px) {
+/* Tablet and up: Hide mobile menu button */
+@media (min-width: 769px) {
   .mobileMenuButton {
-    display: flex;
-  }
-  
-  .profileWrapper {
-    padding-top: 4.5rem;
+    display: none;
   }
 }
 
+/* Mobile-first: Profile container */
 .profileContainer {
   width: 100%;
   max-width: 1000px;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   display: flex;
   align-items: flex-start;
   justify-content: center;
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .profileContainer {
+    padding: 0 1.5rem;
+  }
 }
 
 .profileTitle {

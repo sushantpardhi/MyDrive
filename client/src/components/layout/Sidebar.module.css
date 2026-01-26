@@ -33,31 +33,50 @@
   transform: translateY(0);
 }
 
+/* Mobile-first: Sidebar base styles */
 .sidebar {
-  width: 260px;
+  width: 280px;
   height: 100vh;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
-  padding: 20px;
+  padding: 16px;
+  padding-top: 64px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   box-shadow: var(--shadow-md);
   transition: background-color var(--transition-normal),
     border-color var(--transition-normal);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+/* Tablet and up */
+@media (min-width: 769px) {
+  .sidebar {
+    width: 260px;
+    padding: 20px;
+    padding-top: 20px;
+    gap: 20px;
+  }
+}
+
+/* Mobile-first: Close button (visible on mobile) */
 .closeButton {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
   background: transparent;
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: background-color var(--transition-normal),
     color var(--transition-normal);
   z-index: 10;
@@ -68,6 +87,18 @@
   color: var(--text-primary);
 }
 
+.closeButton:active {
+  transform: scale(0.9);
+}
+
+/* Tablet and up: Hide close button */
+@media (min-width: 769px) {
+  .closeButton {
+    display: none;
+  }
+}
+
+/* Mobile-first: User section */
 .userSection {
   display: flex;
   align-items: center;
@@ -81,6 +112,11 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.userSection:active {
+  transform: scale(0.98);
 }
 
 .userSectionLink:hover .userSection {
@@ -179,18 +215,21 @@
   gap: 4px;
 }
 
+/* Mobile-first: Navigation links */
 .link {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   transition: all var(--transition-slow);
   position: relative;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
 }
 
 .link:hover {
@@ -199,8 +238,21 @@
   transform: translateX(4px);
 }
 
+.link:active {
+  transform: translateX(2px) scale(0.98);
+}
+
 .link span {
   flex: 1;
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .link {
+    padding: 12px 14px;
+    font-size: 14px;
+    min-height: auto;
+  }
 }
 
 .active {
@@ -245,22 +297,25 @@
   box-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
 }
 
+/* Mobile-first: Logout button */
 .logoutButton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   width: 100%;
   background-color: var(--card-bg);
   border: 2px solid var(--border-color);
   border-radius: 10px;
   color: var(--danger-color);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-slow);
   box-shadow: var(--shadow-sm);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 52px;
 }
 
 .logoutButton:hover {
@@ -272,80 +327,16 @@
 }
 
 .logoutButton:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
   box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    height: 100vh;
-    padding-top: 64px;
-    width: 280px;
-  }
-
-  .closeButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    top: 12px;
-    right: 12px;
-  }
-
-  .closeButton:active {
-    transform: scale(0.9);
-  }
-
-  .userSection {
-    padding: 12px;
-    margin-bottom: 12px;
-  }
-
-  .userAvatar {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-
-  .userName {
-    font-size: 14px;
-  }
-
-  .userEmail {
-    font-size: 12px;
-  }
-
-  .menu {
-    gap: 6px;
-  }
-
-  .link {
-    padding: 14px 16px;
-    font-size: 15px;
-  }
-
-  .link:active {
-    transform: translateX(2px) scale(0.98);
-  }
-
-  .storageInfo {
-    font-size: 12px;
-    flex-wrap: wrap;
-    padding: 0 12px;
-  }
-
-  .storageBar {
-    height: 10px;
-    margin-bottom: 12px;
-  }
-
+/* Tablet and up */
+@media (min-width: 769px) {
   .logoutButton {
-    padding: 14px 18px;
-    font-size: 15px;
-  }
-
-  .logoutButton:active {
-    transform: translateY(0) scale(0.98);
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: auto;
   }
 }
+

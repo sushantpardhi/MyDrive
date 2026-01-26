@@ -36,7 +36,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--accent-primary);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -67,8 +67,9 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Tablet and Desktop */
+@media (min-width: 769px) {
   .driveContainer.dragOverlay::after {
-    font-size: 18px;
+    font-size: 24px;
   }
 }

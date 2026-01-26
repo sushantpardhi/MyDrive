@@ -17,7 +17,7 @@
   font-size: 14px;
 }
 
-/* Empty folder state */
+/* Empty folder state - Mobile First */
 .emptyFolder {
   display: flex;
   align-items: center;
@@ -32,38 +32,42 @@
 }
 
 .emptyFolder svg {
+  width: 48px;
+  height: 48px;
   color: var(--text-quaternary);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .emptyFolder h3 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--text-primary);
   margin: 0 0 12px 0;
 }
 
 .emptyFolder p {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
   line-height: 1.5;
+  padding: 0 20px;
 }
 
-@media (max-width: 768px) {
+/* Tablet and Desktop */
+@media (min-width: 769px) {
   .emptyFolder svg {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 16px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 24px;
   }
 
   .emptyFolder h3 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .emptyFolder p {
-    font-size: 14px;
-    padding: 0 20px;
+    font-size: 15px;
+    padding: 0;
   }
 }
 

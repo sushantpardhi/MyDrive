@@ -1,25 +1,26 @@
-/* Mobile actions menu */
+/* Mobile-first: Mobile actions menu visible by default */
 .mobileActionsMenu {
-  display: none;
-  position: relative;
+  display: block;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
 }
 
-@media (max-width: 768px) {
+/* Tablet and up: Hide FAB */
+@media (min-width: 769px) {
   .mobileActionsMenu {
-    display: block;
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1000;
+    display: none;
   }
 }
 
+/* Mobile-first: Action toggle button */
 .mobileActionsToggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -27,6 +28,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobileActionsToggle:hover {
@@ -57,27 +59,34 @@
   border: 1px solid var(--modal-border);
 }
 
+/* Mobile-first: Menu items with better touch targets */
 .mobileMenuItem,
 .mobileMenuItemDanger {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: left;
   transition: all 0.15s ease;
+  min-height: 48px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobileMenuItem:hover {
   background: var(--hover-overlay);
   color: var(--text-primary);
+}
+
+.mobileMenuItem:active {
+  transform: scale(0.98);
 }
 
 .mobileMenuItemDanger {
@@ -89,24 +98,30 @@
   color: var(--danger-color-dark);
 }
 
-/* Backdrop for mobile FAB menu */
-.fabBackdrop {
-  display: none;
+.mobileMenuItemDanger:active {
+  transform: scale(0.98);
 }
 
-@media (max-width: 768px) {
+/* Mobile-first: Backdrop visible by default */
+.fabBackdrop {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tablet and up: Hide backdrop */
+@media (min-width: 769px) {
   .fabBackdrop {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: 999;
-    animation: fadeIn 0.2s ease;
+    display: none;
   }
 }
+
 
 @keyframes fadeIn {
   from {

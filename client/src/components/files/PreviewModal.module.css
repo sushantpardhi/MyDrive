@@ -1,4 +1,4 @@
-/* Modal Overlay */
+/* Mobile-first: Modal Overlay */
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -12,12 +12,19 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 1rem;
+  padding: 0;
   animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modalOverlay.fullScreen {
   padding: 0;
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .modalOverlay {
+    padding: 1rem;
+  }
 }
 
 @keyframes fadeIn {

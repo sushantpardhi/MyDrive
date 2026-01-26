@@ -8,64 +8,67 @@
     border-color var(--transition-normal);
 }
 
-/* Header Bar Styles */
+/* Mobile-first: Header Bar Styles */
 .headerBar {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  gap: 12px;
+  padding: 12px;
+  gap: 8px;
+  /* Mobile: default flex start alignment */
 }
 
-@media (max-width: 768px) {
-  .headerContainer {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--bg-primary);
-  }
+.headerContainer {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-primary);
+}
 
+/* Tablet and up */
+@media (min-width: 769px) {
   .headerBar {
-    padding: 12px;
-    gap: 8px;
+    padding: 12px 20px;
+    gap: 12px;
+    justify-content: space-between; /* Layout: Left ... Right */
   }
 }
 
-/* Menu Button */
+/* Mobile-first: Menu Button */
 .menuButton {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 0;
+  border-radius: 8px;
   transition: background 0.2s ease;
   flex-shrink: 0;
+  /* Removed order: 1 */
+  width: 44px;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .menuButton:hover {
   background: var(--hover-overlay);
 }
 
-@media (max-width: 768px) {
-  .menuButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    order: 1;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    flex-shrink: 0;
-  }
+.menuButton:active {
+  background: var(--active-overlay);
+  transform: scale(0.95);
+}
 
-  .menuButton:active {
-    background: var(--active-overlay);
-    transform: scale(0.95);
+/* Tablet and up: Hide menu button */
+@media (min-width: 769px) {
+  .menuButton {
+    display: none;
   }
 }
 
-/* Search Bar */
+/* Mobile-first: Search Bar */
 .searchBar {
   display: flex;
   align-items: center;
@@ -74,9 +77,19 @@
   padding: 10px 14px;
   border-radius: 10px;
   flex: 1;
-  max-width: 500px;
+  min-width: 0;
+  max-width: none;
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  min-height: 44px;
+  /* Removed order: 2 */
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .searchBar {
+    max-width: 500px;
+  }
 }
 
 .searchBar:focus-within {
@@ -134,7 +147,7 @@
   .searchBar {
     max-width: none;
     flex: 1;
-    order: 2;
+    /* Removed order: 2 */
     padding: 10px 14px;
     min-height: 44px;
     min-width: 0; /* Allow shrinking */
@@ -287,7 +300,7 @@
   display: flex;
   gap: 10px;
   flex-shrink: 0;
-  margin-left: auto;
+  /* Removed margin-left: auto to allow left positioning */
 }
 
 @media (max-width: 768px) {
@@ -437,5 +450,22 @@
     z-index: 100;
     order: 3;
     flex-shrink: 0;
+  }
+}
+
+/* Search Container Grouping */
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1; /* Take up remaining space on mobile, or fill gap on desktop */
+}
+
+@media (min-width: 769px) {
+  .searchContainer {
+    flex: 0 1 auto; /* Don't force expand on desktop, just wrap content */
+    margin-left: auto; /* Push to right if needed, though justify-between on parent handles split */
+    justify-content: flex-end;
+    min-width: 400px; /* Ensure decent width */
   }
 }
