@@ -316,14 +316,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         loadFolderContents(currentFolderId, 1, false);
       }
     }
-    // Note: loadFolderContents and currentFolderId are intentionally not in deps
-    // to prevent reloading on folder navigation. Only sort changes should trigger reload.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     searchFilters.sortBy,
     searchFilters.sortOrder,
     searchQuery,
     hasFiltersActive,
+    loadFolderContents,
+    currentFolderId,
   ]);
 
   // Get current data to display (search/filter results or regular folder contents)
@@ -429,10 +428,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
     logger.info("DriveView: Loading folder contents", { currentFolderId, type: driveType });
     loadFolderContents(currentFolderId);
-    // Note: loadFolderContents is intentionally not in deps to prevent extra loads
-    // when the function reference changes. We only want to load when folder changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFolderId, reloadTrigger, isInitialized, driveType, type]);
+  }, [currentFolderId, reloadTrigger, isInitialized, loadFolderContents, driveType, type]);
 
   // Reset selections when changing folders or type
   useEffect(() => {
