@@ -118,7 +118,7 @@ jobs:
           sudo systemctl status image-worker-dev --no-pager
 
   deploy-zipping-worker:
-    needs: deploy-image-worker # ← waits for image-worker
+    needs: deploy-frontend
     runs-on: self-hosted
     environment: dev
     steps:
