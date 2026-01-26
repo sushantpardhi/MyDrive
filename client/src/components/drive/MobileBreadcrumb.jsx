@@ -9,7 +9,7 @@ const MobileBreadcrumb = ({ path, navigateTo }) => {
   return (
     <div className={styles.mobileBreadcrumb}>
       {path.map((p, i) => (
-        <span key={p.id}>
+        <span key={p.id} className={styles.breadcrumbItem}>
           {i < path.length - 1 ? (
             <>
               <button

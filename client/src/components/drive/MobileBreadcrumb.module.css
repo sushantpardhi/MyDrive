@@ -9,10 +9,17 @@
   scrollbar-width: none;
   gap: 8px;
   -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 .mobileBreadcrumb::-webkit-scrollbar {
   display: none;
+}
+
+.breadcrumbItem {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .mobileBreadcrumbLink {

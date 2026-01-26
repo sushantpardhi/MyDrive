@@ -37,19 +37,20 @@
 .sidebar {
   width: 280px;
   height: 100vh;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
-  padding: 16px;
-  padding-top: 64px;
+  background: var(--bg-primary); 
+  border-right: 1px solid var(--border-color);
+  padding: 24px 16px;
+  padding-top: 60px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  box-shadow: var(--shadow-md);
-  transition: background-color var(--transition-normal),
-    border-color var(--transition-normal);
+  gap: 24px;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  backdrop-filter: blur(10px);
 }
+
 
 /* Tablet and up */
 @media (min-width: 769px) {
@@ -219,17 +220,18 @@
 .link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 12px 18px;
   color: var(--text-secondary);
   text-decoration: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 500;
-  transition: all var(--transition-slow);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   -webkit-tap-highlight-color: transparent;
   min-height: 48px;
+  background: transparent;
 }
 
 .link:hover {
@@ -256,10 +258,24 @@
 }
 
 .active {
-  background: var(--sidebar-item-active);
+  background: var(--accent-primary);
   color: #fff !important;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+/* Subtle glow effect for active item */
+.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  opacity: 0.5;
+  z-index: -1;
 }
 
 .active:hover {

@@ -301,14 +301,14 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.2); /* Lighter backdrop */
-  z-index: 9998;
+  z-index: 10000; /* Ensure above SelectionBar (1100) */
   animation: fadeIn 0.2s ease;
 }
 
 /* Base Dropdown */
 .dropdown {
   background: var(--modal-bg);
-  z-index: 9999;
+  z-index: 10001; /* Ensure above overlay */
   overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,0.15);
 }

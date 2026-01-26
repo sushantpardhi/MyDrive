@@ -89,7 +89,7 @@ const Sidebar = ({ onClose }) => {
         <X size={24} />
       </button>
 
-      <Link to="/profile" className={styles.userSectionLink}>
+      <Link to="/profile" className={styles.userSectionLink} onClick={onClose}>
         {user ? (
           <div className={styles.userSection}>
             <div
@@ -124,6 +124,7 @@ const Sidebar = ({ onClose }) => {
                 <Link
                   to={item.path}
                   className={`${styles.link} ${isActive ? styles.active : ""}`}
+                  onClick={onClose}
                 >
                   {item.icon}
                   <span>{item.name}</span>
@@ -145,6 +146,7 @@ const Sidebar = ({ onClose }) => {
                 className={`${styles.link} ${
                   location.pathname.startsWith("/admin") ? styles.active : ""
                 }`}
+                onClick={onClose}
               >
                 <Shield size={18} />
                 <span>Dashboard</span>

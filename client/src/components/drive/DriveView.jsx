@@ -12,6 +12,7 @@ import FloatingActionButton from "./FloatingActionButton";
 import ShareDialog from "../files/ShareDialog";
 import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
+import SelectionBar from "./SelectionBar";
 import PropertiesModal from "../files/PropertiesModal";
 import PasswordConfirmModal from "../common/PasswordConfirmModal";
 
@@ -785,6 +786,20 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         navigateTo={navigateTo}
         breadcrumbRef={breadcrumbRef}
       />
+
+      {selectedItems.size > 0 && (
+        <SelectionBar
+          selectedItemsCount={selectedItems.size}
+          type={type}
+          onBulkDownload={bulkDownload}
+          onBulkShare={handleBulkShare}
+          onBulkDelete={handleBulkDelete}
+          onBulkRestore={handleBulkRestore}
+          onBulkCopy={handleBulkCopy}
+          onBulkMove={handleBulkMove}
+          onClearSelection={clearSelection}
+        />
+      )}
 
       <MobileBreadcrumb path={path} navigateTo={navigateTo} />
 
