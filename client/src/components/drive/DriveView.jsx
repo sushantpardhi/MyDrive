@@ -105,7 +105,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const sortOrderRef = useRef("desc");
   const dragCounterRef = useRef(0);
   const currentTypeRef = useRef(type);
-  const isProgrammaticNavRef = useRef(false); // Track programmatic navigation to skip URL-based loading
+  const programmaticNavFolderIdRef = useRef(null); // Track folder ID being navigated to programmatically
 
   // State for tracking initialization
   const [isInitialized, setIsInitialized] = useState(false);
@@ -364,18 +364,20 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Initialize from URL on mount or when type changes
   useEffect(() => {
-    // Skip URL-based loading if we're navigating programmatically (from folder click)
-    if (isProgrammaticNavRef.current) {
-      isProgrammaticNavRef.current = false;
-      return;
-    }
-    
     // When switching types, always go to root (ignore any folder ID from URL of previous type)
     // Only use urlFolderId if it's explicitly in the current URL path
     const targetFolder = urlFolderId || "root";
     
     // Check if type changed (switching between drive/shared/trash)
     const typeChanged = currentTypeRef.current !== type;
+    
+    // Skip URL-based loading if we're navigating programmatically to this folder
+    if (programmaticNavFolderIdRef.current === targetFolder) {
+      logger.debug("DriveView: Skipping URL-based load - programmatic navigation to this folder", {
+        targetFolder
+      });
+      return;
+    }
     
     logger.debug("DriveView: Initialization check", { 
       type, 
@@ -406,6 +408,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       logger.debug("DriveView: Skipping load - not initialized yet");
       return;
     }
+    // Skip if this folder is being loaded programmatically
+    if (programmaticNavFolderIdRef.current === currentFolderId) {
+      logger.debug("DriveView: Skipping load - programmatic navigation in progress", { 
+        currentFolderId 
+      });
+      // Clear the ref now that we've skipped the effect-based load
+      programmaticNavFolderIdRef.current = null;
+      return;
+    }
     // Ensure context driveType is synchronized with prop type before loading
     // This prevents loading the wrong folder when switching between drive/shared/trash
     if (driveType !== type) {
@@ -430,14 +441,16 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       logger.debug("DriveView: Opening folder", { folderId: folder._id, name: folder.name });
       // Clear search state when opening a folder
       clearSearch();
-      // Mark as programmatic navigation to skip URL-based loading in useEffect
-      isProgrammaticNavRef.current = true;
+      // Mark this folder as being navigated to programmatically to skip effect-based loading
+      programmaticNavFolderIdRef.current = folder._id;
       // Open the folder (this updates context state and breadcrumbs)
       openFolder(folder);
       // Update URL to reflect current folder
       navigate(`/${type}/${folder._id}`, { replace: false });
+      // Directly load the destination folder contents to avoid double-loading
+      loadFolderContents(folder._id, 1, false);
     },
-    [openFolder, clearSearch, navigate, type]
+    [openFolder, clearSearch, navigate, type, loadFolderContents]
   );
 
   // Toggle select all handler
