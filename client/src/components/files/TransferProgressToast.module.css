@@ -63,7 +63,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 10px 18px;
   border-bottom: 1px solid var(--card-border);
   background: linear-gradient(180deg, var(--bg-subtle) 0%, transparent 100%);
   flex-shrink: 0;
@@ -76,6 +76,7 @@
   gap: 12px;
   flex: 1;
   min-width: 0;
+  padding-bottom: 1px;
 }
 
 .headerIconWrapper {
@@ -891,12 +892,12 @@
 
 /* JavaScript-based responsive classes */
 .toast.mobile {
-  width: calc(100% - 32px);
+  width: auto;
   max-width: 400px;
-  bottom: 80px;
-  right: 16px;
+  bottom: 24px;
+  right: 120px; /* More clearance for FAB */
   left: 16px;
-  margin: 0 auto;
+  margin: 0;
   border-radius: 14px;
   max-height: min(400px, calc(100vh - 160px));
 }
@@ -941,15 +942,24 @@
 }
 
 .toast.mobile.collapsed {
-  max-height: 56px;
+  max-height: 60px; /* Match FAB height visual area */
+}
+
+.toast.mobile.collapsed .header {
+  padding: 12px 14px; /* Balanced vertical alignment */
+}
+
+.toast.mobile.collapsed .headerText {
+  gap: 0; /* Tighten text spacing in collapsed mode */
+  justify-content: center;
 }
 
 /* Compact mode (very small screens) */
 .toast.compact {
-  width: calc(100% - 24px);
+  width: auto;
   max-width: none;
-  bottom: 12px;
-  right: 12px;
+  bottom: 24px;
+  right: 110px; /* More clearance for FAB */
   left: 12px;
   border-radius: 12px;
   max-height: min(320px, calc(100vh - 100px));
@@ -1017,7 +1027,16 @@
 }
 
 .toast.compact.collapsed {
-  max-height: 48px;
+  max-height: 52px;
+  /* Remove center alignment to allow header to stretch */
+}
+
+.toast.compact.collapsed .header {
+  padding: 10px 12px;
+}
+
+.toast.compact.collapsed .headerText {
+  gap: 0;
 }
 
 /* Large screen enhancements */
@@ -1050,10 +1069,10 @@
     width: calc(100% - 32px);
     max-width: 400px;
     max-height: min(400px, calc(100vh - 160px));
-    bottom: 80px;
-    right: 16px;
+    bottom: 24px;
+    right: 120px; /* More clearance for FAB */
     left: 16px;
-    margin: 0 auto;
+    margin: 0;
     z-index: 900;
     border-radius: 14px;
   }
@@ -1094,10 +1113,10 @@
 /* Small Mobile fallback */
 @media (max-width: 480px) {
   .toast:not(.mobile):not(.compact) {
-    width: calc(100% - 24px);
+    width: auto;
     max-width: none;
-    bottom: 12px;
-    right: 12px;
+    bottom: 24px;
+    right: 110px; /* More clearance for FAB */
     left: 12px;
     max-height: min(320px, calc(100vh - 100px));
     border-radius: 12px;
