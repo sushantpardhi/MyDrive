@@ -4,6 +4,7 @@
   overflow-y: auto;
   overflow-x: visible;
   padding: 16px 0;
+  min-height: 0; /* Important for flex children to scroll properly */
 }
 
 /* Loading state */

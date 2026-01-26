@@ -32,6 +32,7 @@ import ProgressiveImage from "../common/ProgressiveImage";
 import api from "../../services/api";
 import logger from "../../utils/logger";
 import useLazyLoad from "../../hooks/useLazyLoad";
+import { getCachedImage, setCachedImage } from "../../utils/imageCache";
 
 const FileCardNew = ({
   file,
@@ -115,7 +116,7 @@ const FileCardNew = ({
 
   const fileType = getFileType(safeFile.name);
 
-  // Load thumbnail for image files
+  // Load thumbnail for image files with caching
   useEffect(() => {
     let cancelled = false;
 
@@ -127,9 +128,24 @@ const FileCardNew = ({
       setThumbnailLoading(true);
 
       try {
+        // First, check if we have a cached version
+        const cachedBlob = await getCachedImage(safeFile._id, 'thumbnail');
+        
+        if (cachedBlob && !cancelled) {
+          const url = URL.createObjectURL(cachedBlob);
+          setThumbnailUrl(url);
+          setThumbnailError(false);
+          setThumbnailLoading(false);
+          return;
+        }
+
+        // Not in cache, fetch from server
         const response = await api.getFileThumbnail(safeFile._id);
 
         if (!cancelled) {
+          // Cache the blob for future use
+          await setCachedImage(safeFile._id, response.data, 'thumbnail');
+          
           const url = URL.createObjectURL(response.data);
           setThumbnailUrl(url);
           setThumbnailError(false);

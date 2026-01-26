@@ -12,6 +12,7 @@ import {
   CHUNK_SIZE as DOWNLOAD_CHUNK_SIZE,
 } from "../services/chunkedDownload";
 import logger from "../utils/logger";
+import { removeCachedImage } from "../utils/imageCache";
 
 export const useFileOperations = (
   api,
@@ -307,6 +308,12 @@ export const useFileOperations = (
       try {
         if (isPermanent) {
           await api.deleteItemPermanently(itemType, id);
+          
+          // Clear cached images for permanently deleted files
+          if (itemType === "files") {
+            await removeCachedImage(id);
+            logger.info("Cleared cached images for deleted file", { fileId: id });
+          }
         } else {
           await api.moveToTrash(itemType, id);
         }

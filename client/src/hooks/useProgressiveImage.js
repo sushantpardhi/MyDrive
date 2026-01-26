@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
+import { getCachedImage, setCachedImage } from "../utils/imageCache";
 
 /**
  * Custom hook for managing progressive image loading
@@ -42,38 +43,94 @@ export const useProgressiveImage = (fileId, enabled = true) => {
       setError(null);
 
       try {
-        // Load all three variants in parallel for efficiency
-        const results = await Promise.allSettled([
-          api.getFileBlur(fileId),
-          api.getFileLowQuality(fileId),
-          api.getFilePreview(fileId),
+        // Check cache first for all three variants
+        const [cachedBlur, cachedLowQuality, cachedOriginal] = await Promise.all([
+          getCachedImage(fileId, 'blur'),
+          getCachedImage(fileId, 'low-quality'),
+          getCachedImage(fileId, 'original'),
         ]);
 
         if (!mounted) return;
 
-        // Handle blur image
-        if (results[0].status === "fulfilled") {
-          const url = URL.createObjectURL(results[0].value.data);
+        // Load blur from cache or fetch
+        if (cachedBlur) {
+          const url = URL.createObjectURL(cachedBlur);
           setBlurUrl(url);
-        } else {
-          console.warn("Failed to load blur image:", results[0].reason);
         }
 
-        // Handle low-quality image
-        if (results[1].status === "fulfilled") {
-          const url = URL.createObjectURL(results[1].value.data);
+        // Load low-quality from cache or fetch
+        if (cachedLowQuality) {
+          const url = URL.createObjectURL(cachedLowQuality);
           setLowQualityUrl(url);
-        } else {
-          console.warn("Failed to load low-quality image:", results[1].reason);
         }
 
-        // Handle original image
-        if (results[2].status === "fulfilled") {
-          const url = URL.createObjectURL(results[2].value.data);
+        // Load original from cache or fetch
+        if (cachedOriginal) {
+          const url = URL.createObjectURL(cachedOriginal);
           setOriginalUrl(url);
-        } else {
-          console.error("Failed to load original image:", results[2].reason);
-          setError("Failed to load image");
+        }
+
+        // Determine which images need to be fetched
+        const needsFetch = {
+          blur: !cachedBlur,
+          lowQuality: !cachedLowQuality,
+          original: !cachedOriginal,
+        };
+
+        // If all are cached, we're done
+        if (!needsFetch.blur && !needsFetch.lowQuality && !needsFetch.original) {
+          setLoading(false);
+          return;
+        }
+
+        // Fetch missing variants in parallel
+        const fetchPromises = [];
+        const fetchTypes = [];
+
+        if (needsFetch.blur) {
+          fetchPromises.push(api.getFileBlur(fileId));
+          fetchTypes.push('blur');
+        }
+        if (needsFetch.lowQuality) {
+          fetchPromises.push(api.getFileLowQuality(fileId));
+          fetchTypes.push('lowQuality');
+        }
+        if (needsFetch.original) {
+          fetchPromises.push(api.getFilePreview(fileId));
+          fetchTypes.push('original');
+        }
+
+        const results = await Promise.allSettled(fetchPromises);
+
+        if (!mounted) return;
+
+        // Process results and cache them
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const type = fetchTypes[i];
+
+          if (result.status === "fulfilled") {
+            // Cache the blob
+            const cacheType = type === 'lowQuality' ? 'low-quality' : type;
+            await setCachedImage(fileId, result.value.data, cacheType);
+
+            const url = URL.createObjectURL(result.value.data);
+            
+            if (type === 'blur') {
+              setBlurUrl(url);
+            } else if (type === 'lowQuality') {
+              setLowQualityUrl(url);
+            } else if (type === 'original') {
+              setOriginalUrl(url);
+            }
+          } else {
+            if (type === 'original') {
+              console.error("Failed to load original image:", result.reason);
+              setError("Failed to load image");
+            } else {
+              console.warn(`Failed to load ${type} image:`, result.reason);
+            }
+          }
         }
 
         setLoading(false);
@@ -145,9 +202,23 @@ export const useThumbnail = (fileId, enabled = true) => {
       setError(null);
 
       try {
+        // First, check if we have a cached version
+        const cachedBlob = await getCachedImage(fileId, 'thumbnail');
+        
+        if (cachedBlob && mounted) {
+          const url = URL.createObjectURL(cachedBlob);
+          setThumbnailUrl(url);
+          setLoading(false);
+          return;
+        }
+
+        // Not in cache, fetch from server
         const response = await api.getFileThumbnail(fileId);
         
         if (mounted) {
+          // Cache the blob for future use
+          await setCachedImage(fileId, response.data, 'thumbnail');
+          
           const url = URL.createObjectURL(response.data);
           setThumbnailUrl(url);
           setLoading(false);

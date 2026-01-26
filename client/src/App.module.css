@@ -20,8 +20,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* ✅ Allow vertical scrolling */
-  overflow-x: hidden; /* ✅ Prevent horizontal overflow */
+  overflow: hidden; /* Changed from overflow-y: auto to let child containers handle scrolling */
+  min-height: 0; /* Important for flex children to calculate height properly */
 }
 
 /* Mobile Responsive Styles */

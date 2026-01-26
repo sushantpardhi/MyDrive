@@ -37,13 +37,25 @@ import styles from "./App.module.css";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  
+  // Wait for auth state to be loaded before making redirect decision
+  if (loading) {
+    return null; // Or a loading spinner
+  }
+  
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
 };
 
 // Auth Route Component (redirects to drive if already logged in)
 const AuthRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  
+  // Wait for auth state to be loaded before making redirect decision
+  if (loading) {
+    return null; // Or a loading spinner
+  }
+  
   return isAuthenticated() ? <Navigate to="/drive" replace /> : children;
 };
 
@@ -100,11 +112,23 @@ const AppLayout = () => {
             element={<DriveView type="drive" onMenuClick={toggleSidebar} />}
           />
           <Route
+            path="/drive/:folderId"
+            element={<DriveView type="drive" onMenuClick={toggleSidebar} />}
+          />
+          <Route
             path="/shared"
             element={<DriveView type="shared" onMenuClick={toggleSidebar} />}
           />
           <Route
+            path="/shared/:folderId"
+            element={<DriveView type="shared" onMenuClick={toggleSidebar} />}
+          />
+          <Route
             path="/trash"
+            element={<DriveView type="trash" onMenuClick={toggleSidebar} />}
+          />
+          <Route
+            path="/trash/:folderId"
             element={<DriveView type="trash" onMenuClick={toggleSidebar} />}
           />
           <Route path="/profile" element={<UserProfile />} />

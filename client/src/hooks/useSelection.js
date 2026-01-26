@@ -4,6 +4,7 @@ import { downloadFile } from "../utils/helpers";
 import { useSelectionContext } from "../contexts/SelectionContext";
 import { useUIContext, useTransfer } from "../contexts";
 import logger from "../utils/logger";
+import { removeCachedImage } from "../utils/imageCache";
 
 export const useSelection = (api, folders, files, type) => {
   const {
@@ -77,16 +78,36 @@ export const useSelection = (api, folders, files, type) => {
       }
 
       try {
-        const promises = [...selectedItems].map((id) => {
-          const itemType = files.find((f) => f._id === id)
-            ? "files"
-            : "folders";
+        const selectedItemsArray = [...selectedItems];
+        logger.info("bulkDelete: Starting bulk delete", {
+          itemCount: selectedItemsArray.length,
+          itemIds: selectedItemsArray,
+          type,
+        });
+
+        const promises = selectedItemsArray.map((id) => {
+          const isFile = files.find((f) => f._id === id);
+          const itemType = isFile ? "files" : "folders";
+          logger.debug("bulkDelete: Deleting item", { id, itemType, isFile: !!isFile });
           return type === "trash"
             ? api.deleteItemPermanently(itemType, id)
             : api.moveToTrash(itemType, id);
         });
 
+        logger.info("bulkDelete: Created promises", { promiseCount: promises.length });
         await Promise.all(promises);
+        logger.info("bulkDelete: All promises resolved");
+
+        // Clear cached images for permanently deleted files
+        if (type === "trash") {
+          const fileIds = selectedItemsArray.filter(id => 
+            files.find((f) => f._id === id)
+          );
+          for (const fileId of fileIds) {
+            await removeCachedImage(fileId);
+          }
+          logger.info("Cleared cached images for deleted files", { fileIds });
+        }
 
         if (onComplete) await onComplete();
         clearSelection();
@@ -123,12 +144,22 @@ export const useSelection = (api, folders, files, type) => {
     if (!selectedItems.size) return false;
 
     try {
-      const promises = [...selectedItems].map((id) => {
-        const itemType = files.find((f) => f._id === id) ? "files" : "folders";
+      const selectedItemsArray = [...selectedItems];
+      logger.info("bulkRestore: Starting bulk restore", {
+        itemCount: selectedItemsArray.length,
+        itemIds: selectedItemsArray,
+      });
+
+      const promises = selectedItemsArray.map((id) => {
+        const isFile = files.find((f) => f._id === id);
+        const itemType = isFile ? "files" : "folders";
+        logger.debug("bulkRestore: Restoring item", { id, itemType, isFile: !!isFile });
         return api.restoreFromTrash(itemType, id);
       });
 
+      logger.info("bulkRestore: Created promises", { promiseCount: promises.length });
       await Promise.all(promises);
+      logger.info("bulkRestore: All promises resolved");
       clearSelection();
       toast.success("Items restored successfully");
       return true;

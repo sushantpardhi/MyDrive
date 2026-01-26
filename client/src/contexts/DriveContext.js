@@ -27,13 +27,32 @@ export const DriveProvider = ({ children }) => {
   // Track the current user to detect changes
   const currentUserRef = useRef(localStorage.getItem("user"));
 
-  // Persist the last visited type to restore appropriately on reloads
-  const [driveType, setDriveType] = useState(
-    () => localStorage.getItem("lastDriveType") || "drive"
-  ); // "drive", "shared", "trash"
+  // Parse folder ID from URL on initial load
+  const getInitialFolderId = () => {
+    const path = window.location.pathname;
+    // Match /drive/:folderId, /shared/:folderId, or /trash/:folderId
+    const match = path.match(/^\/(drive|shared|trash)\/([a-fA-F0-9]{24})$/);
+    if (match) {
+      logger.debug("DriveContext: Initializing from URL", { folderId: match[2] });
+      return match[2];
+    }
+    return "root";
+  };
 
-  // Always start at root on init
-  const [currentFolderId, setCurrentFolderId] = useState("root");
+  // Parse drive type from URL on initial load
+  const getInitialDriveType = () => {
+    const path = window.location.pathname;
+    if (path.startsWith("/shared")) return "shared";
+    if (path.startsWith("/trash")) return "trash";
+    if (path.startsWith("/drive")) return "drive";
+    return localStorage.getItem("lastDriveType") || "drive";
+  };
+
+  // Persist the last visited type to restore appropriately on reloads
+  const [driveType, setDriveType] = useState(getInitialDriveType); // "drive", "shared", "trash"
+
+  // Initialize from URL if available, otherwise root
+  const [currentFolderId, setCurrentFolderId] = useState(getInitialFolderId);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);

@@ -343,9 +343,18 @@ router.get("/thumbnail/:fileId", async (req, res) => {
 
     // For HEIC files, send original file (client will handle conversion)
     if (isHeic) {
+      const stat = fs.statSync(file.path);
+      const etag = `"${stat.mtime.getTime().toString(16)}-${stat.size.toString(16)}"`;
+      
+      // Check if client has cached version
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+      
       res.set({
         "Content-Type": "application/octet-stream",
-        "Cache-Control": "public, max-age=31536000",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
       });
       return res.sendFile(path.resolve(file.path));
     }
@@ -366,9 +375,18 @@ router.get("/thumbnail/:fileId", async (req, res) => {
 
     // Check if worker-generated thumbnail exists
     if (fs.existsSync(thumbnailPath)) {
+      const stat = fs.statSync(thumbnailPath);
+      const etag = `"${stat.mtime.getTime().toString(16)}-${stat.size.toString(16)}"`;
+      
+      // Check if client has cached version
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+      
       res.set({
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
       });
       return res.sendFile(path.resolve(thumbnailPath));
     }
@@ -403,9 +421,18 @@ router.get("/blur/:fileId", async (req, res) => {
 
     // Check if blur image exists
     if (fs.existsSync(blurPath)) {
+      const stat = fs.statSync(blurPath);
+      const etag = `"${stat.mtime.getTime().toString(16)}-${stat.size.toString(16)}"`;
+      
+      // Check if client has cached version
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+      
       res.set({
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
       });
       return res.sendFile(path.resolve(blurPath));
     }
@@ -440,9 +467,18 @@ router.get("/low-quality/:fileId", async (req, res) => {
 
     // Check if low-quality image exists
     if (fs.existsSync(lowQualityPath)) {
+      const stat = fs.statSync(lowQualityPath);
+      const etag = `"${stat.mtime.getTime().toString(16)}-${stat.size.toString(16)}"`;
+      
+      // Check if client has cached version
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+      
       res.set({
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
       });
       return res.sendFile(path.resolve(lowQualityPath));
     }

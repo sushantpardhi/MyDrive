@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDriveContext } from "../contexts/DriveContext";
 import api from "../services/api";
 import logger from "../utils/logger";
@@ -43,12 +44,15 @@ const buildPathFromFolder = async (folderId, type) => {
   }
 };
 
-export const useBreadcrumbs = (type) => {
-  const { currentFolderId, updateCurrentFolder } = useDriveContext();
+export const useBreadcrumbs = (type, customNavigate = null) => {
+  const { currentFolderId, updateCurrentFolder, driveType } = useDriveContext();
+  const defaultNavigate = useNavigate();
+  const navigate = customNavigate || defaultNavigate;
   const [path, setPath] = useState(() => generateInitialPath(type));
   const breadcrumbRef = useRef(null);
   const previousTypeRef = useRef(type);
-  const pathBuiltRef = useRef(false);
+  const previousFolderIdRef = useRef(null); // Start with null to force initial build
+  const isInitializedRef = useRef(false);
 
   // Reset path when type changes
   useEffect(() => {
@@ -59,18 +63,44 @@ export const useBreadcrumbs = (type) => {
       });
       const newPath = generateInitialPath(type);
       setPath(newPath);
-      pathBuiltRef.current = false;
       previousTypeRef.current = type;
+      // Reset folder tracking to prevent stale folder paths
+      previousFolderIdRef.current = null;
+      isInitializedRef.current = false;
     }
   }, [type]);
 
-  // Build path from saved lastFolderId on initial mount or when folder changes
+  // Build path from currentFolderId on mount and whenever it changes
   useEffect(() => {
-    if (!pathBuiltRef.current && currentFolderId !== "root") {
-      pathBuiltRef.current = true;
-      buildPathFromFolder(currentFolderId, type).then(setPath);
+    // Skip if type is not synchronized with context (during view transitions)
+    if (driveType !== type) {
+      logger.debug("Breadcrumb: Skipping path build - type not synchronized", {
+        propType: type,
+        contextType: driveType,
+      });
+      return;
     }
-  }, [currentFolderId, type]);
+    
+    // Build path on first render or when folder actually changed
+    const shouldBuild = !isInitializedRef.current || previousFolderIdRef.current !== currentFolderId;
+    
+    if (shouldBuild) {
+      logger.debug("Breadcrumb: Building path", {
+        currentFolderId,
+        previousFolderId: previousFolderIdRef.current,
+        isInitialized: isInitializedRef.current,
+      });
+      
+      previousFolderIdRef.current = currentFolderId;
+      isInitializedRef.current = true;
+      
+      if (currentFolderId === "root") {
+        setPath(generateInitialPath(type));
+      } else {
+        buildPathFromFolder(currentFolderId, type).then(setPath);
+      }
+    }
+  }, [currentFolderId, type, driveType]);
 
   // Update document title based on location
   useEffect(() => {
@@ -90,17 +120,26 @@ export const useBreadcrumbs = (type) => {
 
   const navigateTo = (index) => {
     const newPath = path.slice(0, index + 1);
-    setPath(newPath);
     const newFolderId = newPath[newPath.length - 1].id;
+    
+    // Update the ref to prevent the effect from rebuilding the path
+    previousFolderIdRef.current = newFolderId;
+    
+    setPath(newPath);
     updateCurrentFolder(newFolderId);
 
-    // Reset pathBuiltRef when navigating to allow rebuilding if needed
+    // Update URL
     if (newFolderId === "root") {
-      pathBuiltRef.current = false;
+      navigate(`/${type}`, { replace: false });
+    } else {
+      navigate(`/${type}/${newFolderId}`, { replace: false });
     }
   };
 
   const openFolder = (folder) => {
+    // Update the ref to prevent the effect from rebuilding the path
+    previousFolderIdRef.current = folder._id;
+    
     updateCurrentFolder(folder._id);
     setPath([...path, { id: folder._id, name: folder.name }]);
   };

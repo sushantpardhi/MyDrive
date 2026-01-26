@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import logger from "../../utils/logger";
 
@@ -39,6 +40,9 @@ import api from "../../services/api";
 import styles from "./DriveView.module.css";
 
 const DriveView = ({ type = "drive", onMenuClick }) => {
+  const { folderId: urlFolderId } = useParams();
+  const navigate = useNavigate();
+  
   // Context data
   const {
     folders,
@@ -54,6 +58,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setCurrentPage,
     setHasMore,
     currentFolderId,
+    driveType,
     updateCurrentFolder,
     updateDriveType,
     reloadTrigger,
@@ -98,6 +103,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const sortByRef = useRef("createdAt");
   const sortOrderRef = useRef("desc");
   const dragCounterRef = useRef(0);
+  const currentTypeRef = useRef(type);
+
+  // State for tracking initialization
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // State for external drag
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
@@ -113,7 +122,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Custom hooks
   const { viewMode, itemsPerPage, changeViewMode } = useUserSettings();
-  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type);
+  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type, navigate);
 
   const loadFolderContents = useCallback(
     async (folderId = "root", page = 1, append = false) => {
@@ -161,7 +170,6 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         setHasMore(response.data.pagination?.hasMore || false);
         setCurrentPage(page);
       } catch (error) {
-        toast.error("Failed to load folder contents");
         logger.logError(error, "Failed to load folder contents", {
           folderId,
           page,
@@ -341,35 +349,85 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     loadMoreSearchResults,
   });
 
-  // Sync drive type and restore its last visited folder
+  // Reset initialization when type changes to prevent stale folder loading
   useEffect(() => {
-    // When switching sections (drive/shared/trash), force that section's root
-    updateDriveType(type, "root");
-    updateCurrentFolder("root", type);
-  }, [type, updateDriveType, updateCurrentFolder]);
+    if (currentTypeRef.current !== type) {
+      logger.debug("DriveView: Type changed, resetting initialization", {
+        oldType: currentTypeRef.current,
+        newType: type,
+      });
+      setIsInitialized(false);
+    }
+  }, [type]);
+
+  // Initialize from URL on mount or when type changes
+  useEffect(() => {
+    // When switching types, always go to root (ignore any folder ID from URL of previous type)
+    // Only use urlFolderId if it's explicitly in the current URL path
+    const targetFolder = urlFolderId || "root";
+    
+    // Check if type changed (switching between drive/shared/trash)
+    const typeChanged = currentTypeRef.current !== type;
+    
+    logger.debug("DriveView: Initialization check", { 
+      type, 
+      folderId: targetFolder, 
+      typeChanged,
+      isInitialized
+    });
+    
+    // Initialize on mount or when type changes
+    if (!isInitialized || typeChanged) {
+      currentTypeRef.current = type;
+      
+      logger.info("DriveView: Initializing/Switching to", { type, folderId: targetFolder });
+      updateDriveType(type, targetFolder);
+      setIsInitialized(true);
+    } 
+    // If already initialized and type hasn't changed, just update folder if URL changed
+    else if (targetFolder !== currentFolderId) {
+      logger.info("DriveView: URL folder changed", { from: currentFolderId, to: targetFolder });
+      updateCurrentFolder(targetFolder, type);
+    }
+  }, [type, urlFolderId, currentFolderId, updateDriveType, updateCurrentFolder, isInitialized]);
 
   // Load folder contents when currentFolderId changes or reloadTrigger fires
+  // Only load after initialization is complete and type is synchronized
   useEffect(() => {
+    if (!isInitialized) {
+      logger.debug("DriveView: Skipping load - not initialized yet");
+      return;
+    }
+    // Ensure context driveType is synchronized with prop type before loading
+    // This prevents loading the wrong folder when switching between drive/shared/trash
+    if (driveType !== type) {
+      logger.debug("DriveView: Skipping load - type not synchronized", {
+        propType: type,
+        contextType: driveType,
+      });
+      return;
+    }
+    logger.info("DriveView: Loading folder contents", { currentFolderId, type: driveType });
     loadFolderContents(currentFolderId);
-    // loadFolderContents is stable (wrapped in useCallback with stable dependencies)
-    // Only react to currentFolderId and reloadTrigger changes
-    // eslint-disable-next-line
-  }, [currentFolderId, reloadTrigger]);
+  }, [currentFolderId, reloadTrigger, isInitialized, loadFolderContents, driveType, type]);
 
   // Reset selections when changing folders or type
   useEffect(() => {
     clearSelection();
   }, [currentFolderId, type, clearSelection]);
 
-  // Wrapper for openFolder that clears search when navigating to a folder
+  // Wrapper for openFolder that clears search and updates URL when navigating to a folder
   const handleOpenFolder = useCallback(
     (folder) => {
+      logger.debug("DriveView: Opening folder", { folderId: folder._id, name: folder.name });
       // Clear search state when opening a folder
       clearSearch();
       // Open the folder
       openFolder(folder);
+      // Update URL to reflect current folder
+      navigate(`/${type}/${folder._id}`, { replace: false });
     },
-    [openFolder, clearSearch]
+    [openFolder, clearSearch, navigate, type]
   );
 
   // Toggle select all handler
