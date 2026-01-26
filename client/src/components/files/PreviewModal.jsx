@@ -186,7 +186,15 @@ const Model3D = ({ url, fileType }) => {
 };
 
 const PreviewModal = () => {
-  const { previewModalOpen, previewFile, closePreviewModal } = useUIContext();
+  const { 
+    previewModalOpen, 
+    previewFile, 
+    previewFileList, 
+    previewFileIndex, 
+    closePreviewModal,
+    goToPreviousFile,
+    goToNextFile 
+  } = useUIContext();
   const [fileUrl, setFileUrl] = useState(null);
   const [fileContent, setFileContent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -649,50 +657,69 @@ const PreviewModal = () => {
         if (fileType === "image") {
           if (cancelled) return;
 
-          // Load all image variants for progressive loading
-          try {
-            // Load blur image
-            const blurResponse = await api.getFileBlur(previewFile._id);
-            if (!cancelled) {
-              const blurBlobUrl = URL.createObjectURL(blurResponse.data);
-              setBlurUrl(blurBlobUrl);
-            }
-          } catch (error) {
-            console.log("Blur image not available:", error);
-          }
-
-          try {
-            // Load low-quality image
-            const lowQualityResponse = await api.getFileLowQuality(previewFile._id);
-            if (!cancelled) {
-              const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
-              setLowQualityUrl(lowQualityBlobUrl);
-            }
-          } catch (error) {
-            console.log("Low-quality image not available:", error);
-          }
-
-          // Load original image
-          const originalResponse = await api.getFilePreview(previewFile._id);
-          if (!cancelled) {
-            const originalBlobUrl = URL.createObjectURL(originalResponse.data);
-            setOriginalUrl(originalBlobUrl);
-
-            // Get image dimensions from original
-            const img = new Image();
-            img.onload = () => {
+          // Load all image variants independently (parallel, non-blocking)
+          // Each variant loads independently and updates the UI as soon as it's ready
+          
+          // 1. Load blur image immediately (smallest, fastest)
+          api.getFileBlur(previewFile._id)
+            .then(blurResponse => {
               if (!cancelled) {
-                setImageDimensions({ width: img.width, height: img.height });
+                const blurBlobUrl = URL.createObjectURL(blurResponse.data);
+                setBlurUrl(blurBlobUrl);
+                setLoading(false); // Hide loading spinner as soon as blur is ready
+
               }
-            };
-            img.onerror = (e) => {
+            })
+            .catch(error => {
+
+            });
+
+          // 2. Load low-quality image independently (medium size, medium speed)
+          api.getFileLowQuality(previewFile._id)
+            .then(lowQualityResponse => {
               if (!cancelled) {
-                setError("Failed to load image");
+                const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
+                setLowQualityUrl(lowQualityBlobUrl);
+                setLoading(false); // Hide loading spinner if not already hidden
+
+              }
+            })
+            .catch(error => {
+
+            });
+
+          // 3. Load original image independently (largest, slowest)
+          api.getFilePreview(previewFile._id)
+            .then(originalResponse => {
+              if (!cancelled) {
+                const originalBlobUrl = URL.createObjectURL(originalResponse.data);
+                setOriginalUrl(originalBlobUrl);
+                setLoading(false); // Hide loading spinner if not already hidden
+
+
+                // Get image dimensions from original
+                const img = new Image();
+                img.onload = () => {
+                  if (!cancelled) {
+                    setImageDimensions({ width: img.width, height: img.height });
+                  }
+                };
+                img.onerror = (e) => {
+                  if (!cancelled) {
+                    setError("Failed to load image");
+                    setLoading(false);
+                  }
+                };
+                img.src = originalBlobUrl;
+              }
+            })
+            .catch(error => {
+              console.error("[PreviewModal] Failed to load original image:", error);
+              if (!cancelled) {
+                setError("Failed to load original image");
                 setLoading(false);
               }
-            };
-            img.src = originalBlobUrl;
-          }
+            });
 
           return;
         }
@@ -1101,25 +1128,77 @@ const PreviewModal = () => {
 
       const fileType = previewFile ? getFileType(previewFile.name) : "unknown";
 
-      if (fileType === "pdf") {
-        if (e.key === "ArrowLeft") handlePrevPage();
-        if (e.key === "ArrowRight") handleNextPage();
-      }
+      // File navigation with arrow keys (for types that don't use arrows for internal navigation)
+      if (previewFileList.length > 1) {
+        if (fileType === "pdf") {
+          if (e.key === "ArrowLeft") handlePrevPage();
+          if (e.key === "ArrowRight") handleNextPage();
+          // Use Up/Down for file navigation in PDF
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            goToPreviousFile();
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            goToNextFile();
+          }
+        } else if (fileType === "excel") {
+          if (e.key === "ArrowLeft") handlePrevSheet();
+          if (e.key === "ArrowRight") handleNextSheet();
+          // Use Up/Down for file navigation in Excel
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            goToPreviousFile();
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            goToNextFile();
+          }
+        } else if (fileType === "epub") {
+          if (e.key === "ArrowLeft") handleEpubPrev();
+          if (e.key === "ArrowRight") handleEpubNext();
+          // Use Up/Down for file navigation in EPUB
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            goToPreviousFile();
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            goToNextFile();
+          }
+        } else {
+          // For all other file types, use Left/Right for file navigation
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            goToPreviousFile();
+          }
+          if (e.key === "ArrowRight") {
+            e.preventDefault();
+            goToNextFile();
+          }
+        }
+      } else {
+        // Single file or no list - keep original behavior
+        if (fileType === "pdf") {
+          if (e.key === "ArrowLeft") handlePrevPage();
+          if (e.key === "ArrowRight") handleNextPage();
+        }
 
-      if (fileType === "excel") {
-        if (e.key === "ArrowLeft") handlePrevSheet();
-        if (e.key === "ArrowRight") handleNextSheet();
+        if (fileType === "excel") {
+          if (e.key === "ArrowLeft") handlePrevSheet();
+          if (e.key === "ArrowRight") handleNextSheet();
+        }
+
+        if (fileType === "epub") {
+          if (e.key === "ArrowLeft") handleEpubPrev();
+          if (e.key === "ArrowRight") handleEpubNext();
+        }
       }
 
       if (fileType === "image" || fileType === "svg") {
         if (e.key === "+" || e.key === "=") handleZoomIn();
         if (e.key === "-") handleZoomOut();
         if (e.key === "r" || e.key === "R") handleRotate();
-      }
-
-      if (fileType === "epub") {
-        if (e.key === "ArrowLeft") handleEpubPrev();
-        if (e.key === "ArrowRight") handleEpubNext();
       }
     };
 
@@ -1135,6 +1214,9 @@ const PreviewModal = () => {
     showKeyboardHelp,
     handlePrint,
     handleDownload,
+    previewFileList,
+    goToPreviousFile,
+    goToNextFile,
   ]);
 
   if (!previewModalOpen || !previewFile) {
@@ -1199,6 +1281,41 @@ const PreviewModal = () => {
       }`}
       onClick={closePreviewModal}
     >
+      {/* File Navigation Arrows */}
+      {previewFileList.length > 1 && (
+        <>
+          <button
+            className={`${styles.navArrow} ${styles.navArrowLeft}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPreviousFile();
+            }}
+            title="Previous file (←)"
+            aria-label="Previous file"
+          >
+            <ChevronLeft size={32} />
+          </button>
+          <button
+            className={`${styles.navArrow} ${styles.navArrowRight}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextFile();
+            }}
+            title="Next file (→)"
+            aria-label="Next file"
+          >
+            <ChevronRight size={32} />
+          </button>
+        </>
+      )}
+
+      {/* File Counter */}
+      {previewFileList.length > 1 && (
+        <div className={styles.fileCounter} onClick={(e) => e.stopPropagation()}>
+          {previewFileIndex + 1} / {previewFileList.length}
+        </div>
+      )}
+
       <div
         className={`${styles.modalContent} ${
           isFullScreen ? styles.fullScreenContent : ""
@@ -1459,7 +1576,7 @@ const PreviewModal = () => {
             </div>
           )}
 
-          {!loading && !error && fileType === "image" && originalUrl && (
+          {!loading && !error && fileType === "image" && (blurUrl || lowQualityUrl || originalUrl) && (
             <div className={styles.imagePreview}>
               <ProgressiveImage
                 thumbnailUrl={null}
@@ -1470,7 +1587,7 @@ const PreviewModal = () => {
                 mode="progressive"
                 onLoad={() => {
                   // Callback when original image fully loads
-                  console.log("Image fully loaded:", previewFile.name);
+
                 }}
                 style={{
                   transform: `scale(${
@@ -2059,12 +2176,28 @@ const PreviewModal = () => {
                   </div>
                 </div>
 
+                {previewFileList.length > 1 && (
+                  <div className={styles.shortcutGroup}>
+                    <h4>File Navigation</h4>
+                    <div className={styles.shortcut}>
+                      <kbd>←</kbd> / <kbd>→</kbd>
+                      <span>Previous/Next file</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className={styles.shortcutGroup}>
                   <h4>PDF Navigation</h4>
                   <div className={styles.shortcut}>
                     <kbd>←</kbd> / <kbd>→</kbd>
                     <span>Previous/Next page</span>
                   </div>
+                  {previewFileList.length > 1 && (
+                    <div className={styles.shortcut}>
+                      <kbd>↑</kbd> / <kbd>↓</kbd>
+                      <span>Previous/Next file</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className={styles.shortcutGroup}>
@@ -2085,6 +2218,12 @@ const PreviewModal = () => {
                     <kbd>←</kbd> / <kbd>→</kbd>
                     <span>Previous/Next sheet</span>
                   </div>
+                  {previewFileList.length > 1 && (
+                    <div className={styles.shortcut}>
+                      <kbd>↑</kbd> / <kbd>↓</kbd>
+                      <span>Previous/Next file</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

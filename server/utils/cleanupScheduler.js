@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const UploadSession = require("../models/UploadSession");
+const DownloadSession = require("../models/DownloadSession");
 const logger = require("./logger");
 
 /**
@@ -12,11 +13,18 @@ const initializeCleanupScheduler = () => {
   cron.schedule("0 * * * *", async () => {
     const startTime = Date.now();
     try {
+      // Cleanup expired upload sessions
       logger.info("Starting scheduled cleanup of expired upload sessions");
-      const result = await UploadSession.cleanupExpiredSessions();
+      const uploadResult = await UploadSession.cleanupExpiredSessions();
+      
+      // Cleanup expired download sessions
+      logger.info("Starting scheduled cleanup of expired download sessions");
+      const downloadResult = await DownloadSession.cleanupExpiredSessions();
+      
       const duration = Date.now() - startTime;
-      logger.logCleanup("expired-upload-sessions", {
-        itemsRemoved: result?.deletedCount || 0,
+      logger.logCleanup("expired-sessions", {
+        uploadSessionsRemoved: uploadResult?.deletedCount || 0,
+        downloadSessionsRemoved: downloadResult?.deletedCount || 0,
         duration,
       });
     } catch (error) {
@@ -31,14 +39,25 @@ const initializeCleanupScheduler = () => {
 const runCleanup = async () => {
   const startTime = Date.now();
   try {
-    logger.info("Starting manual cleanup of expired upload sessions");
-    const result = await UploadSession.cleanupExpiredSessions();
+    logger.info("Starting manual cleanup of expired sessions");
+    
+    // Cleanup expired upload sessions
+    const uploadResult = await UploadSession.cleanupExpiredSessions();
+    
+    // Cleanup expired download sessions
+    const downloadResult = await DownloadSession.cleanupExpiredSessions();
+    
     const duration = Date.now() - startTime;
     logger.logCleanup("manual-expired-sessions", {
-      itemsRemoved: result?.deletedCount || 0,
+      uploadSessionsRemoved: uploadResult?.deletedCount || 0,
+      downloadSessionsRemoved: downloadResult?.deletedCount || 0,
       duration,
     });
-    return result;
+    
+    return {
+      uploadSessions: uploadResult,
+      downloadSessions: downloadResult,
+    };
   } catch (error) {
     logger.logError(error, { operation: "manual-cleanup" });
     throw error;

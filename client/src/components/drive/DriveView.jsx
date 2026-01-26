@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import logger from "../../utils/logger";
 
@@ -11,6 +12,7 @@ import FloatingActionButton from "./FloatingActionButton";
 import ShareDialog from "../files/ShareDialog";
 import RenameDialog from "../files/RenameDialog";
 import CopyMoveDialog from "../files/CopyMoveDialog";
+import SelectionBar from "./SelectionBar";
 import PropertiesModal from "../files/PropertiesModal";
 import PasswordConfirmModal from "../common/PasswordConfirmModal";
 
@@ -38,7 +40,13 @@ import api from "../../services/api";
 // Styles
 import styles from "./DriveView.module.css";
 
+// Global in-flight folder request ref to prevent duplicate parallel loads
+const inFlightFolderLoads = {};
+
 const DriveView = ({ type = "drive", onMenuClick }) => {
+  const { folderId: urlFolderId } = useParams();
+  const navigate = useNavigate();
+  
   // Context data
   const {
     folders,
@@ -54,6 +62,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     setCurrentPage,
     setHasMore,
     currentFolderId,
+    driveType,
     updateCurrentFolder,
     updateDriveType,
     reloadTrigger,
@@ -90,6 +99,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     propertiesItemType,
     openPropertiesModal,
     closePropertiesModal,
+    openPreviewModal,
+    clipboard,
+    copyToClipboard,
+    cutToClipboard,
+    clearClipboard,
   } = useUIContext();
 
   // Refs
@@ -98,6 +112,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const sortByRef = useRef("createdAt");
   const sortOrderRef = useRef("desc");
   const dragCounterRef = useRef(0);
+  const currentTypeRef = useRef(type);
+  const programmaticNavFolderIdRef = useRef(null); // Track folder ID being navigated to programmatically
+  const lastLoadedFolderRef = useRef(null); // Track the last folder that was loaded to prevent duplicate loads
+  const lastReloadTriggerRef = useRef(0); // Track the last reload trigger value
+
+  // State for tracking initialization
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // State for external drag
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
@@ -113,65 +134,74 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Custom hooks
   const { viewMode, itemsPerPage, changeViewMode } = useUserSettings();
-  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type);
+  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type, navigate);
 
+  // Remove lastRequestedFolderRef and debounce logic. Add robust global in-flight lock.
   const loadFolderContents = useCallback(
     async (folderId = "root", page = 1, append = false) => {
-      try {
-        if (page === 1) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
-        }
-
-        let response;
-        if (type === "shared" && folderId === "root") {
-          response = await api.getSharedItems(page, itemsPerPage);
-        } else {
-          response = await api.getFolderContents(
-            folderId,
-            type === "trash",
-            page,
-            itemsPerPage,
-            sortByRef.current,
-            sortOrderRef.current
-          );
-        }
-
-        if (append) {
-          setFolders((prev) => {
-            const existingIds = new Set(prev.map((f) => f._id));
-            const newFolders = (response.data.folders || []).filter(
-              (f) => !existingIds.has(f._id)
-            );
-            return [...prev, ...newFolders];
-          });
-          setFiles((prev) => {
-            const existingIds = new Set(prev.map((f) => f._id));
-            const newFiles = (response.data.files || []).filter(
-              (f) => !existingIds.has(f._id)
-            );
-            return [...prev, ...newFiles];
-          });
-        } else {
-          setFolders(response.data.folders || []);
-          setFiles(response.data.files || []);
-        }
-
-        setHasMore(response.data.pagination?.hasMore || false);
-        setCurrentPage(page);
-      } catch (error) {
-        toast.error("Failed to load folder contents");
-        logger.logError(error, "Failed to load folder contents", {
-          folderId,
-          page,
-          append,
-          type,
-        });
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
+      // Compose a unique key for this folder/page/append
+      const lockKey = `${folderId}|${page}|${append}`;
+      if (inFlightFolderLoads[lockKey]) {
+        return inFlightFolderLoads[lockKey];
       }
+
+      let setLoadingFn = page === 1 && !append ? setLoading : setLoadingMore;
+      setLoadingFn(true);
+
+      const requestPromise = (async () => {
+        try {
+          let response;
+          if (type === "shared" && folderId === "root") {
+            response = await api.getSharedItems(page, itemsPerPage);
+          } else {
+            response = await api.getFolderContents(
+              folderId,
+              type === "trash",
+              page,
+              itemsPerPage,
+              sortByRef.current,
+              sortOrderRef.current
+            );
+          }
+
+          if (append) {
+            setFolders((prev) => {
+              const existingIds = new Set(prev.map((f) => f._id));
+              const newFolders = (response.data.folders || []).filter(
+                (f) => !existingIds.has(f._id)
+              );
+              return [...prev, ...newFolders];
+            });
+            setFiles((prev) => {
+              const existingIds = new Set(prev.map((f) => f._id));
+              const newFiles = (response.data.files || []).filter(
+                (f) => !existingIds.has(f._id)
+              );
+              return [...prev, ...newFiles];
+            });
+          } else {
+            setFolders(response.data.folders || []);
+            setFiles(response.data.files || []);
+          }
+
+          setHasMore(response.data.pagination?.hasMore || false);
+          setCurrentPage(page);
+        } catch (error) {
+          logger.logError(error, "Failed to load folder contents", {
+            folderId,
+            page,
+            append,
+            type,
+          });
+        } finally {
+          setLoading(false);
+          setLoadingMore(false);
+          // Clear in-flight lock for this key
+          delete inFlightFolderLoads[lockKey];
+        }
+      })();
+      inFlightFolderLoads[lockKey] = requestPromise;
+      return requestPromise;
     },
     [
       type,
@@ -249,6 +279,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     clearFilters,
     hasActiveFilters,
     searchHistory,
+    clearSearchForNavigation,
   } = useSearch(api, loadFolderContents, itemsPerPage);
 
   const {
@@ -290,8 +321,18 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     searchFilters.dateStart !== "" ||
     searchFilters.dateEnd !== "";
 
+  // Track last folder to detect navigation in sort effect
+  const lastSortEffectFolderRef = useRef(currentFolderId);
+
   // Update sort refs when search filters change and reload if not searching
   useEffect(() => {
+    // Skip if folder just changed - the loading effect will handle loading
+    const folderJustChanged = lastSortEffectFolderRef.current !== currentFolderId;
+    if (folderJustChanged) {
+      lastSortEffectFolderRef.current = currentFolderId;
+      return;
+    }
+
     const sortChanged =
       sortByRef.current !== searchFilters.sortBy ||
       sortOrderRef.current !== searchFilters.sortOrder;
@@ -302,6 +343,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
       // Only reload if not actively searching (search handles its own sorting)
       if (!searchQuery.trim() && !hasFiltersActive) {
+        // Reset the lastLoadedFolderRef to allow reloading with new sort
+        lastLoadedFolderRef.current = null;
         loadFolderContents(currentFolderId, 1, false);
       }
     }
@@ -341,35 +384,117 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     loadMoreSearchResults,
   });
 
-  // Sync drive type and restore its last visited folder
+  // Reset initialization when type changes to prevent stale folder loading
   useEffect(() => {
-    // When switching sections (drive/shared/trash), force that section's root
-    updateDriveType(type, "root");
-    updateCurrentFolder("root", type);
-  }, [type, updateDriveType, updateCurrentFolder]);
+    if (currentTypeRef.current !== type) {
+      logger.debug("DriveView: Type changed, resetting initialization", {
+        oldType: currentTypeRef.current,
+        newType: type,
+      });
+      setIsInitialized(false);
+    }
+  }, [type]);
+
+  // Initialize from URL on mount or when type changes
+  useEffect(() => {
+    // When switching types, always go to root (ignore any folder ID from URL of previous type)
+    // Only use urlFolderId if it's explicitly in the current URL path
+    const targetFolder = urlFolderId || "root";
+    
+    // Check if type changed (switching between drive/shared/trash)
+    const typeChanged = currentTypeRef.current !== type;
+    
+    // Skip URL-based updates if we're navigating programmatically to this folder
+    // This prevents the URL change from triggering extra context updates
+    if (programmaticNavFolderIdRef.current === targetFolder || 
+        programmaticNavFolderIdRef.current === currentFolderId) {
+      logger.debug("DriveView: Skipping URL-based update - programmatic navigation in progress", {
+        targetFolder,
+        currentFolderId,
+        programmaticNavFolderId: programmaticNavFolderIdRef.current
+      });
+      // Clear the ref after URL has synchronized
+      if (targetFolder === currentFolderId) {
+        programmaticNavFolderIdRef.current = null;
+      }
+      return;
+    }
+    
+    logger.debug("DriveView: Initialization check", { 
+      type, 
+      folderId: targetFolder, 
+      typeChanged,
+      isInitialized
+    });
+    
+    // Initialize on mount or when type changes
+    if (!isInitialized || typeChanged) {
+      currentTypeRef.current = type;
+      
+      logger.info("DriveView: Initializing/Switching to", { type, folderId: targetFolder });
+      updateDriveType(type, targetFolder);
+      setIsInitialized(true);
+    } 
+    // If already initialized and type hasn't changed, just update folder if URL changed
+    else if (targetFolder !== currentFolderId) {
+      logger.info("DriveView: URL folder changed", { from: currentFolderId, to: targetFolder });
+      updateCurrentFolder(targetFolder, type);
+    }
+  }, [type, urlFolderId, currentFolderId, updateDriveType, updateCurrentFolder, isInitialized]);
 
   // Load folder contents when currentFolderId changes or reloadTrigger fires
+  // Only load after initialization is complete and type is synchronized
   useEffect(() => {
+    if (!isInitialized) {
+      logger.debug("DriveView: Skipping load - not initialized yet");
+      return;
+    }
+    // Ensure context driveType is synchronized with prop type before loading
+    // This prevents loading the wrong folder when switching between drive/shared/trash
+    if (driveType !== type) {
+      logger.debug("DriveView: Skipping load - type not synchronized", {
+        propType: type,
+        contextType: driveType,
+      });
+      return;
+    }
+    
+    // Check if this folder was already loaded (prevent duplicate loads)
+    const folderAlreadyLoaded = lastLoadedFolderRef.current === currentFolderId && 
+                                 lastReloadTriggerRef.current === reloadTrigger;
+    if (folderAlreadyLoaded) {
+      logger.debug("DriveView: Skipping load - folder already loaded", { currentFolderId });
+      return;
+    }
+    
+    // Mark this folder as loaded
+    lastLoadedFolderRef.current = currentFolderId;
+    lastReloadTriggerRef.current = reloadTrigger;
+    
+    logger.info("DriveView: Loading folder contents", { currentFolderId, type: driveType });
     loadFolderContents(currentFolderId);
-    // loadFolderContents is stable (wrapped in useCallback with stable dependencies)
-    // Only react to currentFolderId and reloadTrigger changes
-    // eslint-disable-next-line
-  }, [currentFolderId, reloadTrigger]);
+  }, [currentFolderId, reloadTrigger, isInitialized, loadFolderContents, driveType, type]);
 
   // Reset selections when changing folders or type
   useEffect(() => {
     clearSelection();
   }, [currentFolderId, type, clearSelection]);
 
-  // Wrapper for openFolder that clears search when navigating to a folder
+  // Wrapper for openFolder that clears search and updates URL when navigating to a folder
   const handleOpenFolder = useCallback(
     (folder) => {
-      // Clear search state when opening a folder
-      clearSearch();
-      // Open the folder
+      logger.debug("DriveView: Opening folder", { folderId: folder._id, name: folder.name });
+      // Clear search state without triggering a reload (navigation handles loading)
+      clearSearchForNavigation();
+      // Mark this folder as being navigated to programmatically to skip URL-based context updates
+      programmaticNavFolderIdRef.current = folder._id;
+      // Open the folder (this updates context state and breadcrumbs)
       openFolder(folder);
+      // Update URL to reflect current folder
+      navigate(`/${type}/${folder._id}`, { replace: false });
+      // Loading is handled by the loading effect when currentFolderId changes
     },
-    [openFolder, clearSearch]
+    [openFolder, clearSearchForNavigation, navigate, type]
   );
 
   // Toggle select all handler
@@ -383,34 +508,22 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   }, [allItemIds, selectedItems, selectAll, clearSelection]);
 
-  // Keyboard shortcuts for selection
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
-        return;
-      }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
-        e.preventDefault();
-        handleToggleSelectAll();
-      } else if (e.key === "Escape") {
-        clearSelection();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleToggleSelectAll, clearSelection]);
 
   // Event handlers
   const handleFileUpload = async (e) => {
     const uploadedFiles = Array.from(e.target.files || []);
     if (!uploadedFiles.length) return;
 
-    const newFiles = await uploadFiles(uploadedFiles);
-    if (newFiles.length > 0) {
-      setFiles((prev) => [...prev, ...newFiles]);
-    }
+    const newFiles = await uploadFiles(
+      uploadedFiles,
+      null,
+      true,
+      (completedFile) => {
+        // Add each file to UI as it completes
+        setFiles((prev) => [...prev, completedFile]);
+      }
+    );
     e.target.value = "";
   };
 
@@ -604,10 +717,15 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       const droppedFiles = Array.from(e.dataTransfer.files);
       if (droppedFiles.length > 0) {
         toast.info(`Uploading ${droppedFiles.length} file(s)...`);
-        const newFiles = await uploadFiles(droppedFiles);
-        if (newFiles.length > 0) {
-          setFiles((prev) => [...prev, ...newFiles]);
-        }
+        const newFiles = await uploadFiles(
+          droppedFiles,
+          null,
+          true,
+          (completedFile) => {
+            // Add each file to UI as it completes
+            setFiles((prev) => [...prev, completedFile]);
+          }
+        );
       }
     },
     [uploadFiles, setFiles, currentFolderId]
@@ -676,6 +794,202 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     handleExternalDragLeave,
   ]);
 
+  // Keyboard shortcuts
+  const handlePasteShortcut = useCallback(async () => {
+    if (!clipboard.items.length) return;
+
+    const { items, operation } = clipboard;
+    const isCopy = operation === "copy";
+
+    try {
+      const promises = items.map((item) => {
+        const itemType = item.type === "files" ? "files" : "folders"; // Ensure correct type string if needed
+        return isCopy
+          ? item.type === "files"
+             ? api.copyFile(item._id, currentFolderId, null)
+             : api.copyFolder(item._id, currentFolderId, null)
+          : item.type === "files"
+             ? api.moveFile(item._id, currentFolderId)
+             : api.moveFolder(item._id, currentFolderId);
+      });
+
+      await Promise.all(promises);
+      toast.success(
+        `${items.length} item${items.length > 1 ? "s" : ""} ${
+          isCopy ? "copied" : "moved"
+        } successfully`
+      );
+      
+      // If it was a move operation, clear clipboard
+      if (!isCopy) {
+        clearClipboard();
+      }
+
+      // Reload folder contents
+      await loadFolderContents(currentFolderId, 1, false);
+    } catch (error) {
+      console.error("Paste failed:", error);
+      toast.error(`Failed to ${isCopy ? "copy" : "move"} items`);
+    }
+  }, [clipboard, currentFolderId, loadFolderContents, clearClipboard]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if input/textarea is focused
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Cmd/Ctrl + A: Select All
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        handleToggleSelectAll();
+        return;
+      }
+      
+      // Cmd/Ctrl + C: Copy
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        e.preventDefault();
+        if (selectedItems.size > 0) {
+           const itemsToCopy = [];
+           // We need to map selected IDs back to types
+           selectedItems.forEach(id => {
+             const file = files.find(f => f._id === id);
+             const folder = folders.find(f => f._id === id);
+             if (file) itemsToCopy.push({ _id: id, type: "files" });
+             else if (folder) itemsToCopy.push({ _id: id, type: "folders" });
+           });
+           if (itemsToCopy.length > 0) {
+             copyToClipboard(itemsToCopy);
+             toast.info(`Copied ${itemsToCopy.length} item${itemsToCopy.length > 1 ? 's' : ''}`);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + X: Cut
+      if ((e.ctrlKey || e.metaKey) && e.key === "x") {
+        e.preventDefault();
+        if (selectedItems.size > 0) {
+           const itemsToCut = [];
+           selectedItems.forEach(id => {
+             const file = files.find(f => f._id === id);
+             const folder = folders.find(f => f._id === id);
+             if (file) itemsToCut.push({ _id: id, type: "files" });
+             else if (folder) itemsToCut.push({ _id: id, type: "folders" });
+           });
+           if (itemsToCut.length > 0) {
+             cutToClipboard(itemsToCut);
+             toast.info(`Cut ${itemsToCut.length} item${itemsToCut.length > 1 ? 's' : ''}`);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + V: Paste
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        e.preventDefault();
+        handlePasteShortcut();
+        return;
+      }
+      
+      // Delete / Backspace
+      // Be careful with Backspace as it can be navigation. 
+      // Usually browsers map Backspace to generic navigation back if not prevented?
+      // Modern browsers: Alt+Left for back. Backspace might be safe if no input focus.
+      if (e.key === "Delete" || e.key === "Backspace") {
+         // Only if we have selection
+         if (selectedItems.size > 0) {
+            e.preventDefault(); // Prevent back navigation
+            handleBulkDelete();
+         }
+         return;
+      }
+
+      // Cmd/Ctrl + D: Download
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        e.preventDefault(); // Prevent bookmark
+        if (selectedItems.size > 0) {
+          bulkDownload();
+        }
+        return;
+      }
+
+      // F2: Rename (Single Item)
+      // Check for single selection
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (selectedItems.size === 1) {
+           const id = [...selectedItems][0];
+           const file = files.find(f => f._id === id);
+           const folder = folders.find(f => f._id === id);
+           if (file) openRenameDialog(file, "files");
+           else if (folder) openRenameDialog(folder, "folders");
+        }
+        return;
+      }
+
+      // Enter: Open (Single Item)
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (selectedItems.size === 1) {
+           const id = [...selectedItems][0];
+           const file = files.find(f => f._id === id);
+           const folder = folders.find(f => f._id === id);
+           
+           if (folder) {
+             handleOpenFolder(folder);
+           } else if (file) {
+             // For file, generic open/preview?
+             openPreviewModal(file, files);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + N or Alt + N: New Folder
+      // Note: Cmd+Shift+N is often Incognito/Private window in browsers, which we CANNOT prevent in most cases.
+      // But we can try or support Alt+N as alternative.
+      if (
+         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "n") ||
+         (e.altKey && e.key === "n")
+      ) {
+         e.preventDefault();
+         handleCreateFolder();
+         return;
+      }
+      
+      // Escape: Clear Selection
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
+
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [
+    files, 
+    folders, 
+    selectedItems, 
+    handleToggleSelectAll, 
+    clearSelection, 
+    copyToClipboard, 
+    cutToClipboard,     handlePasteShortcut,
+     handleBulkDelete, 
+     bulkDownload,
+     openRenameDialog,
+     handleOpenFolder,
+     openPreviewModal,
+     handleCreateFolder
+  ]);
+
   return (
     <div
       className={`${styles.driveContainer} ${
@@ -717,6 +1031,20 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         navigateTo={navigateTo}
         breadcrumbRef={breadcrumbRef}
       />
+
+      {selectedItems.size > 0 && (
+        <SelectionBar
+          selectedItemsCount={selectedItems.size}
+          type={type}
+          onBulkDownload={bulkDownload}
+          onBulkShare={handleBulkShare}
+          onBulkDelete={handleBulkDelete}
+          onBulkRestore={handleBulkRestore}
+          onBulkCopy={handleBulkCopy}
+          onBulkMove={handleBulkMove}
+          onClearSelection={clearSelection}
+        />
+      )}
 
       <MobileBreadcrumb path={path} navigateTo={navigateTo} />
 

@@ -4,6 +4,7 @@ import { downloadFile } from "../utils/helpers";
 import { useSelectionContext } from "../contexts/SelectionContext";
 import { useUIContext, useTransfer } from "../contexts";
 import logger from "../utils/logger";
+import { removeCachedImage } from "../utils/imageCache";
 
 export const useSelection = (api, folders, files, type) => {
   const {
@@ -19,7 +20,9 @@ export const useSelection = (api, folders, files, type) => {
     updateDownloadProgress,
     completeDownload,
     failDownload,
-    cancelDownload 
+    cancelDownload,
+    registerXhr,
+    unregisterXhr,
   } = useTransfer();
 
   const selectAll = useCallback(() => {
@@ -75,16 +78,36 @@ export const useSelection = (api, folders, files, type) => {
       }
 
       try {
-        const promises = [...selectedItems].map((id) => {
-          const itemType = files.find((f) => f._id === id)
-            ? "files"
-            : "folders";
+        const selectedItemsArray = [...selectedItems];
+        logger.info("bulkDelete: Starting bulk delete", {
+          itemCount: selectedItemsArray.length,
+          itemIds: selectedItemsArray,
+          type,
+        });
+
+        const promises = selectedItemsArray.map((id) => {
+          const isFile = files.find((f) => f._id === id);
+          const itemType = isFile ? "files" : "folders";
+          logger.debug("bulkDelete: Deleting item", { id, itemType, isFile: !!isFile });
           return type === "trash"
             ? api.deleteItemPermanently(itemType, id)
             : api.moveToTrash(itemType, id);
         });
 
+        logger.info("bulkDelete: Created promises", { promiseCount: promises.length });
         await Promise.all(promises);
+        logger.info("bulkDelete: All promises resolved");
+
+        // Clear cached images for permanently deleted files
+        if (type === "trash") {
+          const fileIds = selectedItemsArray.filter(id => 
+            files.find((f) => f._id === id)
+          );
+          for (const fileId of fileIds) {
+            await removeCachedImage(fileId);
+          }
+          logger.info("Cleared cached images for deleted files", { fileIds });
+        }
 
         if (onComplete) await onComplete();
         clearSelection();
@@ -121,12 +144,22 @@ export const useSelection = (api, folders, files, type) => {
     if (!selectedItems.size) return false;
 
     try {
-      const promises = [...selectedItems].map((id) => {
-        const itemType = files.find((f) => f._id === id) ? "files" : "folders";
+      const selectedItemsArray = [...selectedItems];
+      logger.info("bulkRestore: Starting bulk restore", {
+        itemCount: selectedItemsArray.length,
+        itemIds: selectedItemsArray,
+      });
+
+      const promises = selectedItemsArray.map((id) => {
+        const isFile = files.find((f) => f._id === id);
+        const itemType = isFile ? "files" : "folders";
+        logger.debug("bulkRestore: Restoring item", { id, itemType, isFile: !!isFile });
         return api.restoreFromTrash(itemType, id);
       });
 
+      logger.info("bulkRestore: Created promises", { promiseCount: promises.length });
       await Promise.all(promises);
+      logger.info("bulkRestore: All promises resolved");
       clearSelection();
       toast.success("Items restored successfully");
       return true;
@@ -221,132 +254,114 @@ export const useSelection = (api, folders, files, type) => {
       // Show initial zipping progress
       updateZippingProgress(downloadId, 0, totalItems);
 
-      // Make API call with XMLHttpRequest for progress tracking
-      const token = localStorage.getItem("token");
-      const API_URL = process.env.REACT_APP_API_URL;
+      // Start download
+      const items = [
+        ...fileIds.map(id => ({ id, type: 'file' })),
+        ...folderIds.map(id => ({ id, type: 'folder' }))
+      ];
+
+      // 1. Request zip job
+      const response = await api.post('/downloads/zip', { items });
+      const { jobId } = response.data;
       
-      console.log("Download request details:", {
-        url: `${API_URL}/files/download`,
-        fileIds,
-        folderIds,
-        hasToken: !!token,
-      });
-      
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_URL}/files/download`, true);
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.responseType = "blob";
-      xhr.timeout = 30 * 60 * 1000; // 30 minutes
+      toast.info("Preparing download...");
 
-      let lastLoaded = 0;
-      let lastTime = Date.now();
-      let isFirstProgress = true;
+      // 2. Poll for status
+      const pollInterval = setInterval(async () => {
+         try {
+           const statusRes = await api.get(`/downloads/zip/${jobId}/status`);
+           const { status, progress, message } = statusRes.data;
 
-      // Track download progress
-      xhr.onprogress = (event) => {
-        // On first progress event, we know zipping is complete and download has started
-        if (isFirstProgress && event.loaded > 0) {
-          isFirstProgress = false;
-          // Mark zipping as complete
-          updateZippingProgress(downloadId, totalItems, totalItems);
-        }
-        
-        if (event.lengthComputable) {
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          const bytesDiff = event.loaded - lastLoaded;
-          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+           if (status === 'FAILED') {
+             clearInterval(pollInterval);
+             failDownload(downloadId);
+             toast.error(message || "Zip generation failed");
+             logger.error("Zip generation failed", { jobId, message });
+             return;
+           }
 
-          lastLoaded = event.loaded;
-          lastTime = now;
+           if (status === 'READY') {
+             clearInterval(pollInterval);
+             
+             // 3. Download the file
+             const token = localStorage.getItem("token");
+             const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
+             // Server route is now mounted at /api/downloads/zip
+             const downloadUrl = `${API_BASE}/downloads/zip/${jobId}`;
 
-          updateDownloadProgress(downloadId, event.loaded, event.total, speed);
-        }
-      };
+             const xhr = new XMLHttpRequest();
+             xhr.open("GET", downloadUrl, true);
+             xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+             xhr.responseType = "blob";
+             xhr.timeout = 30 * 60 * 1000;
+             
+             registerXhr(downloadId, xhr);
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          const blob = xhr.response;
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", downloadName);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
+             let lastLoaded = 0;
+             let lastTime = Date.now();
 
-          completeDownload(downloadId, true);
-          toast.success(`Downloaded ${totalItems} item${totalItems > 1 ? 's' : ''} successfully`);
-
-          logger.info("Multi-item download completed", {
-            downloadId,
-            totalItems,
-          });
-        } else {
-          // Try to parse error message from blob response
-          let errorMsg = xhr.statusText || "Download failed";
-          
-          // If response is JSON error, extract message
-          if (xhr.response && xhr.response.type === 'application/json') {
-            try {
-              const reader = new FileReader();
-              reader.onload = () => {
-                try {
-                  const error = JSON.parse(reader.result);
-                  const errorMessage = error.error || error.message || errorMsg;
-                  failDownload(downloadId);
-                  toast.error(errorMessage);
-                  logger.error("Multi-item download failed", {
-                    downloadId,
-                    status: xhr.status,
-                    error: errorMessage,
-                  });
-                } catch (e) {
-                  failDownload(downloadId);
-                  toast.error(errorMsg);
+             xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                   const now = Date.now();
+                   const timeDiff = (now - lastTime) / 1000;
+                   const bytesDiff = event.loaded - lastLoaded;
+                   const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+                   lastLoaded = event.loaded;
+                   lastTime = now;
+                   updateDownloadProgress(downloadId, event.loaded, event.total, speed);
                 }
-              };
-              reader.readAsText(xhr.response);
-              return;
-            } catch (e) {
-              // Fall through to default error handling
-            }
-          }
-          
-          failDownload(downloadId);
-          toast.error(errorMsg);
-          logger.error("Multi-item download failed", {
-            downloadId,
-            status: xhr.status,
-            error: errorMsg,
-          });
-        }
-      };
+             };
 
-      xhr.onerror = () => {
-        failDownload(downloadId);
-        toast.error("Download failed");
-        logger.error("Multi-item download error", { downloadId });
-      };
+             xhr.onload = () => {
+                unregisterXhr(downloadId);
+                if (xhr.status === 200) {
+                   const blob = xhr.response;
+                   const url = window.URL.createObjectURL(blob);
+                   const link = document.createElement("a");
+                   link.href = url;
+                   link.setAttribute("download", downloadName);
+                   document.body.appendChild(link);
+                   link.click();
+                   link.remove();
+                   window.URL.revokeObjectURL(url);
+                   
+                   completeDownload(downloadId, true);
+                   toast.success("Download completed");
+                } else {
+                   failDownload(downloadId);
+                   toast.error("Download failed");
+                }
+             };
 
-      xhr.onabort = () => {
-        cancelDownload(downloadId);
-        toast.info("Download cancelled");
-        logger.info("Multi-item download cancelled", { downloadId });
-      };
+             xhr.onerror = () => {
+                unregisterXhr(downloadId);
+                failDownload(downloadId);
+                toast.error("Download network error");
+             };
+             
+             xhr.onabort = () => {
+                unregisterXhr(downloadId);
+                toast.info("Download cancelled");
+             };
 
-      xhr.ontimeout = () => {
-        failDownload(downloadId);
-        toast.error("Download timed out");
-        logger.error("Multi-item download timeout", { downloadId });
-      };
+             xhr.send();
 
-      // Send request
-      xhr.send(JSON.stringify({ files: fileIds, folders: folderIds }));
-
+           } else {
+              // Update zipping progress
+              const numericProgress = parseInt(progress) || 0;
+              updateZippingProgress(downloadId, numericProgress, 100);
+           }
+         } catch (err) {
+            clearInterval(pollInterval);
+            failDownload(downloadId);
+            console.error("Polling error", err);
+            toast.error("Error checking zip status");
+         }
+      }, 1000);
+      
+      // We return true immediately as the process is async background
       return true;
+
     } catch (error) {
       failDownload(downloadId);
       toast.error("Download failed");
@@ -357,6 +372,7 @@ export const useSelection = (api, folders, files, type) => {
       console.error(error);
       return false;
     }
+
   }, [
     selectedItems, 
     files, 
@@ -368,6 +384,8 @@ export const useSelection = (api, folders, files, type) => {
     completeDownload,
     failDownload,
     cancelDownload,
+    registerXhr,
+    unregisterXhr,
   ]);
 
   const bulkCopy = useCallback(

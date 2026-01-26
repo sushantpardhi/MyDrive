@@ -14,10 +14,11 @@ import {
   Eye,
   EyeOff,
   Check,
+  Menu,
 } from "lucide-react";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
-import { useTheme, useAuth } from "../../contexts";
+import { useTheme, useAuth, useUIContext } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
 import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
@@ -35,6 +36,7 @@ const defaultPreferences = {
 
 export default function UserProfile() {
   const { user: authUser } = useAuth();
+  const { toggleSidebar } = useUIContext();
   const [profile, setProfile] = useState({
     name: "",
     email: "",
@@ -381,6 +383,19 @@ export default function UserProfile() {
 
   return (
     <div className={styles.profileWrapper}>
+      {/* Mobile Header */}
+      <div className={styles.mobileHeader}>
+        <button
+          className={styles.hamburgerBtn}
+          onClick={toggleSidebar}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={24} />
+        </button>
+
+        <h1 className={styles.pageTitle}>User Profile</h1>
+      </div>
+      
       <div className={styles.profileContainer}>
         <div className={styles.profileCard}>
           <div className={styles.profileHeader}>

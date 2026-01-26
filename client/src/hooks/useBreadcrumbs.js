@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDriveContext } from "../contexts/DriveContext";
 import api from "../services/api";
 import logger from "../utils/logger";
@@ -43,12 +44,17 @@ const buildPathFromFolder = async (folderId, type) => {
   }
 };
 
-export const useBreadcrumbs = (type) => {
-  const { currentFolderId, updateCurrentFolder } = useDriveContext();
+export const useBreadcrumbs = (type, customNavigate = null) => {
+  const { currentFolderId, updateCurrentFolder, driveType } = useDriveContext();
+  const defaultNavigate = useNavigate();
+  const navigate = customNavigate || defaultNavigate;
   const [path, setPath] = useState(() => generateInitialPath(type));
   const breadcrumbRef = useRef(null);
   const previousTypeRef = useRef(type);
-  const pathBuiltRef = useRef(false);
+  const previousFolderIdRef = useRef(null); // Start with null to force initial build
+  const isInitializedRef = useRef(false);
+  const skipBuildForFolderRef = useRef(null); // Track which folder ID to skip building for
+  const isBuildingRef = useRef(false); // Prevent concurrent builds
 
   // Reset path when type changes
   useEffect(() => {
@@ -59,18 +65,79 @@ export const useBreadcrumbs = (type) => {
       });
       const newPath = generateInitialPath(type);
       setPath(newPath);
-      pathBuiltRef.current = false;
       previousTypeRef.current = type;
+      // Reset folder tracking to prevent stale folder paths
+      previousFolderIdRef.current = null;
+      isInitializedRef.current = false;
     }
   }, [type]);
 
-  // Build path from saved lastFolderId on initial mount or when folder changes
+  // Build path from currentFolderId on mount and whenever it changes
   useEffect(() => {
-    if (!pathBuiltRef.current && currentFolderId !== "root") {
-      pathBuiltRef.current = true;
-      buildPathFromFolder(currentFolderId, type).then(setPath);
+    // Check if we're within the navigation lock period (prevent race conditions)
+    // skipBuildForFolderRef stores either a folder ID or a timestamp when navigation started
+    const skipValue = skipBuildForFolderRef.current;
+    
+    // If skipValue is a number (timestamp), check if we're still within lock period (500ms)
+    if (typeof skipValue === 'number') {
+      const timeSinceNavigation = Date.now() - skipValue;
+      if (timeSinceNavigation < 500) {
+        previousFolderIdRef.current = currentFolderId;
+        isInitializedRef.current = true;
+        return;
+      } else {
+        // Lock expired, clear it
+        skipBuildForFolderRef.current = null;
+      }
     }
-  }, [currentFolderId, type]);
+    
+    // Legacy: Handle folder ID skip flag (for compatibility)
+    if (skipValue === currentFolderId) {
+      previousFolderIdRef.current = currentFolderId;
+      isInitializedRef.current = true;
+      skipBuildForFolderRef.current = null;
+      return;
+    }
+    
+    // Clear the skip flag if we're now on a different folder
+    if (skipValue !== null && skipValue !== currentFolderId) {
+      skipBuildForFolderRef.current = null;
+    }
+    
+    // Skip if type is not synchronized with context (during view transitions)
+    if (driveType !== type) {
+      return;
+    }
+    
+    // Build path on first render or when folder actually changed
+    const shouldBuild = !isInitializedRef.current || previousFolderIdRef.current !== currentFolderId;
+    
+    if (shouldBuild) {
+      // Prevent building if we're already in the process of building for this folder
+      if (isBuildingRef.current) {
+        return;
+      }
+      
+      const folderIdForBuild = currentFolderId;
+      previousFolderIdRef.current = currentFolderId;
+      isInitializedRef.current = true;
+      
+      if (currentFolderId === "root") {
+        setPath(generateInitialPath(type));
+      } else {
+        isBuildingRef.current = true;
+        buildPathFromFolder(currentFolderId, type).then((newPath) => {
+          isBuildingRef.current = false;
+          // Only set path if we're still on the same folder (avoid stale updates)
+          if (previousFolderIdRef.current === folderIdForBuild) {
+            setPath(newPath);
+          }
+        }).catch(() => {
+          isBuildingRef.current = false;
+        });
+      }
+    }
+  }, [currentFolderId, type, driveType]);
 
   // Update document title based on location
   useEffect(() => {
@@ -90,19 +157,31 @@ export const useBreadcrumbs = (type) => {
 
   const navigateTo = (index) => {
     const newPath = path.slice(0, index + 1);
-    setPath(newPath);
     const newFolderId = newPath[newPath.length - 1].id;
-    updateCurrentFolder(newFolderId);
+    
+    // Optimistically update path for immediate feedback
+    setPath(newPath);
+    
+    // Set timestamp lock to prevent path rebuild when context updates
+    skipBuildForFolderRef.current = Date.now();
+    previousFolderIdRef.current = newFolderId;
 
-    // Reset pathBuiltRef when navigating to allow rebuilding if needed
+    // Update URL - this will trigger DriveView's effect to update the context
+    // We do NOT call updateCurrentFolder() here to avoid double-loading
     if (newFolderId === "root") {
-      pathBuiltRef.current = false;
+      navigate(`/${type}`, { replace: false });
+    } else {
+      navigate(`/${type}/${newFolderId}`, { replace: false });
     }
   };
 
   const openFolder = (folder) => {
-    updateCurrentFolder(folder._id);
+    // Set timestamp lock to prevent race conditions
+    skipBuildForFolderRef.current = Date.now();
+    previousFolderIdRef.current = folder._id;
+    
     setPath([...path, { id: folder._id, name: folder.name }]);
+    updateCurrentFolder(folder._id);
   };
 
   return {

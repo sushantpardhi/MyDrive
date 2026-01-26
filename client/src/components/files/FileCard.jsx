@@ -32,9 +32,11 @@ import ProgressiveImage from "../common/ProgressiveImage";
 import api from "../../services/api";
 import logger from "../../utils/logger";
 import useLazyLoad from "../../hooks/useLazyLoad";
+import { getCachedImage, setCachedImage } from "../../utils/imageCache";
 
 const FileCard = ({
   file,
+  filesList = [],
   onDownload,
   onDelete,
   onShare,
@@ -167,9 +169,29 @@ const FileCard = ({
       });
 
       try {
+        // First, check if we have a cached version
+        const cachedBlob = await getCachedImage(safeFile._id, 'thumbnail');
+        
+        if (cachedBlob && !cancelled) {
+          const url = URL.createObjectURL(cachedBlob);
+          setThumbnailUrl(url);
+          setThumbnailError(false);
+          setThumbnailLoading(false);
+          
+          logger.debug("Thumbnail loaded from cache", {
+            fileId: safeFile._id,
+            fileName: safeFile.name,
+          });
+          return;
+        }
+
+        // Not in cache, fetch from server
         const response = await api.getFileThumbnail(safeFile._id);
 
         if (!cancelled) {
+          // Cache the blob for future use
+          await setCachedImage(safeFile._id, response.data, 'thumbnail');
+          
           const url = URL.createObjectURL(response.data);
           setThumbnailUrl(url);
           setThumbnailError(false);
@@ -303,7 +325,7 @@ const FileCard = ({
 
   const handlePreview = () => {
     if (isPreviewable(safeFile.name)) {
-      openPreviewModal(safeFile);
+      openPreviewModal(safeFile, filesList);
     }
   };
 
@@ -420,6 +442,17 @@ const FileCard = ({
       )}
       {/* Menu and actions */}
       <div className={styles.menuWrapper} ref={menuRef}>
+        {/* Mobile backdrop overlay */}
+        {menuOpen && (
+          <div 
+            className={styles.mobileMenuBackdrop} 
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(false);
+            }}
+          />
+        )}
+        
         {!hasMultipleSelections && (
           <button
             className={styles.menuButton}

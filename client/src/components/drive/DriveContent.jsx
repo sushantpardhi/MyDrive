@@ -1,6 +1,6 @@
 import { FolderPlus } from "lucide-react";
-import GridView from "./GridView";
-import ListView from "./ListView";
+import GridView from "./GridViewNew";
+import ListView from "./ListViewNew";
 import LoadingSpinner from "../common/LoadingSpinner";
 import styles from "./DriveContent.module.css";
 import selectionStyles from "./SelectionBox.module.css";

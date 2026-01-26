@@ -5,13 +5,13 @@
 }
 
 .avatar {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   color: white;
   cursor: pointer;
@@ -33,7 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   color: white;
 }
@@ -63,10 +63,10 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* Compact size for card corners */
+/* Compact size for card corners - Mobile First */
 .ownerAvatar.compact .avatar {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-width: 1.5px;
   box-shadow: 
     0 1px 3px rgba(0, 0, 0, 0.1),
@@ -74,7 +74,7 @@
 }
 
 .ownerAvatar.compact .avatarPlaceholder {
-  font-size: 8px;
+  font-size: 7px;
 }
 
 .ownerAvatar.compact .avatar:hover {
@@ -83,7 +83,7 @@
 
 .tooltip {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) translateY(-4px);
   opacity: 0;
@@ -103,7 +103,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   box-shadow: 
     0 8px 24px rgba(0, 0, 0, 0.12),
     0 4px 8px rgba(0, 0, 0, 0.08),
@@ -111,7 +111,7 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   white-space: nowrap;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .tooltipContent::after {
@@ -137,21 +137,21 @@
 }
 
 .tooltipName {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .tooltipEmail {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   margin-bottom: 6px;
   opacity: 0.9;
 }
 
 .tooltipLabel {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
   color: var(--text-tertiary);
   text-transform: uppercase;
@@ -160,38 +160,45 @@
   border-top: 1px solid var(--card-border);
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
+/* Tablet and Desktop */
+@media (min-width: 769px) {
   .avatar {
-    width: 20px;
-    height: 20px;
-    font-size: 8px;
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
+
+  .avatarPlaceholder {
+    font-size: 9px;
   }
 
   .ownerAvatar.compact .avatar {
-    width: 18px;
-    height: 18px;
-    font-size: 7px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .ownerAvatar.compact .avatarPlaceholder {
+    font-size: 8px;
   }
 
   .tooltip {
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 10px);
   }
 
   .tooltipContent {
-    padding: 8px 10px;
-    min-width: 100px;
+    padding: 10px 12px;
+    min-width: 120px;
   }
 
   .tooltipName {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .tooltipEmail {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .tooltipLabel {
-    font-size: 9px;
+    font-size: 10px;
   }
 }

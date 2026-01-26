@@ -1,11 +1,12 @@
+/* Mobile-first: Header base styles */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background-color: var(--header-bg);
   border-bottom: 1px solid var(--header-border);
-  padding: 8px 20px;
-  height: 60px;
+  padding: 8px 12px;
+  height: 56px;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -13,60 +14,75 @@
     border-color var(--transition-normal);
 }
 
-@media (max-width: 768px) {
+/* Tablet and up */
+@media (min-width: 769px) {
   .header {
-    padding: 8px 12px;
-    height: 48px;
+    padding: 8px 20px;
+    height: 60px;
   }
 }
 
-@media (max-width: 480px) {
+/* Desktop */
+@media (min-width: 1025px) {
   .header {
-    padding: 4px 8px;
-    height: 36px;
+    padding: 10px 24px;
   }
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
 }
 
-.desktopOnly {
-  display: flex;
+/* Tablet and up */
+@media (min-width: 769px) {
+  .actions {
+    gap: 10px;
+  }
 }
 
-@media (max-width: 768px) {
+/* Mobile-first: Hide desktop-only items by default */
+.desktopOnly {
+  display: none;
+}
+
+/* Tablet and up: Show desktop items */
+@media (min-width: 769px) {
   .desktopOnly {
+    display: flex;
+  }
+}
+
+/* Mobile-first: Show mobile menu by default */
+.mobileMenu {
+  display: block;
+  position: relative;
+}
+
+/* Tablet and up: Hide mobile menu */
+@media (min-width: 769px) {
+  .mobileMenu {
     display: none;
   }
 }
 
-.mobileMenu {
-  display: none;
-  position: relative;
-}
-
-@media (max-width: 768px) {
-  .mobileMenu {
-    display: block;
-  }
-}
-
+/* Mobile-first: Menu toggle button */
 .menuToggle {
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  padding: 6px;
+  padding: 8px;
   border-radius: 50%;
   transition: background-color var(--transition-normal),
     color var(--transition-normal);
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .menuToggle:hover {
@@ -74,9 +90,16 @@
   color: var(--text-primary);
 }
 
-@media (max-width: 480px) {
+.menuToggle:active {
+  transform: scale(0.95);
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
   .menuToggle {
-    padding: 4px;
+    padding: 6px;
+    min-width: auto;
+    min-height: auto;
   }
 }
 
@@ -163,31 +186,38 @@
   align-items: center;
 }
 
+/* Mobile-first: Search container */
 .searchContainer {
   display: flex;
   align-items: center;
   background-color: var(--bg-secondary);
-  border-radius: 6px;
-  padding: 6px 10px;
-  width: 300px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  max-width: 200px;
   border: 1px solid var(--border-color);
   transition: all var(--transition-normal);
 }
 
-@media (max-width: 768px) {
+/* Small tablets */
+@media (min-width: 481px) {
   .searchContainer {
-    width: 200px;
-    padding: 6px 8px;
+    max-width: 240px;
   }
 }
 
-@media (max-width: 480px) {
+/* Tablet and up */
+@media (min-width: 769px) {
   .searchContainer {
-    width: 150px;
+    padding: 6px 10px;
+    max-width: 300px;
   }
+}
 
-  .search {
-    font-size: 13px;
+/* Desktop */
+@media (min-width: 1025px) {
+  .searchContainer {
+    max-width: 400px;
   }
 }
 
@@ -201,6 +231,7 @@
   margin-right: 6px;
 }
 
+/* Mobile-first: Search input */
 .search {
   border: none;
   background: none;
@@ -208,29 +239,45 @@
   font-size: 14px;
   flex: 1;
   color: var(--text-primary);
+  min-width: 0;
 }
 
-.right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-@media (max-width: 768px) {
-  .right {
-    gap: 8px;
+/* Tablet and up */
+@media (min-width: 769px) {
+  .search {
+    font-size: 14px;
   }
 }
 
+/* Mobile-first: Right section */
+.right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .right {
+    gap: 12px;
+  }
+}
+
+/* Mobile-first: Icon buttons */
 .iconBtn {
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  padding: 6px;
+  padding: 8px;
   border-radius: 50%;
   transition: background-color var(--transition-normal),
     color var(--transition-normal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .iconBtn:hover {
@@ -238,6 +285,20 @@
   color: var(--text-primary);
 }
 
+.iconBtn:active {
+  transform: scale(0.95);
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .iconBtn {
+    padding: 6px;
+    min-width: auto;
+    min-height: auto;
+  }
+}
+
+/* Mobile-first: Upload button */
 .uploadBtn {
   display: flex;
   align-items: center;
@@ -249,11 +310,13 @@
   );
   color: white;
   border: none;
-  padding: 7px 11px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
   cursor: pointer;
   transition: all var(--transition-normal);
+  min-height: 44px;
+  font-weight: 500;
 }
 
 .uploadBtn:hover {
@@ -265,9 +328,23 @@
   transform: translateY(-1px);
 }
 
+.uploadBtn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .uploadBtn {
+    padding: 7px 11px;
+    font-size: 13px;
+    min-height: auto;
+  }
+}
+
+/* Mobile-first: User avatar */
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid var(--border-color);
   cursor: pointer;
@@ -275,8 +352,24 @@
   object-position: center;
   transition: transform var(--transition-normal),
     border-color var(--transition-normal);
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .avatar:hover {
   transform: scale(1.05);
+}
+
+.avatar:active {
+  transform: scale(0.95);
+}
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .avatar {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
 }

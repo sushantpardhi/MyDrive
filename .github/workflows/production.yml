@@ -33,7 +33,7 @@ jobs:
           pm2 restart backend-8080 || pm2 start index.js --name backend-8080
 
   deploy-frontend:
-    needs: deploy-backend   # ← waits for backend
+    needs: deploy-backend # ← waits for backend
     runs-on: self-hosted
     environment: production
     env:
@@ -65,7 +65,7 @@ jobs:
           pm2 start serve --name frontend-3000 -- -s build -l 3000
 
   deploy-image-worker:
-    needs: deploy-frontend   # ← waits for frontend
+    needs: deploy-frontend # ← waits for frontend
     runs-on: self-hosted
     environment: production
 
@@ -116,3 +116,38 @@ jobs:
           sudo systemctl daemon-reload
           sudo systemctl restart image-worker-prod  
           sudo systemctl status image-worker-prod --no-pager
+
+  deploy-zipping-worker:
+    needs: deploy-frontend
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Pull latest changes
+        run: |
+          set -e
+          cd /home/sushant/app/prod/MyDrive
+          git fetch origin
+          git reset --hard origin/main
+
+      - name: Build worker binary
+        run: |
+          set -e
+          cd /home/sushant/app/prod/MyDrive/worker/zipping-worker
+          go build -o zipping-worker-prod
+          [ -f zipping-worker-prod ] || (echo "Build failed: no zipping-worker binary" && exit 1)
+
+      - name: Install new binary
+        run: |
+          set -e
+          sudo install -m 755 \
+            /home/sushant/app/prod/MyDrive/worker/zipping-worker/zipping-worker-prod \
+            /usr/local/bin/zipping-worker
+
+      - name: Restart worker service
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl restart zipping-worker-prod
+          sudo systemctl status zipping-worker-prod --no-pager

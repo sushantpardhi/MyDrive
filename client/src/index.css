@@ -22,28 +22,50 @@ code {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Improve touch targets on mobile */
-@media (max-width: 768px) {
+/* Mobile-first: Improve touch targets and prevent zoom */
+button:not([class*="checkbox"]),
+a {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
+/* Prevent zoom on iOS when focusing inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea {
+  font-size: 16px !important;
+}
+
+/* Tablet and up: Allow normal sizing */
+@media (min-width: 769px) {
   button:not([class*="checkbox"]),
   a {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: auto;
+    min-width: auto;
   }
-
+  
   input,
   textarea,
   select {
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
-
-  /* Prevent zoom on iOS when focusing inputs */
+  
   input[type="text"],
   input[type="email"],
   input[type="password"],
   input[type="number"],
   input[type="search"],
   textarea {
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 }
 

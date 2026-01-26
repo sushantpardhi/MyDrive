@@ -7,7 +7,12 @@ import {
   createChunkedUploadService,
   CHUNK_SIZE,
 } from "../services/chunkedUpload";
+import {
+  createChunkedDownloadService,
+  CHUNK_SIZE as DOWNLOAD_CHUNK_SIZE,
+} from "../services/chunkedDownload";
 import logger from "../utils/logger";
+import { removeCachedImage } from "../utils/imageCache";
 
 export const useFileOperations = (
   api,
@@ -43,7 +48,7 @@ export const useFileOperations = (
   }, [api, currentFolderId]);
 
   const uploadFiles = useCallback(
-    async (files, onSuccess, useChunked = true) => {
+    async (files, onSuccess, useChunked = true, onFileComplete = null) => {
       if (!files?.length) return;
 
       logger.info("Starting file upload", {
@@ -180,7 +185,14 @@ export const useFileOperations = (
               }
             }
 
-            return response.data;
+            const fileData = response.data;
+            
+            // Immediately notify about completed file
+            if (onFileComplete) {
+              onFileComplete(fileData);
+            }
+
+            return fileData;
           } catch (error) {
             // Check if error is from paused upload
             const isPausedError = error.message === "Upload paused by user";
@@ -296,6 +308,12 @@ export const useFileOperations = (
       try {
         if (isPermanent) {
           await api.deleteItemPermanently(itemType, id);
+          
+          // Clear cached images for permanently deleted files
+          if (itemType === "files") {
+            await removeCachedImage(id);
+            logger.info("Cleared cached images for deleted file", { fileId: id });
+          }
         } else {
           await api.moveToTrash(itemType, id);
         }
@@ -392,6 +410,9 @@ export const useFileOperations = (
     [api, downloadProgressHook]
   );
 
+
+
+  
   const handleFolderDownload = useCallback(
     async (folderId, folderName) => {
       const downloadId = `download-${Date.now()}-${folderId}`;
@@ -426,6 +447,9 @@ export const useFileOperations = (
           `http://${window.location.hostname}:8080/api`;
 
         const xhr = new XMLHttpRequest();
+        if (downloadProgressHook && downloadProgressHook.registerXhr) {
+          downloadProgressHook.registerXhr(downloadId, xhr);
+        }
 
         return new Promise((resolve, reject) => {
           xhr.open("GET", `${API_URL}/folders/download/${folderId}`, true);
@@ -434,19 +458,24 @@ export const useFileOperations = (
 
           let lastLoaded = 0;
           let lastTime = Date.now();
-          let isFirstProgress = true;
+          let isIndeterminate = true;
+          let totalBytes = 0;
 
           // Track download progress
           xhr.onprogress = (event) => {
             if (downloadProgressHook) {
-              // On first progress event, we know zipping is complete and download has started
-              if (isFirstProgress && event.loaded > 0) {
-                isFirstProgress = false;
-                // Mark zipping as complete
-                downloadProgressHook.updateZippingProgress(downloadId, totalFiles, totalFiles);
+              
+               if (xhr.readyState === 3 && isIndeterminate) { // LOADING
+                 const totalSizeHeader = xhr.getResponseHeader("X-Total-Size");
+                if (totalSizeHeader) totalBytes = parseInt(totalSizeHeader);
+                 
+                 // If we have headers, stream started
+                 // Force switch to downloading state immediately
+                 downloadProgressHook.updateProgress(downloadId, 0, totalBytes, 0);
+                 isIndeterminate = false;
               }
               
-              if (event.lengthComputable) {
+              if (event.lengthComputable || totalBytes > 0) {
                 // Calculate speed
                 const now = Date.now();
                 const timeDiff = (now - lastTime) / 1000;
@@ -459,7 +488,7 @@ export const useFileOperations = (
                 downloadProgressHook.updateProgress(
                   downloadId,
                   event.loaded,
-                  event.total || totalSize,
+                  event.total || totalBytes || totalSize,
                   speed
                 );
               } else {
@@ -537,6 +566,119 @@ export const useFileOperations = (
 
         toast.error(errorMsg);
         console.error(error);
+      }
+    },
+    [api, downloadProgressHook]
+  );
+
+
+  const handleBulkDownload = useCallback(
+    async (fileIds = [], folderIds = [], zipName = "download.zip") => {
+      const downloadId = `bulk-${Date.now()}`;
+      const totalCount = fileIds.length + folderIds.length;
+
+      try {
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(downloadId, zipName, 0, totalCount);
+          downloadProgressHook.updateZippingProgress(downloadId, 0, totalCount);
+        }
+
+        toast.info(
+          `Queuing ${totalCount} item${totalCount !== 1 ? "s" : ""} for zipping...`
+        );
+
+        // 1. Request zip job
+        const items = [
+          ...fileIds.map(id => ({ id, type: 'file' })),
+          ...folderIds.map(id => ({ id, type: 'folder' }))
+        ];
+
+        const response = await api.post('/downloads/zip', { items });
+        const { jobId } = response.data;
+
+        // 2. Poll for status
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await api.get(`/downloads/zip/${jobId}/status`);
+            const { status, progress, message } = statusRes.data;
+
+            if (status === 'FAILED') {
+              clearInterval(pollInterval);
+              throw new Error(message || "Zip generation failed");
+            }
+
+            if (status === 'READY') {
+              clearInterval(pollInterval);
+              
+              // 3. Initiate Download
+              if (downloadProgressHook) {
+                 downloadProgressHook.updateProgress(downloadId, 0, 0, 0); // Indeterminate
+                 downloadProgressHook.completeDownload(downloadId, true);
+              }
+
+              // Use window location to download file
+              // Construct URL with auth token if needed, but cookies usually handle it if same origin
+              // If API requires Bearer header, we need to use XHR/fetch to get blob, or use a temporary token in URL
+              // Assuming cookie-based auth or that we can pass token in query param if needed. 
+              // Actually, the existing code used XHR with Bearer token.
+              // To download via browser (best for large files without memory issues), we need a way to pass auth.
+              // If we use XHR with blob like before:
+              
+              const token = localStorage.getItem("token");
+              const API_URL = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8080/api`;
+              
+              // We'll use the specific Zip download endpoint using XHR to support Auth header
+              const xhr = new XMLHttpRequest();
+               if (downloadProgressHook && downloadProgressHook.registerXhr) {
+                  downloadProgressHook.registerXhr(downloadId, xhr);
+                }
+
+               xhr.open("GET", `${API_URL.replace('/api', '')}/downloads/zip/${jobId}`, true);
+               xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+               xhr.responseType = "blob";
+               
+               xhr.onload = () => {
+                 if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.setAttribute("download", zipName);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                    toast.success("Download completed successfully");
+                 } else {
+                    toast.error("Download failed during transfer");
+                 }
+               };
+               xhr.send();
+
+            } else {
+              // Still processing
+               if (downloadProgressHook) {
+                 // Map numeric progress if available, or just keeping it active
+                 const numProgress = parseInt(progress) || 0;
+                 downloadProgressHook.updateZippingProgress(downloadId, numProgress, 100); 
+               }
+            }
+          } catch (err) {
+            clearInterval(pollInterval);
+            console.error("Polling error", err);
+            toast.error("Error checking zip status");
+            if (downloadProgressHook) {
+               downloadProgressHook.failDownload(downloadId);
+            }
+          }
+        }, 1000);
+
+      } catch (error) {
+        console.error("Bulk download error:", error);
+        toast.error("Failed to start download");
+        if (downloadProgressHook) {
+           downloadProgressHook.failDownload(downloadId);
+        }
       }
     },
     [api, downloadProgressHook]
@@ -770,19 +912,196 @@ export const useFileOperations = (
     [api, uploadProgressHook]
   );
 
+  // Chunked download with pause/resume/cancel support
+  const handleChunkedDownload = useCallback(
+    async (fileId, fileName, useChunked = true) => {
+      const clientDownloadId = `chunked-download-${Date.now()}-${fileId}`;
+
+      try {
+        // Verify first to get file size
+        const verifyResponse = await api.verifyFileDownload(fileId);
+        const fileData = verifyResponse.data;
+        const fileSize = fileData.size;
+
+        // Use chunked download for files > 5MB
+        const chunkedThreshold = 5 * 1024 * 1024; // 5MB
+        const shouldUseChunked = useChunked && fileSize > chunkedThreshold;
+        const totalChunks = shouldUseChunked
+          ? Math.ceil(fileSize / DOWNLOAD_CHUNK_SIZE)
+          : 0;
+
+        // Start download progress tracking
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(
+            clientDownloadId,
+            fileName || fileData.name,
+            fileSize,
+            1,
+            shouldUseChunked,
+            totalChunks
+          );
+        }
+
+        if (shouldUseChunked) {
+          logger.info("Starting chunked download", {
+            fileId,
+            fileName,
+            fileSize,
+            totalChunks,
+          });
+
+          // Create chunked download service
+          const chunkService = createChunkedDownloadService(
+            api,
+            // Progress callback
+            (
+              downloadId,
+              downloadedBytes,
+              totalBytes,
+              downloadedChunks,
+              totalChunksCount
+            ) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.updateProgress(
+                  clientDownloadId,
+                  downloadedBytes,
+                  totalBytes
+                );
+              }
+            },
+            // Chunk progress callback
+            (downloadId, chunkIndex, chunkStatus, retryAttempt) => {
+              if (downloadProgressHook && downloadProgressHook.updateChunkProgress) {
+                downloadProgressHook.updateChunkProgress(
+                  clientDownloadId,
+                  chunkIndex,
+                  chunkStatus,
+                  retryAttempt
+                );
+              }
+            }
+          );
+
+          // Register chunk service for pause/resume/cancel operations
+          if (downloadProgressHook && downloadProgressHook.registerChunkService) {
+            downloadProgressHook.registerChunkService(clientDownloadId, chunkService);
+          }
+
+          toast.info("Starting chunked download...");
+
+          const result = await chunkService.downloadFile(
+            fileId,
+            fileName || fileData.name,
+            clientDownloadId
+          );
+
+          if (result.paused) {
+            logger.info("Chunked download paused", { fileId, clientDownloadId });
+            return { paused: true, downloadId: result.downloadId };
+          }
+
+          if (downloadProgressHook) {
+            downloadProgressHook.completeDownload(clientDownloadId, true);
+            if (downloadProgressHook.unregisterChunkService) {
+              downloadProgressHook.unregisterChunkService(clientDownloadId);
+            }
+          }
+
+          toast.success("Download completed");
+          return result;
+        } else {
+          // Use regular download for smaller files
+          toast.info("Starting download...");
+
+          await downloadFile(api, fileId, fileName || fileData.name, {
+            onProgress: (loaded, total, speed) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.updateProgress(
+                  clientDownloadId,
+                  loaded,
+                  total,
+                  speed
+                );
+              }
+            },
+            onComplete: (success) => {
+              if (downloadProgressHook) {
+                downloadProgressHook.completeDownload(clientDownloadId, success);
+              }
+              if (success) {
+                toast.success("Download completed");
+              }
+            },
+            onCancel: () => {
+              if (downloadProgressHook) {
+                downloadProgressHook.cancelDownload(clientDownloadId);
+              }
+            },
+          });
+
+          return { success: true };
+        }
+      } catch (error) {
+        toast.error(`Download failed: ${error.message}`);
+        logger.logError(error, "Chunked download failed", { fileId });
+
+        if (downloadProgressHook) {
+          downloadProgressHook.failDownload(clientDownloadId);
+          if (downloadProgressHook.unregisterChunkService) {
+            downloadProgressHook.unregisterChunkService(clientDownloadId);
+          }
+        }
+
+        return { success: false, error: error.message };
+      }
+    },
+    [api, downloadProgressHook]
+  );
+
+  // Get active download sessions
+  const getActiveDownloads = useCallback(async () => {
+    try {
+      const response = await api.getActiveDownloadSessions();
+      return response.data.sessions;
+    } catch (error) {
+      logger.logError(error, "Failed to get active downloads");
+      return [];
+    }
+  }, [api]);
+
+  // Cancel a chunked download
+  const cancelChunkedDownload = useCallback(
+    async (downloadId) => {
+      try {
+        await api.cancelChunkedDownload(downloadId);
+        toast.info("Download cancelled");
+        return true;
+      } catch (error) {
+        logger.logError(error, "Failed to cancel download");
+        toast.error("Failed to cancel download");
+        return false;
+      }
+    },
+    [api]
+  );
+
   return {
     createFolder,
     uploadFiles,
     deleteItem,
     handleDownload,
     handleFolderDownload,
+    handleBulkDownload,
+    handleChunkedDownload,
     restoreItem,
     emptyTrash,
     renameItem,
     copyItem,
     moveItem,
     cancelChunkedUpload,
+    cancelChunkedDownload,
     getActiveUploads,
+    getActiveDownloads,
     resumeChunkedUpload,
     uploadLoading,
     deleteLoading,

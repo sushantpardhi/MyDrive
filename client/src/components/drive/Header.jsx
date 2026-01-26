@@ -82,65 +82,7 @@ const Header = ({
           <Menu size={20} />
         </button>
 
-        <div className={styles.searchBar} ref={searchBarRef}>
-          <Search
-            size={16}
-            className={isSearching ? styles.searchIconActive : ""}
-          />
-          <input
-            type="text"
-            placeholder="Search files and folders..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={handleSearchFocus}
-          />
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className={styles.clearSearchBtn}
-              aria-label="Clear search"
-            >
-              ×
-            </button>
-          )}
-
-          {/* Search Suggestions Dropdown */}
-          {showSuggestions &&
-            searchHistory &&
-            searchHistory.length > 0 &&
-            !searchQuery && (
-              <div className={styles.searchSuggestions}>
-                <div className={styles.suggestionsHeader}>
-                  <Clock size={14} />
-                  <span>Recent Searches</span>
-                </div>
-                {searchHistory.slice(0, 5).map((item, index) => (
-                  <button
-                    key={index}
-                    className={styles.suggestionItem}
-                    onClick={() => handleSuggestionClick(item)}
-                  >
-                    <Clock size={14} />
-                    <span>{item}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-        </div>
-
-        {/* Search Filters - Always Available */}
-        {searchFilters && (
-          <div className={styles.searchFiltersWrapper}>
-            <SearchFilters
-              filters={searchFilters}
-              onFiltersChange={updateFilters}
-              onClear={clearFilters}
-              isActive={hasActiveFilters}
-            />
-          </div>
-        )}
-
-        {/* Action Buttons or Selection Actions */}
+        {/* Action Buttons - Left Side */}
         <div className={styles.actionButtons}>
           {selectedItems && selectedItems.size === 0 && (
             <>
@@ -178,7 +120,7 @@ const Header = ({
             </>
           )}
 
-          {/* Selection Actions - same style as action buttons */}
+          {/* Selection Actions */}
           {selectedItems && selectedItems.size > 0 && (
             <>
               <span className={styles.selectionCount}>
@@ -220,6 +162,67 @@ const Header = ({
                 </>
               )}
             </>
+          )}
+        </div>
+
+        {/* Right Side - Search & Filters */}
+        <div className={styles.searchContainer}>
+          <div className={styles.searchBar} ref={searchBarRef}>
+            <Search
+              size={16}
+              className={isSearching ? styles.searchIconActive : ""}
+            />
+            <input
+              type="text"
+              placeholder="Search files and folders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={handleSearchFocus}
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className={styles.clearSearchBtn}
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+
+            {/* Search Suggestions Dropdown */}
+            {showSuggestions &&
+              searchHistory &&
+              searchHistory.length > 0 &&
+              !searchQuery && (
+                <div className={styles.searchSuggestions}>
+                  <div className={styles.suggestionsHeader}>
+                    <Clock size={14} />
+                    <span>Recent Searches</span>
+                  </div>
+                  {searchHistory.slice(0, 5).map((item, index) => (
+                    <button
+                      key={index}
+                      className={styles.suggestionItem}
+                      onClick={() => handleSuggestionClick(item)}
+                    >
+                      <Clock size={14} />
+                      <span>{item}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+          </div>
+
+          {/* Search Filters */}
+          {searchFilters && (
+            <div className={styles.searchFiltersWrapper}>
+              <SearchFilters
+                filters={searchFilters}
+                onFiltersChange={updateFilters}
+                onClear={clearFilters}
+                isActive={hasActiveFilters}
+              />
+            </div>
           )}
         </div>
       </div>

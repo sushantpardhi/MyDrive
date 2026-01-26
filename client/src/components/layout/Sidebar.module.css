@@ -33,31 +33,51 @@
   transform: translateY(0);
 }
 
+/* Mobile-first: Sidebar base styles */
 .sidebar {
-  width: 260px;
+  width: 280px;
   height: 100vh;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
-  padding: 20px;
+  background: var(--bg-primary); 
+  border-right: 1px solid var(--border-color);
+  padding: 24px 16px;
+  padding-top: 60px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  box-shadow: var(--shadow-md);
-  transition: background-color var(--transition-normal),
-    border-color var(--transition-normal);
+  gap: 24px;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  backdrop-filter: blur(10px);
 }
 
+
+/* Tablet and up */
+@media (min-width: 769px) {
+  .sidebar {
+    width: 260px;
+    padding: 20px;
+    padding-top: 20px;
+    gap: 20px;
+  }
+}
+
+/* Mobile-first: Close button (visible on mobile) */
 .closeButton {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
   background: transparent;
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: background-color var(--transition-normal),
     color var(--transition-normal);
   z-index: 10;
@@ -68,6 +88,18 @@
   color: var(--text-primary);
 }
 
+.closeButton:active {
+  transform: scale(0.9);
+}
+
+/* Tablet and up: Hide close button */
+@media (min-width: 769px) {
+  .closeButton {
+    display: none;
+  }
+}
+
+/* Mobile-first: User section */
 .userSection {
   display: flex;
   align-items: center;
@@ -81,6 +113,11 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.userSection:active {
+  transform: scale(0.98);
 }
 
 .userSectionLink:hover .userSection {
@@ -179,18 +216,22 @@
   gap: 4px;
 }
 
+/* Mobile-first: Navigation links */
 .link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 14px;
+  padding: 12px 18px;
   color: var(--text-secondary);
   text-decoration: none;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 15px;
   font-weight: 500;
-  transition: all var(--transition-slow);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+  background: transparent;
 }
 
 .link:hover {
@@ -199,15 +240,42 @@
   transform: translateX(4px);
 }
 
+.link:active {
+  transform: translateX(2px) scale(0.98);
+}
+
 .link span {
   flex: 1;
 }
 
+/* Tablet and up */
+@media (min-width: 769px) {
+  .link {
+    padding: 12px 14px;
+    font-size: 14px;
+    min-height: auto;
+  }
+}
+
 .active {
-  background: var(--sidebar-item-active);
+  background: var(--accent-primary);
   color: #fff !important;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+/* Subtle glow effect for active item */
+.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  opacity: 0.5;
+  z-index: -1;
 }
 
 .active:hover {
@@ -245,22 +313,25 @@
   box-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
 }
 
+/* Mobile-first: Logout button */
 .logoutButton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   width: 100%;
   background-color: var(--card-bg);
   border: 2px solid var(--border-color);
   border-radius: 10px;
   color: var(--danger-color);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-slow);
   box-shadow: var(--shadow-sm);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 52px;
 }
 
 .logoutButton:hover {
@@ -272,80 +343,16 @@
 }
 
 .logoutButton:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
   box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    height: 100vh;
-    padding-top: 64px;
-    width: 280px;
-  }
-
-  .closeButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    top: 12px;
-    right: 12px;
-  }
-
-  .closeButton:active {
-    transform: scale(0.9);
-  }
-
-  .userSection {
-    padding: 12px;
-    margin-bottom: 12px;
-  }
-
-  .userAvatar {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-
-  .userName {
-    font-size: 14px;
-  }
-
-  .userEmail {
-    font-size: 12px;
-  }
-
-  .menu {
-    gap: 6px;
-  }
-
-  .link {
-    padding: 14px 16px;
-    font-size: 15px;
-  }
-
-  .link:active {
-    transform: translateX(2px) scale(0.98);
-  }
-
-  .storageInfo {
-    font-size: 12px;
-    flex-wrap: wrap;
-    padding: 0 12px;
-  }
-
-  .storageBar {
-    height: 10px;
-    margin-bottom: 12px;
-  }
-
+/* Tablet and up */
+@media (min-width: 769px) {
   .logoutButton {
-    padding: 14px 18px;
-    font-size: 15px;
-  }
-
-  .logoutButton:active {
-    transform: translateY(0) scale(0.98);
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: auto;
   }
 }
+

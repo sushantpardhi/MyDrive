@@ -9,11 +9,14 @@ import {
   ArrowUpDown,
   Archive,
   Loader2,
+  Minimize2,
+  Maximize2,
+  XCircle,
 } from "lucide-react";
 import { formatFileSize } from "../../utils/formatters";
 import styles from "./TransferProgressToast.module.css";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 const TransferProgressToast = ({
   isOpen,
@@ -21,19 +24,47 @@ const TransferProgressToast = ({
   downloadProgress = {},
   onStopUpload,
   onCancelDownload,
+  onRemoveDownload,
   onStopAll,
   onClose,
 }) => {
   const [collapsed, setCollapsed] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
 
-  const uploadItems = Object.entries(uploadProgress);
-  const downloadItems = Object.entries(downloadProgress);
-  const allTransferItems = [...uploadItems, ...downloadItems];
-  const hasTransfers = allTransferItems.length > 0;
-  const hasActiveTransfers = allTransferItems.some(
-    ([, transfer]) =>
-      transfer.status === "uploading" || transfer.status === "downloading"
-  );
+  // Responsive breakpoint detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsCompact(window.innerWidth <= 480);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // Memoized transfer data processing
+  const { uploadItems, downloadItems, allTransferItems, hasTransfers, hasActiveTransfers } = useMemo(() => {
+    const uploads = Object.entries(uploadProgress || {});
+    const downloads = Object.entries(downloadProgress || {});
+    const all = [...uploads, ...downloads];
+    const active = all.some(
+      ([, transfer]) =>
+        transfer.status === "uploading" || 
+        transfer.status === "downloading" ||
+        transfer.status === "preparing" ||
+        transfer.status === "zipping" ||
+        transfer.status === "paused"
+    );
+    return {
+      uploadItems: uploads,
+      downloadItems: downloads,
+      allTransferItems: all,
+      hasTransfers: all.length > 0,
+      hasActiveTransfers: active,
+    };
+  }, [uploadProgress, downloadProgress]);
 
   // Auto-expand when transfers start
   useEffect(() => {
@@ -41,6 +72,20 @@ const TransferProgressToast = ({
       setCollapsed(false);
     }
   }, [hasActiveTransfers]);
+
+  // Memoized cancel handler
+  const handleCancel = useCallback((itemId, isDownload, status) => {
+    if (isDownload) {
+      // For completed/error/cancelled downloads, just remove from list
+      if (status === "completed" || status === "error" || status === "cancelled") {
+        onRemoveDownload?.(itemId);
+      } else {
+        onCancelDownload?.(itemId);
+      }
+    } else {
+      onStopUpload?.(itemId);
+    }
+  }, [onCancelDownload, onRemoveDownload, onStopUpload]);
 
   if (!isOpen) return null;
 
@@ -50,23 +95,32 @@ const TransferProgressToast = ({
   const failedCount = allTransferItems.filter(
     ([, transfer]) => transfer.status === "error"
   ).length;
+  const activeCount = allTransferItems.filter(
+    ([, transfer]) =>
+      transfer.status === "uploading" ||
+      transfer.status === "downloading" ||
+      transfer.status === "preparing" ||
+      transfer.status === "zipping"
+  ).length;
   const totalCount = allTransferItems.length;
 
-  // Sort items: active first (uploading/downloading), then completed, then failed
-  const sortedItems = allTransferItems.sort(([, a], [, b]) => {
+  // Sort items: active first (uploading/downloading), then preparing, then completed, then failed
+  const sortedItems = [...allTransferItems].sort(([, a], [, b]) => {
     const statusPriority = {
       uploading: 0,
       downloading: 0,
-      cancelling: 1,
-      completed: 2,
-      cancelled: 3,
-      error: 4,
+      preparing: 1,
+      zipping: 1,
+      cancelling: 2,
+      completed: 3,
+      cancelled: 4,
+      error: 5,
     };
-    return statusPriority[a.status] - statusPriority[b.status];
+    return (statusPriority[a.status] ?? 6) - (statusPriority[b.status] ?? 6);
   });
 
   // Calculate overall statistics
-  const calculateOverallStats = () => {
+  const overallStats = useMemo(() => {
     const completedTransfers = allTransferItems.filter(
       ([, transfer]) => transfer.status === "completed"
     );
@@ -74,7 +128,7 @@ const TransferProgressToast = ({
     if (completedTransfers.length === 0) return null;
 
     const totalBytes = completedTransfers.reduce(
-      (sum, [, transfer]) => sum + transfer.fileSize,
+      (sum, [, transfer]) => sum + (transfer.fileSize || 0),
       0
     );
     const totalTime = completedTransfers.reduce(
@@ -90,19 +144,19 @@ const TransferProgressToast = ({
       overallSpeed,
       totalTime,
     };
-  };
+  }, [allTransferItems]);
 
   // Calculate current active stats
-  const calculateActiveStats = () => {
+  const activeStats = useMemo(() => {
     if (!hasActiveTransfers) return null;
 
     const allTransfers = allTransferItems;
     const totalBytes = allTransfers.reduce(
-      (sum, [, transfer]) => sum + transfer.fileSize,
+      (sum, [, transfer]) => sum + (transfer.fileSize || 0),
       0
     );
     const uploadedBytes = allTransfers.reduce(
-      (sum, [, transfer]) => sum + transfer.uploadedBytes,
+      (sum, [, transfer]) => sum + (transfer.uploadedBytes || 0),
       0
     );
     const currentSpeeds = allTransfers
@@ -139,10 +193,7 @@ const TransferProgressToast = ({
       preparingCount,
       zippingCount,
     };
-  };
-
-  const overallStats = calculateOverallStats();
-  const activeStats = calculateActiveStats();
+  }, [allTransferItems, hasActiveTransfers]);
 
   const formatSpeed = (bytesPerSecond) => {
     if (bytesPerSecond === 0) return "0 B/s";
@@ -175,19 +226,25 @@ const TransferProgressToast = ({
   const getStatusIcon = (status, type = "upload", phase = null) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className={styles.statusIcon} />;
+        return <CheckCircle className={`${styles.statusIcon} ${styles.successIcon}`} />;
       case "error":
-        return <AlertCircle className={styles.statusIcon} />;
+        return <AlertCircle className={`${styles.statusIcon} ${styles.errorIcon}`} />;
+      case "cancelled":
+        return <XCircle className={`${styles.statusIcon} ${styles.cancelledIcon}`} />;
+      case "paused":
+        return <Pause className={`${styles.statusIcon} ${styles.pausedIcon}`} />;
       case "preparing":
         return (
           <Loader2 className={`${styles.statusIcon} ${styles.spinning}`} />
         );
       case "zipping":
         return <Archive className={`${styles.statusIcon} ${styles.pulsing}`} />;
+      case "cancelling":
+        return <Loader2 className={`${styles.statusIcon} ${styles.spinning} ${styles.cancellingIcon}`} />;
       case "downloading":
-        return <Download className={styles.statusIcon} />;
+        return <Download className={`${styles.statusIcon} ${styles.activeIcon}`} />;
       default:
-        return <Upload className={styles.statusIcon} />;
+        return <Upload className={`${styles.statusIcon} ${styles.activeIcon}`} />;
     }
   };
 
@@ -228,11 +285,13 @@ const TransferProgressToast = ({
       <div
         className={`${styles.toast} ${styles.idle} ${
           collapsed ? styles.collapsed : ""
-        }`}
+        } ${isMobile ? styles.mobile : ""} ${isCompact ? styles.compact : ""}`}
       >
         <div className={styles.header}>
           <div className={styles.headerContent}>
-            <ArrowUpDown size={16} />
+            <div className={styles.headerIconWrapper}>
+              <ArrowUpDown size={isMobile ? 14 : 16} />
+            </div>
             <div className={styles.headerText}>
               <h4>Transfers</h4>
               <div className={styles.overallStats}>
@@ -253,9 +312,9 @@ const TransferProgressToast = ({
         {!collapsed && (
           <div className={styles.content}>
             <div className={styles.emptyState}>
-              <ArrowUpDown size={32} className={styles.emptyIcon} />
+              <ArrowUpDown size={isMobile ? 28 : 32} className={styles.emptyIcon} />
               <p className={styles.emptyText}>
-                Upload or download files to see progress here
+                {isMobile ? "Start a transfer to see progress" : "Upload or download files to see progress here"}
               </p>
             </div>
           </div>
@@ -264,51 +323,62 @@ const TransferProgressToast = ({
     );
   }
 
+  // Get header title based on state
+  const getHeaderTitle = () => {
+    if (!hasActiveTransfers) {
+      return isCompact ? "Complete" : "Transfer Complete";
+    }
+    if (isCompact) {
+      return `${activeCount} active`;
+    }
+    if (isMobile) {
+      return `${totalCount} item${totalCount !== 1 ? "s" : ""}`;
+    }
+    return `Transferring ${totalCount} item${totalCount !== 1 ? "s" : ""}`;
+  };
+
   return (
     <div
       className={`${styles.toast} ${
         !hasActiveTransfers ? styles.completed : ""
-      } ${collapsed ? styles.collapsed : ""}`}
+      } ${collapsed ? styles.collapsed : ""} ${isMobile ? styles.mobile : ""} ${isCompact ? styles.compact : ""}`}
     >
       <div className={styles.header}>
         <div className={styles.headerContent}>
-          {hasActiveTransfers ? (
-            <ArrowUpDown size={16} className={styles.activeIcon} />
-          ) : (
-            <CheckCircle size={16} className={styles.completedIcon} />
-          )}
+          <div className={styles.headerIconWrapper}>
+            {hasActiveTransfers ? (
+              <ArrowUpDown size={isMobile ? 14 : 16} className={styles.activeIconAnim} />
+            ) : (
+              <CheckCircle size={isMobile ? 14 : 16} className={styles.completedIcon} />
+            )}
+          </div>
           <div className={styles.headerText}>
-            <h4>
-              {hasActiveTransfers
-                ? `Transferring ${totalCount} item${
-                    totalCount !== 1 ? "s" : ""
-                  }`
-                : `Transfer Complete`}
-            </h4>
-            {hasActiveTransfers &&
-              activeStats &&
-              activeStats.preparingCount > 0 && (
-                <span className={styles.preparingBadge}>
-                  {activeStats.preparingCount} preparing
-                </span>
-              )}
-            {hasActiveTransfers &&
-              activeStats &&
-              activeStats.zippingCount > 0 && (
-                <span className={styles.zippingBadge}>
-                  {activeStats.zippingCount} zipping
-                </span>
-              )}
+            <h4>{getHeaderTitle()}</h4>
+            <div className={styles.badgesRow}>
+              {hasActiveTransfers &&
+                activeStats &&
+                activeStats.preparingCount > 0 && (
+                  <span className={styles.preparingBadge}>
+                    {activeStats.preparingCount} preparing
+                  </span>
+                )}
+              {hasActiveTransfers &&
+                activeStats &&
+                activeStats.zippingCount > 0 && (
+                  <span className={styles.zippingBadge}>
+                    {activeStats.zippingCount} zipping
+                  </span>
+                )}
+            </div>
             {hasActiveTransfers && activeStats && (
               <div className={styles.activeStats}>
                 <span className={styles.statusText}>
                   {formatFileSize(activeStats.uploadedBytes)} /{" "}
-                  {formatFileSize(activeStats.totalBytes)} •{" "}
-                  {Math.round(activeStats.overallProgress)}%
+                  {formatFileSize(activeStats.totalBytes)}
+                  {!isCompact && ` • ${Math.round(activeStats.overallProgress)}%`}
                 </span>
-                {activeStats.averageCurrentSpeed > 0 && (
+                {activeStats.averageCurrentSpeed > 0 && !isCompact && (
                   <span className={styles.statsInfo}>
-                    Current Speed:{" "}
                     {formatSpeed(activeStats.averageCurrentSpeed)}
                   </span>
                 )}
@@ -323,26 +393,35 @@ const TransferProgressToast = ({
             {!hasActiveTransfers && overallStats && (
               <div className={styles.overallStats}>
                 <span className={styles.statusText}>
-                  {completedCount} of {totalCount} items transferred
-                  successfully
+                  {completedCount}/{totalCount} completed
                   {failedCount > 0 && ` • ${failedCount} failed`}
                 </span>
-                <span className={styles.statsInfo}>
-                  {formatFileSize(overallStats.totalBytes)} • Avg:{" "}
-                  {formatSpeed(overallStats.overallSpeed)} •{" "}
-                  {formatDuration(overallStats.averageTime)}
-                </span>
+                {!isCompact && (
+                  <span className={styles.statsInfo}>
+                    {formatFileSize(overallStats.totalBytes)} • {formatDuration(overallStats.averageTime)}
+                  </span>
+                )}
               </div>
             )}
           </div>
         </div>
         <div className={styles.headerActions}>
+          {hasActiveTransfers && onStopAll && totalCount > 1 && !isMobile && (
+            <button
+              onClick={onStopAll}
+              className={styles.stopAllButton}
+              aria-label="Stop all transfers"
+              title="Stop all"
+            >
+              <XCircle size={14} />
+            </button>
+          )}
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={styles.collapseButton}
             aria-label={collapsed ? "Expand" : "Collapse"}
           >
-            {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {collapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
           </button>
           {!hasActiveTransfers && onClose && (
             <button
@@ -362,10 +441,10 @@ const TransferProgressToast = ({
             <div className={styles.uploadList}>
               {sortedItems.map(([itemId, transfer]) => {
                 const bytesRemaining =
-                  transfer.fileSize - transfer.uploadedBytes;
+                  (transfer.fileSize || 0) - (transfer.uploadedBytes || 0);
                 const timeRemaining = formatTimeRemaining(
                   bytesRemaining,
-                  transfer.speed
+                  transfer.speed || 0
                 );
                 const isDownload = transfer.type === "download";
                 const phase = transfer.phase || transfer.status;
@@ -383,58 +462,51 @@ const TransferProgressToast = ({
                   >
                     <div className={styles.fileInfo}>
                       <div className={styles.fileHeader}>
-                        <div className={styles.fileIcon}>
+                        <div className={`${styles.fileIcon} ${styles[`icon_${transfer.status}`] || ""}`}>
                           {getStatusIcon(transfer.status, transfer.type, phase)}
                         </div>
                         <div className={styles.fileDetails}>
-                          <div className={styles.fileName}>
+                          <div className={styles.fileName} title={transfer.fileName}>
                             {transfer.fileName}
                           </div>
                           <div className={styles.uploadStats}>
                             {/* Show different info based on phase */}
                             {phase === "preparing" && (
                               <span className={styles.statusLabel}>
-                                {getStatusText(
-                                  transfer.status,
-                                  phase,
-                                  transfer.fileName
-                                )}
+                                {getStatusText(transfer.status, phase, transfer.fileName)}
                               </span>
                             )}
 
                             {phase === "zipping" && (
                               <>
                                 <span className={styles.statusLabel}>
-                                  {getStatusText(
-                                    transfer.status,
-                                    phase,
-                                    transfer.fileName
-                                  )}
+                                  {getStatusText(transfer.status, phase, transfer.fileName)}
                                 </span>
-                                {transfer.totalFiles > 1 && (
+                                {transfer.totalFiles > 1 && !isCompact && (
                                   <span className={styles.filesInfo}>
-                                    {transfer.filesProcessed || 0} /{" "}
-                                    {transfer.totalFiles} files
+                                    {transfer.filesProcessed || 0}/{transfer.totalFiles}
                                   </span>
                                 )}
                               </>
                             )}
 
-                            {(phase === "uploading" ||
-                              phase === "downloading") && (
+                            {(phase === "uploading" || phase === "downloading") && (
                               <>
                                 <span className={styles.sizeInfo}>
-                                  {formatFileSize(transfer.uploadedBytes)} /{" "}
-                                  {transfer.fileSize > 0
-                                    ? formatFileSize(transfer.fileSize)
-                                    : "Unknown"}
+                                  {isCompact
+                                    ? `${Math.round((transfer.progress || 0))}%`
+                                    : `${formatFileSize(transfer.uploadedBytes || 0)} / ${
+                                        transfer.fileSize > 0
+                                          ? formatFileSize(transfer.fileSize)
+                                          : "?"
+                                      }`}
                                 </span>
-                                {transfer.speed > 0 && (
+                                {transfer.speed > 0 && !isCompact && (
                                   <span className={styles.speed}>
                                     {formatSpeed(transfer.speed)}
                                   </span>
                                 )}
-                                {timeRemaining && transfer.fileSize > 0 && (
+                                {timeRemaining && transfer.fileSize > 0 && !isMobile && (
                                   <span className={styles.timeRemaining}>
                                     {timeRemaining}
                                   </span>
@@ -456,9 +528,9 @@ const TransferProgressToast = ({
                             )}
                             {transfer.status === "completed" && (
                               <>
-                                {transfer.finalSpeed && (
+                                {transfer.finalSpeed && !isCompact && (
                                   <span className={styles.completedSpeed}>
-                                    Avg: {formatSpeed(transfer.finalSpeed)}
+                                    {formatSpeed(transfer.finalSpeed)}
                                   </span>
                                 )}
                                 {transfer.totalTime && (
@@ -466,7 +538,7 @@ const TransferProgressToast = ({
                                     {formatDuration(transfer.totalTime)}
                                   </span>
                                 )}
-                                {transfer.totalFiles > 1 && (
+                                {transfer.totalFiles > 1 && !isCompact && (
                                   <span className={styles.filesInfo}>
                                     {transfer.totalFiles} files
                                   </span>
@@ -475,64 +547,44 @@ const TransferProgressToast = ({
                             )}
                             {transfer.status === "error" && (
                               <span className={styles.errorText}>
-                                {isDownload
-                                  ? "Download failed"
-                                  : "Upload failed"}
+                                {isCompact ? "Failed" : isDownload ? "Download failed" : "Upload failed"}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className={styles.uploadItemActions}>
+                          {/* Cancel button - for active transfers */}
                           {(transfer.status === "uploading" ||
                             transfer.status === "downloading" ||
+                            transfer.status === "preparing" ||
+                            transfer.status === "zipping" ||
+                            transfer.status === "paused" ||
                             transfer.status === "cancelling") && (
                             <button
-                              className={styles.actionBtn}
-                              title={
-                                transfer.status === "cancelling"
-                                  ? "Cancelling..."
-                                  : "Cancel"
-                              }
+                              className={`${styles.actionBtn} ${styles.cancelBtn}`}
+                              title={transfer.status === "cancelling" ? "Cancelling..." : "Cancel"}
                               onClick={() => {
                                 if (transfer.status === "cancelling") return;
-                                if (isDownload) {
-                                  onCancelDownload && onCancelDownload(itemId);
-                                } else {
-                                  onStopUpload && onStopUpload(itemId);
-                                }
+                                handleCancel(itemId, isDownload, transfer.status);
                               }}
                               disabled={transfer.status === "cancelling"}
                             >
-                              <X size={16} />
+                              <X size={14} />
                             </button>
                           )}
+                          
+                          {/* Remove button - for completed/error/cancelled transfers */}
                           {(transfer.status === "completed" ||
                             transfer.status === "error" ||
                             transfer.status === "cancelled") && (
                             <button
-                              className={styles.actionBtn}
+                              className={`${styles.actionBtn} ${styles.removeBtn}`}
                               title="Remove"
-                              onClick={() => {
-                                if (isDownload) {
-                                  onCancelDownload && onCancelDownload(itemId);
-                                } else {
-                                  onStopUpload && onStopUpload(itemId);
-                                }
-                              }}
+                              onClick={() => handleCancel(itemId, isDownload, transfer.status)}
                             >
-                              <X size={16} />
+                              <X size={14} />
                             </button>
                           )}
-                          {transfer.status !== "uploading" &&
-                            transfer.status !== "downloading" &&
-                            transfer.status !== "cancelling" &&
-                            transfer.status !== "completed" &&
-                            transfer.status !== "error" &&
-                            transfer.status !== "cancelled" && (
-                              <div className={styles.progressPercent}>
-                                {Math.round(transfer.progress)}%
-                              </div>
-                            )}
                         </div>
                       </div>
 
@@ -551,6 +603,10 @@ const TransferProgressToast = ({
                                 ? styles.completed
                                 : transfer.status === "error"
                                 ? styles.error
+                                : transfer.status === "cancelled"
+                                ? styles.cancelled
+                                : transfer.status === "paused"
+                                ? styles.paused
                                 : phase === "preparing" || phase === "zipping"
                                 ? styles.preparing
                                 : ""
@@ -560,10 +616,9 @@ const TransferProgressToast = ({
                                 phase === "zipping" && transfer.zippingProgress
                                   ? `${transfer.zippingProgress}%`
                                   : phase === "preparing" ||
-                                    (phase === "zipping" &&
-                                      !transfer.zippingProgress)
+                                    (phase === "zipping" && !transfer.zippingProgress)
                                   ? "100%"
-                                  : `${transfer.progress}%`,
+                                  : `${transfer.progress || 0}%`,
                             }}
                           />
                         </div>
@@ -575,31 +630,22 @@ const TransferProgressToast = ({
             </div>
           </div>
 
-          {totalCount > 1 && (
+          {totalCount > 1 && !isCompact && (
             <div className={styles.footer}>
               <div className={styles.summary}>
                 {hasActiveTransfers ? (
                   <div className={styles.summaryText}>
-                    Progress: {completedCount} completed •{" "}
-                    {totalCount - completedCount - failedCount} transferring
+                    {completedCount} done • {activeCount} active
                     {failedCount > 0 && ` • ${failedCount} failed`}
                   </div>
                 ) : overallStats ? (
                   <div className={styles.summaryText}>
-                    {failedCount > 0
-                      ? "Transfer completed with errors"
-                      : "All transfers completed"}{" "}
-                    • Total: {formatFileSize(overallStats.totalBytes)}
-                    {failedCount > 0 && ` • ${failedCount} failed`}
+                    {failedCount > 0 ? "Completed with errors" : "All transfers complete"}
+                    {!isMobile && ` • ${formatFileSize(overallStats.totalBytes)}`}
                   </div>
                 ) : (
                   <div className={styles.summaryText}>
-                    Transfer completed{" "}
-                    {failedCount > 0
-                      ? `with ${failedCount} error${
-                          failedCount !== 1 ? "s" : ""
-                        }`
-                      : ""}
+                    Complete {failedCount > 0 && `• ${failedCount} error${failedCount !== 1 ? "s" : ""}`}
                   </div>
                 )}
               </div>

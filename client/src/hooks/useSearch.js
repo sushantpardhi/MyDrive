@@ -34,6 +34,7 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
     }
   });
   const searchTimeoutRef = useRef(null);
+  const previousFolderIdRef = useRef(currentFolderId); // Track folder changes to avoid reloading on navigation
 
   // Save search to history
   const saveToHistory = (query) => {
@@ -61,6 +62,19 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
       clearTimeout(searchTimeoutRef.current);
     }
 
+    // Check if folder changed - if so, just reset search state without reloading
+    // The folder loading is handled by DriveView's loading effect
+    const folderChanged = previousFolderIdRef.current !== currentFolderId;
+    if (folderChanged) {
+      previousFolderIdRef.current = currentFolderId;
+      // Just reset search state when navigating to a new folder
+      setIsSearching(false);
+      setCurrentPage(1);
+      setSearchResults({ folders: [], files: [] });
+      // Don't call loadFolderContents here - DriveView handles that
+      return;
+    }
+
     // Check if we have any active filters
     const hasFilters =
       searchFilters.fileTypes.length > 0 ||
@@ -69,9 +83,10 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
       searchFilters.dateStart !== "" ||
       searchFilters.dateEnd !== "";
 
-    // If no search query and no filters, reload folder contents
+    // If no search query and no filters, just reset search state
+    // Don't reload folder contents - DriveView handles folder loading
+    // This effect should only handle search-related operations
     if (!searchQuery.trim() && !hasFilters) {
-      loadFolderContents(currentFolderId, 1, false);
       setIsSearching(false);
       setCurrentPage(1);
       setSearchResults({ folders: [], files: [] });
@@ -122,14 +137,26 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, searchFilters, currentFolderId, loadFolderContents, api]);
+  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage]);
 
+  // Clear search without triggering a reload (used when navigating to folders)
+  const clearSearchForNavigation = () => {
+    setSearchQuery("");
+    setIsSearching(false);
+    setCurrentPage(1);
+    setHasMore(true);
+    setSearchResults({ folders: [], files: [] });
+  };
+
+  // Clear search and reload folder contents (used when user explicitly clears search)
   const clearSearch = () => {
     setSearchQuery("");
     setIsSearching(false);
     setCurrentPage(1);
     setHasMore(true);
     setSearchResults({ folders: [], files: [] });
+    // Reload folder contents to show normal view after clearing search
+    loadFolderContents(currentFolderId, 1, false);
   };
 
   const updateFilters = (newFilters) => {
@@ -201,6 +228,7 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
     isSearching,
     searchResults,
     clearSearch,
+    clearSearchForNavigation,
     loadMoreSearchResults,
     hasMore,
     searchFilters,

@@ -1,9 +1,11 @@
+/* Mobile-first base styles */
 .container {
   display: flex;
   height: 100vh;
   overflow: hidden;
   position: relative;
   padding-top: var(--dev-banner-height, 0);
+  width: 100%;
 }
 
 /* Development banner height variable - default to 0, set by DevelopmentBanner component */
@@ -12,85 +14,89 @@
 }
 
 .sidebar {
-  flex-shrink: 0; /* ✅ Sidebar never collapses */
+  flex-shrink: 0;
   transition: transform 0.3s ease;
+  /* On mobile, sidebar is fixed and hidden by default */
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 1000;
+  transform: translateX(-100%);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar.open {
+  transform: translateX(0);
 }
 
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* ✅ Allow vertical scrolling */
-  overflow-x: hidden; /* ✅ Prevent horizontal overflow */
+  overflow: hidden;
+  min-height: 0;
+  width: 100%;
 }
 
-/* Mobile Responsive Styles */
-@media (max-width: 768px) {
+/* Tablet and up - show sidebar */
+@media (min-width: 769px) {
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 1000;
-    transform: translateX(-100%);
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
-  }
-
-  .sidebar.open {
+    position: relative;
     transform: translateX(0);
-  }
-
-  .main {
-    width: 100%;
-  }
-
-  body.no-scroll {
-    overflow: hidden;
+    box-shadow: none;
   }
 }
 
-/* Overlay for mobile sidebar */
+/* Overlay for mobile sidebar - mobile-first */
 .overlay {
-  display: none;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (max-width: 768px) {
+.overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Hide overlay on tablet and up */
+@media (min-width: 769px) {
   .overlay {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
+    display: none;
   }
 }
 
-/* React Toastify positioning */
+body.no-scroll {
+  overflow: hidden;
+}
+
+/* React Toastify positioning - mobile-first */
 :global(.react-toast-container) {
-  top: 24px !important;
-  right: 24px !important;
-  width: auto !important;
+  top: 16px !important;
+  right: 16px !important;
+  left: 16px !important;
+  width: calc(100% - 32px) !important;
+  max-width: 380px !important;
+  margin: 0 auto !important;
 }
 
-/* Mobile responsive for react toastify */
-@media (max-width: 768px) {
+/* Tablet and up */
+@media (min-width: 769px) {
   :global(.react-toast-container) {
-    top: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
-    width: calc(100% - 32px) !important;
-    max-width: 380px !important;
-    margin: 0 auto !important;
+    top: 24px !important;
+    right: 24px !important;
+    left: auto !important;
+    width: auto !important;
+    margin: 0 !important;
   }
 }

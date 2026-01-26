@@ -1,9 +1,9 @@
-/* Chart Card Styles */
+/* Chart Card Styles - Mobile First */
 .chartCard {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 1.75rem;
+  padding: 1.25rem;
   transition: all 0.3s ease;
 }
 
@@ -15,31 +15,35 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .chartTitle {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
 .chartContent {
-  min-height: 280px;
+  min-height: 240px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Tablet and Desktop */
+@media (min-width: 769px) {
   .chartCard {
-    padding: 1.25rem;
+    padding: 1.75rem;
+  }
+
+  .chartHeader {
+    margin-bottom: 1.25rem;
   }
 
   .chartTitle {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .chartContent {
-    min-height: 240px;
+    min-height: 280px;
   }
 }

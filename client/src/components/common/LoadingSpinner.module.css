@@ -1,10 +1,10 @@
-/* Container Styles */
+/* Container Styles - Mobile First */
 .container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .fullscreenContainer {
@@ -48,20 +48,20 @@
   display: inline-block;
 }
 
-/* Size Variants */
+/* Size Variants - Mobile First */
 .small {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .medium {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .large {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
 }
 
 /* Spinner Rings */
@@ -107,10 +107,10 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Loading Message */
+/* Loading Message - Mobile First */
 .message {
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   text-align: center;
   margin-top: 0.5rem;
@@ -150,24 +150,28 @@
   }
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
+/* Tablet and Desktop */
+@media (min-width: 769px) {
+  .container {
+    padding: 2rem;
+  }
+
   .small {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
 
   .medium {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
 
   .large {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
   }
 
   .message {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 }
