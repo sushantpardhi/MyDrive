@@ -303,8 +303,18 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     searchFilters.dateStart !== "" ||
     searchFilters.dateEnd !== "";
 
+  // Track last folder to detect navigation in sort effect
+  const lastSortEffectFolderRef = useRef(currentFolderId);
+
   // Update sort refs when search filters change and reload if not searching
   useEffect(() => {
+    // Skip if folder just changed - the loading effect will handle loading
+    const folderJustChanged = lastSortEffectFolderRef.current !== currentFolderId;
+    if (folderJustChanged) {
+      lastSortEffectFolderRef.current = currentFolderId;
+      return;
+    }
+
     const sortChanged =
       sortByRef.current !== searchFilters.sortBy ||
       sortOrderRef.current !== searchFilters.sortOrder;
@@ -315,6 +325,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
       // Only reload if not actively searching (search handles its own sorting)
       if (!searchQuery.trim() && !hasFiltersActive) {
+        // Reset the lastLoadedFolderRef to allow reloading with new sort
+        lastLoadedFolderRef.current = null;
         loadFolderContents(currentFolderId, 1, false);
       }
     }
