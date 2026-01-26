@@ -106,6 +106,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const dragCounterRef = useRef(0);
   const currentTypeRef = useRef(type);
   const programmaticNavFolderIdRef = useRef(null); // Track folder ID being navigated to programmatically
+  const lastLoadedFolderRef = useRef(null); // Track the last folder that was loaded to prevent duplicate loads
+  const lastReloadTriggerRef = useRef(0); // Track the last reload trigger value
 
   // State for tracking initialization
   const [isInitialized, setIsInitialized] = useState(false);
@@ -426,6 +428,19 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       });
       return;
     }
+    
+    // Check if this folder was already loaded (prevent duplicate loads)
+    const folderAlreadyLoaded = lastLoadedFolderRef.current === currentFolderId && 
+                                 lastReloadTriggerRef.current === reloadTrigger;
+    if (folderAlreadyLoaded) {
+      logger.debug("DriveView: Skipping load - folder already loaded", { currentFolderId });
+      return;
+    }
+    
+    // Mark this folder as loaded
+    lastLoadedFolderRef.current = currentFolderId;
+    lastReloadTriggerRef.current = reloadTrigger;
+    
     logger.info("DriveView: Loading folder contents", { currentFolderId, type: driveType });
     loadFolderContents(currentFolderId);
   }, [currentFolderId, reloadTrigger, isInitialized, loadFolderContents, driveType, type]);
