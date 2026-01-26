@@ -35,7 +35,6 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
   });
   const searchTimeoutRef = useRef(null);
   const previousFolderIdRef = useRef(currentFolderId); // Track folder changes to avoid reloading on navigation
-  const skipNextReloadRef = useRef(false); // Flag to skip reload when navigating
 
   // Save search to history
   const saveToHistory = (query) => {
@@ -76,15 +75,6 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
       return;
     }
 
-    // Check if we should skip this reload (set by clearSearch during navigation)
-    if (skipNextReloadRef.current) {
-      skipNextReloadRef.current = false;
-      setIsSearching(false);
-      setCurrentPage(1);
-      setSearchResults({ folders: [], files: [] });
-      return;
-    }
-
     // Check if we have any active filters
     const hasFilters =
       searchFilters.fileTypes.length > 0 ||
@@ -93,10 +83,10 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
       searchFilters.dateStart !== "" ||
       searchFilters.dateEnd !== "";
 
-    // If no search query and no filters, reload folder contents
-    // This only triggers when user clears search/filters, not on navigation
+    // If no search query and no filters, just reset search state
+    // Don't reload folder contents - DriveView handles folder loading
+    // This effect should only handle search-related operations
     if (!searchQuery.trim() && !hasFilters) {
-      loadFolderContents(currentFolderId, 1, false);
       setIsSearching(false);
       setCurrentPage(1);
       setSearchResults({ folders: [], files: [] });
@@ -147,11 +137,10 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, searchFilters, currentFolderId, loadFolderContents, api]);
+  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage]);
 
   // Clear search without triggering a reload (used when navigating to folders)
   const clearSearchForNavigation = () => {
-    skipNextReloadRef.current = true;
     setSearchQuery("");
     setIsSearching(false);
     setCurrentPage(1);
@@ -159,12 +148,15 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
     setSearchResults({ folders: [], files: [] });
   };
 
+  // Clear search and reload folder contents (used when user explicitly clears search)
   const clearSearch = () => {
     setSearchQuery("");
     setIsSearching(false);
     setCurrentPage(1);
     setHasMore(true);
     setSearchResults({ folders: [], files: [] });
+    // Reload folder contents to show normal view after clearing search
+    loadFolderContents(currentFolderId, 1, false);
   };
 
   const updateFilters = (newFilters) => {
