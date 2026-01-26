@@ -30,7 +30,7 @@
 /* Grid Layout - Mobile Default (3 columns on standard mobile, 2 on small) */
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Default to 3 columns for mobile */
+  grid-template-columns: repeat(2, 1fr); /* 2 columns for standard mobile */
   gap: 10px;
   justify-items: stretch;
 }
@@ -111,8 +111,8 @@
     margin-bottom: 8px;
   }
 
+  /* Grid is already 2 cols by default */
   .grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 columns on small screens */
     gap: 8px;
   }
 
@@ -135,6 +135,16 @@
 
   .sectionTitle {
     font-size: 9px;
+  }
+}
+
+/* ============================================
+   LARGE MOBILE / PHABLET (481px - 768px)
+   ============================================ */
+@media (min-width: 481px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
   }
 }
 

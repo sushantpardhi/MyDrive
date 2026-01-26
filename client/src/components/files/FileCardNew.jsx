@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styles from "./FileCardNew.module.css";
 import {
   Download,
@@ -240,24 +241,30 @@ const FileCardNew = ({
 
   // Calculate menu position based on available space
   const handleMenuToggle = (e) => {
+    e.preventDefault();
     e.stopPropagation();
     
     if (!menuOpen && menuBtnRef.current) {
       const btnRect = menuBtnRef.current.getBoundingClientRect();
-      const menuWidth = 180; // min-width of dropdown
-      const menuHeight = 300; // approximate max height of dropdown
+      const menuWidth = 200; 
+      const menuHeight = 300; 
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const spaceOnRight = viewportWidth - btnRect.right;
-      const spaceBelow = viewportHeight - btnRect.bottom;
       
-      // Determine horizontal position
-      const horizontal = spaceOnRight < menuWidth + 16 ? "left" : "right";
+      let top = btnRect.bottom + 8;
+      let left = btnRect.right - menuWidth; // Default align right edge
+
+      // Horizontal check
+      if (left < 10) {
+        left = btnRect.left; 
+      }
       
-      // Determine vertical position - open above if in bottom half or not enough space below
-      const vertical = spaceBelow < menuHeight ? "above" : "below";
+      // Vertical check
+      if (top + menuHeight > viewportHeight) {
+        top = btnRect.top - menuHeight - 8;
+      }
       
-      setMenuPosition({ horizontal, vertical });
+      setMenuPosition({ top, left });
     }
     
     setMenuOpen(!menuOpen);
@@ -439,8 +446,6 @@ const FileCardNew = ({
       {/* Actions Menu */}
       {!hasMultipleSelections && (
         <div className={styles.actions} ref={menuRef}>
-          {menuOpen && <div className={styles.backdrop} onClick={() => setMenuOpen(false)} />}
-          
           <button
             ref={menuBtnRef}
             className={styles.menuBtn}
@@ -451,17 +456,47 @@ const FileCardNew = ({
             <MoreVertical size={16} />
           </button>
 
-          {menuOpen && (
-            <div className={`${styles.dropdown} ${menuPosition.horizontal === "left" ? styles.dropdownLeft : ""} ${menuPosition.vertical === "above" ? styles.dropdownAbove : ""}`}>
-              <div className={styles.dropdownHeader}>
-                <span className={styles.dropdownTitle}>Actions</span>
-                <button className={styles.closeBtn} onClick={() => setMenuOpen(false)}>
-                  <X size={16} />
-                </button>
-              </div>
-              <div className={styles.dropdownBody}>{renderMenuItems()}</div>
-            </div>
-          )}
+          {menuOpen &&
+            createPortal(
+              <>
+                <div
+                  className={styles.portalOverlay}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                  }}
+                />
+                <div
+                  className={`${styles.dropdown} ${
+                    window.innerWidth <= 768
+                      ? styles.bottomSheet
+                      : styles.popover
+                  }`}
+                  style={
+                    window.innerWidth > 768
+                      ? {
+                          top: menuPosition.top,
+                          left: menuPosition.left,
+                        }
+                      : {}
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <div className={styles.dropdownHeader}>
+                    <span className={styles.dropdownTitle}>Actions</span>
+                    <button
+                      className={styles.closeBtn}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className={styles.dropdownBody}>{renderMenuItems()}</div>
+                </div>
+              </>,
+              document.body
+            )}
         </div>
       )}
     </div>
