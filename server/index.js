@@ -43,6 +43,7 @@ const foldersRouter = require("./routes/folders");
 const usersRouter = require("./routes/users");
 const sharedRouter = require("./routes/shared");
 const adminRouter = require("./routes/admin");
+const zipRouter = require("./routes/zipRoutes");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -54,8 +55,9 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 // Middleware
 app.use(
   cors({
-    // origin: CORS_ORIGIN,
-    // credentials: true,
+    origin: CORS_ORIGIN,
+    credentials: true,
+    exposedHeaders: ["X-Total-Size", "X-Total-Files"],
   })
 );
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
@@ -143,6 +145,7 @@ app.use("/api/folders", authenticateToken, foldersRouter);
 app.use("/api/users", authenticateToken, usersRouter);
 app.use("/api/shared", authenticateToken, sharedRouter);
 app.use("/api/admin", authenticateToken, adminRouter);
+app.use("/api/downloads/zip", zipRouter); // Zip download endpoints
 app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
 app.get("/", (req, res) => {

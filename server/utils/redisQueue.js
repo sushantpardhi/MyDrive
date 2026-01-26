@@ -170,6 +170,80 @@ class RedisQueue {
       return null;
     }
   }
+  /**
+   * Send a zip creation job to the Redis queue
+   * @param {Object} jobData - The job data
+   * @param {string} jobData.jobId - Unique Job ID
+   * @param {Array<Object>} jobData.items - List of files/folders to zip
+   * @param {string} jobData.userId - User ID requesting the zip
+   */
+  async sendZipJob(jobData) {
+    if (!this.isConnected || !this.client) {
+      logger.warn("Redis not connected - skipping zip job", {
+        jobId: jobData.jobId,
+      });
+      return false;
+    }
+
+    try {
+      const job = {
+        jobId: jobData.jobId,
+        items: jobData.items,
+        userId: jobData.userId,
+        outputDir: path.join(process.cwd(), "temp"),
+        timestamp: Date.now(),
+      };
+
+      // Set initial status
+      await this.client.hSet(`zip:job:${job.jobId}`, {
+        status: "PENDING",
+        progress: "0",
+        message: "Queued",
+      });
+      // Set expiry for status key (e.g., 24 hours) to prevent clutter
+      await this.client.expire(`zip:job:${job.jobId}`, 86400);
+
+      // Push job to Redis queue
+      await this.client.rPush("zip:jobs", JSON.stringify(job));
+
+      logger.info("Zip job sent to queue", {
+        jobId: job.jobId,
+        itemCount: job.items.length,
+      });
+
+      return true;
+    } catch (error) {
+      logger.error("Failed to send zip job to queue", {
+        error: error.message,
+        jobId: jobData.jobId,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get zip job status
+   * @param {string} jobId
+   */
+  async getZipJob(jobId) {
+    if (!this.isConnected || !this.client) {
+      return null;
+    }
+
+    try {
+      const job = await this.client.hGetAll(`zip:job:${jobId}`);
+      if (!job || Object.keys(job).length === 0) {
+        return null;
+      }
+      return job;
+    } catch (error) {
+      logger.error("Failed to get zip job status", {
+        error: error.message,
+        jobId,
+      });
+      return null;
+    }
+  }
 }
 
 // Create singleton instance

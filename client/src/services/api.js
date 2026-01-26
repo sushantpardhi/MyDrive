@@ -1,4 +1,5 @@
 import axios from "axios";
+import logger from "../utils/logger";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -80,6 +81,12 @@ axios.interceptors.response.use(
 );
 
 const api = {
+  // Generic methods
+  get: (url, config) => axios.get(`${API_URL}${url}`, config),
+  post: (url, data, config) => axios.post(`${API_URL}${url}`, data, config),
+  put: (url, data, config) => axios.put(`${API_URL}${url}`, data, config),
+  delete: (url, config) => axios.delete(`${API_URL}${url}`, config),
+
   // User profile operations
   getUserProfile: () => axios.get(`${API_URL}/users/profile`),
   updateUserProfile: (data) => axios.put(`${API_URL}/users/profile`, data),

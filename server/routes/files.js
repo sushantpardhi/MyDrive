@@ -1652,7 +1652,144 @@ router.get("/chunked-upload/health", async (req, res) => {
   }
 });
 
+
 // ========== CHUNKED DOWNLOAD ROUTES ==========
+
+/**
+ * Bulk download files and folders as a single ZIP
+ * POST /files/download
+ * Body: { files: [ids], folders: [ids] }
+ */
+router.post("/download", async (req, res) => {
+  const startTime = Date.now();
+  let archive = null;
+  let filesProcessed = 0;
+
+  try {
+    const { files = [], folders = [] } = req.body;
+
+    if (files.length === 0 && folders.length === 0) {
+      return res.status(400).json({ error: "No files or folders selected" });
+    }
+
+    // Resolve all files and folders into a flat list
+    const DownloadHelpers = require("../utils/downloadHelpers");
+    const ZipStreamService = require("../utils/zipStreamService");
+
+    const resolvedData = await DownloadHelpers.resolveDownloadSelection(
+      files,
+      folders,
+      req.user.id
+    );
+
+    const {
+      files: resolvedFiles,
+      totalSize,
+      totalFiles,
+      folderNames,
+      errors,
+    } = resolvedData;
+
+    if (resolvedFiles.length === 0) {
+      if (errors.length > 0) {
+        return res
+          .status(400)
+          .json({ error: "Failed to resolve any files for download", detail: errors });
+      }
+      return res.status(400).json({ error: "No files found to download" });
+    }
+
+    logger.info("Bulk download initiated", {
+      filesCount: files.length,
+      foldersCount: folders.length,
+      resolvedFilesCount: totalFiles,
+      totalSize: DownloadHelpers.formatSize(totalSize),
+      userId: req.user.id,
+    });
+
+    // Generate ZIP filename
+    const zipFilename = DownloadHelpers.generateZipFilename(
+      files,
+      folders,
+      folderNames
+    );
+
+    // Set headers for ZIP download
+    res.setHeader("X-Total-Files", totalFiles.toString());
+    res.setHeader("X-Total-Size", totalSize.toString());
+
+    // Create ZIP stream
+    archive = ZipStreamService.createZipStream(res, zipFilename, {
+      compressionLevel: 6,
+      comment: `MyDrive bulk download - ${totalFiles} file(s)`,
+    });
+
+    // Handle client disconnect
+    const disconnectHandler = ZipStreamService.handleClientDisconnect(
+      req,
+      archive,
+      () => {
+        logger.warn("Client disconnected during bulk download", {
+          filesProcessed,
+          totalFiles,
+          userId: req.user.id,
+        });
+      }
+    );
+
+    // Add files to ZIP
+    for (const fileEntry of resolvedFiles) {
+      if (disconnectHandler.isAborted()) break;
+
+      try {
+        await ZipStreamService.addFileToZip(
+          archive,
+          fileEntry.filePath,
+          fileEntry.zipPath
+        );
+        filesProcessed++;
+      } catch (error) {
+        // Log error but continue with other files
+        logger.error("Error adding file to bulk ZIP", {
+          fileId: fileEntry.fileDoc._id,
+          error: error.message,
+        });
+      }
+    }
+
+    // Finalize ZIP if not aborted
+    if (!disconnectHandler.isAborted()) {
+      await ZipStreamService.finalizeZip(archive);
+
+      const duration = Date.now() - startTime;
+      logger.info("Bulk download completed", {
+        filesProcessed,
+        totalFiles,
+        totalSize: DownloadHelpers.formatSize(totalSize),
+        duration: `${(duration / 1000).toFixed(2)}s`,
+        avgSpeed:
+          DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+        userId: req.user.id,
+      });
+    }
+  } catch (error) {
+    logger.error("Bulk download failed", {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user.id,
+    });
+
+    if (archive && !archive.destroyed) {
+      archive.abort();
+      archive.destroy();
+    }
+
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Bulk download failed" });
+    }
+  }
+});
+
 
 /**
  * Initiate a chunked download session
@@ -2126,274 +2263,5 @@ router.get("/chunked-download/sessions", async (req, res) => {
   }
 });
 
-/**
- * ========================================
- * MULTI-FILE/FOLDER DOWNLOAD ENDPOINT
- * ========================================
- * 
- * Production-grade ZIP streaming for downloading multiple files and folders
- * 
- * Features:
- * - Streams ZIP on-the-fly (no temp files)
- * - Recursive folder traversal
- * - Preserves directory structure
- * - Memory-efficient streaming
- * - Permission validation
- * - Client disconnect handling
- * - Size limit enforcement
- * - Comprehensive error handling
- * 
- * Request body:
- * {
- *   "files": ["fileId1", "fileId2"],
- *   "folders": ["folderId1", "folderId2"]
- * }
- */
-
-const ZipStreamService = require("../utils/zipStreamService");
-const DownloadHelpers = require("../utils/downloadHelpers");
-const { body, validationResult } = require("express-validator");
-
-// Configuration
-const MAX_DOWNLOAD_SIZE = process.env.MAX_DOWNLOAD_SIZE 
-  ? parseInt(process.env.MAX_DOWNLOAD_SIZE) 
-  : 5 * 1024 * 1024 * 1024; // 5GB default
-
-const DOWNLOAD_TIMEOUT = process.env.DOWNLOAD_TIMEOUT
-  ? parseInt(process.env.DOWNLOAD_TIMEOUT)
-  : 30 * 60 * 1000; // 30 minutes default
-
-router.post(
-  "/download",
-  [
-    body("files")
-      .optional()
-      .isArray()
-      .withMessage("files must be an array"),
-    body("folders")
-      .optional()
-      .isArray()
-      .withMessage("folders must be an array"),
-  ],
-  async (req, res) => {
-    const startTime = Date.now();
-    let archive = null;
-    let filesProcessed = 0;
-
-    try {
-      // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        logger.warn("Download validation failed", {
-          userId: req.user.id,
-          errors: errors.array(),
-        });
-        return res.status(400).json({ 
-          error: "Invalid request", 
-          details: errors.array() 
-        });
-      }
-
-      const { files = [], folders = [] } = req.body;
-
-      // Validate at least one item selected
-      if (files.length === 0 && folders.length === 0) {
-        logger.warn("Download attempted with no items", {
-          userId: req.user.id,
-        });
-        return res.status(400).json({ 
-          error: "No files or folders selected" 
-        });
-      }
-
-      // Validate reasonable selection size
-      const totalItems = files.length + folders.length;
-      if (totalItems > 1000) {
-        logger.warn("Download selection too large", {
-          userId: req.user.id,
-          totalItems,
-        });
-        return res.status(400).json({ 
-          error: "Too many items selected (max 1000)" 
-        });
-      }
-
-      logger.info("Multi-download initiated", {
-        userId: req.user.id,
-        fileCount: files.length,
-        folderCount: folders.length,
-        ip: req.ip,
-      });
-
-      // Resolve all files from selection (with permission checks)
-      const resolution = await DownloadHelpers.resolveDownloadSelection(
-        files,
-        folders,
-        req.user.id
-      );
-
-      const { 
-        files: resolvedFiles, 
-        totalSize, 
-        totalFiles, 
-        errors: resolutionErrors,
-        folderNames 
-      } = resolution;
-
-      // Check if any files were resolved
-      if (resolvedFiles.length === 0) {
-        logger.warn("No accessible files found for download", {
-          userId: req.user.id,
-          errors: resolutionErrors,
-        });
-        return res.status(404).json({ 
-          error: "No accessible files found",
-          details: resolutionErrors
-        });
-      }
-
-      // Check size limit
-      if (MAX_DOWNLOAD_SIZE > 0 && totalSize > MAX_DOWNLOAD_SIZE) {
-        logger.warn("Download size exceeds limit", {
-          userId: req.user.id,
-          totalSize,
-          maxSize: MAX_DOWNLOAD_SIZE,
-          formattedSize: DownloadHelpers.formatSize(totalSize),
-          formattedMax: DownloadHelpers.formatSize(MAX_DOWNLOAD_SIZE),
-        });
-        return res.status(413).json({ 
-          error: "Download size exceeds limit",
-          totalSize: DownloadHelpers.formatSize(totalSize),
-          maxSize: DownloadHelpers.formatSize(MAX_DOWNLOAD_SIZE),
-        });
-      }
-
-      // Generate ZIP filename
-      const zipFilename = DownloadHelpers.generateZipFilename(
-        files,
-        folders,
-        folderNames
-      );
-
-      logger.info("Starting ZIP stream", {
-        userId: req.user.id,
-        zipFilename,
-        totalFiles,
-        totalSize: DownloadHelpers.formatSize(totalSize),
-        resolutionErrors: resolutionErrors.length,
-      });
-
-      // Set download timeout
-      req.setTimeout(DOWNLOAD_TIMEOUT);
-
-      // Create ZIP stream
-      archive = ZipStreamService.createZipStream(res, zipFilename, {
-        compressionLevel: 6,
-        comment: `MyDrive archive - ${totalFiles} file(s)`,
-      });
-
-      // Handle client disconnect - returns abort checker
-      const disconnectHandler = ZipStreamService.handleClientDisconnect(req, archive, () => {
-        logger.warn("Client disconnected during multi-file download", {
-          userId: req.user.id,
-          zipFilename,
-          filesProcessed,
-          totalFiles,
-        });
-      });
-
-      // Add all files to ZIP
-      for (const fileEntry of resolvedFiles) {
-        // Check if client disconnected - stop processing immediately
-        if (disconnectHandler.isAborted()) {
-          logger.info("Stopping file processing - client disconnected", {
-            userId: req.user.id,
-            filesProcessed,
-            totalFiles,
-          });
-          break;
-        }
-        
-        try {
-          await ZipStreamService.addFileToZip(
-            archive,
-            fileEntry.filePath,
-            fileEntry.zipPath
-          );
-          filesProcessed++;
-        } catch (error) {
-          // Check if error is due to client disconnect
-          if (disconnectHandler.isAborted()) {
-            logger.info("File processing stopped due to client disconnect", {
-              userId: req.user.id,
-              filesProcessed,
-              totalFiles,
-            });
-            break;
-          }
-          
-          logger.error("Error adding file to ZIP", {
-            userId: req.user.id,
-            fileId: fileEntry.fileDoc._id,
-            fileName: fileEntry.fileDoc.name,
-            error: error.message,
-          });
-          // Continue with other files
-        }
-      }
-
-      // Only finalize if client is still connected
-      if (!disconnectHandler.isAborted()) {
-        // Finalize ZIP
-        await ZipStreamService.finalizeZip(archive);
-
-        const duration = Date.now() - startTime;
-
-        logger.info("Multi-download completed", {
-          userId: req.user.id,
-          zipFilename,
-          filesProcessed,
-          totalFiles,
-          totalSize: DownloadHelpers.formatSize(totalSize),
-          duration: `${(duration / 1000).toFixed(2)}s`,
-          avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
-          ip: req.ip,
-        });
-      } else {
-        logger.info("Multi-download aborted by client", {
-          userId: req.user.id,
-          zipFilename,
-          filesProcessed,
-          totalFiles,
-          ip: req.ip,
-        });
-      }
-
-      // Note: Response is already sent via stream
-    } catch (error) {
-      logger.error("Multi-download failed", {
-        userId: req.user.id,
-        filesProcessed,
-        error: error.message,
-        stack: error.stack,
-        ip: req.ip,
-      });
-
-      // Abort archive if it exists
-      if (archive && !archive.destroyed) {
-        archive.abort();
-        archive.destroy();
-      }
-
-      // Only send error response if headers not sent
-      if (!res.headersSent) {
-        res.status(500).json({ 
-          error: "Download failed",
-          message: error.message
-        });
-      }
-    }
-  }
-);
 
 module.exports = router;

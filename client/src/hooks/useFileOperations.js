@@ -410,6 +410,9 @@ export const useFileOperations = (
     [api, downloadProgressHook]
   );
 
+
+
+  
   const handleFolderDownload = useCallback(
     async (folderId, folderName) => {
       const downloadId = `download-${Date.now()}-${folderId}`;
@@ -444,6 +447,9 @@ export const useFileOperations = (
           `http://${window.location.hostname}:8080/api`;
 
         const xhr = new XMLHttpRequest();
+        if (downloadProgressHook && downloadProgressHook.registerXhr) {
+          downloadProgressHook.registerXhr(downloadId, xhr);
+        }
 
         return new Promise((resolve, reject) => {
           xhr.open("GET", `${API_URL}/folders/download/${folderId}`, true);
@@ -452,19 +458,24 @@ export const useFileOperations = (
 
           let lastLoaded = 0;
           let lastTime = Date.now();
-          let isFirstProgress = true;
+          let isIndeterminate = true;
+          let totalBytes = 0;
 
           // Track download progress
           xhr.onprogress = (event) => {
             if (downloadProgressHook) {
-              // On first progress event, we know zipping is complete and download has started
-              if (isFirstProgress && event.loaded > 0) {
-                isFirstProgress = false;
-                // Mark zipping as complete
-                downloadProgressHook.updateZippingProgress(downloadId, totalFiles, totalFiles);
+              
+               if (xhr.readyState === 3 && isIndeterminate) { // LOADING
+                 const totalSizeHeader = xhr.getResponseHeader("X-Total-Size");
+                if (totalSizeHeader) totalBytes = parseInt(totalSizeHeader);
+                 
+                 // If we have headers, stream started
+                 // Force switch to downloading state immediately
+                 downloadProgressHook.updateProgress(downloadId, 0, totalBytes, 0);
+                 isIndeterminate = false;
               }
               
-              if (event.lengthComputable) {
+              if (event.lengthComputable || totalBytes > 0) {
                 // Calculate speed
                 const now = Date.now();
                 const timeDiff = (now - lastTime) / 1000;
@@ -477,7 +488,7 @@ export const useFileOperations = (
                 downloadProgressHook.updateProgress(
                   downloadId,
                   event.loaded,
-                  event.total || totalSize,
+                  event.total || totalBytes || totalSize,
                   speed
                 );
               } else {
@@ -555,6 +566,119 @@ export const useFileOperations = (
 
         toast.error(errorMsg);
         console.error(error);
+      }
+    },
+    [api, downloadProgressHook]
+  );
+
+
+  const handleBulkDownload = useCallback(
+    async (fileIds = [], folderIds = [], zipName = "download.zip") => {
+      const downloadId = `bulk-${Date.now()}`;
+      const totalCount = fileIds.length + folderIds.length;
+
+      try {
+        if (downloadProgressHook) {
+          downloadProgressHook.startDownload(downloadId, zipName, 0, totalCount);
+          downloadProgressHook.updateZippingProgress(downloadId, 0, totalCount);
+        }
+
+        toast.info(
+          `Queuing ${totalCount} item${totalCount !== 1 ? "s" : ""} for zipping...`
+        );
+
+        // 1. Request zip job
+        const items = [
+          ...fileIds.map(id => ({ id, type: 'file' })),
+          ...folderIds.map(id => ({ id, type: 'folder' }))
+        ];
+
+        const response = await api.post('/downloads/zip', { items });
+        const { jobId } = response.data;
+
+        // 2. Poll for status
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await api.get(`/downloads/zip/${jobId}/status`);
+            const { status, progress, message } = statusRes.data;
+
+            if (status === 'FAILED') {
+              clearInterval(pollInterval);
+              throw new Error(message || "Zip generation failed");
+            }
+
+            if (status === 'READY') {
+              clearInterval(pollInterval);
+              
+              // 3. Initiate Download
+              if (downloadProgressHook) {
+                 downloadProgressHook.updateProgress(downloadId, 0, 0, 0); // Indeterminate
+                 downloadProgressHook.completeDownload(downloadId, true);
+              }
+
+              // Use window location to download file
+              // Construct URL with auth token if needed, but cookies usually handle it if same origin
+              // If API requires Bearer header, we need to use XHR/fetch to get blob, or use a temporary token in URL
+              // Assuming cookie-based auth or that we can pass token in query param if needed. 
+              // Actually, the existing code used XHR with Bearer token.
+              // To download via browser (best for large files without memory issues), we need a way to pass auth.
+              // If we use XHR with blob like before:
+              
+              const token = localStorage.getItem("token");
+              const API_URL = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8080/api`;
+              
+              // We'll use the specific Zip download endpoint using XHR to support Auth header
+              const xhr = new XMLHttpRequest();
+               if (downloadProgressHook && downloadProgressHook.registerXhr) {
+                  downloadProgressHook.registerXhr(downloadId, xhr);
+                }
+
+               xhr.open("GET", `${API_URL.replace('/api', '')}/downloads/zip/${jobId}`, true);
+               xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+               xhr.responseType = "blob";
+               
+               xhr.onload = () => {
+                 if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.setAttribute("download", zipName);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                    toast.success("Download completed successfully");
+                 } else {
+                    toast.error("Download failed during transfer");
+                 }
+               };
+               xhr.send();
+
+            } else {
+              // Still processing
+               if (downloadProgressHook) {
+                 // Map numeric progress if available, or just keeping it active
+                 const numProgress = parseInt(progress) || 0;
+                 downloadProgressHook.updateZippingProgress(downloadId, numProgress, 100); 
+               }
+            }
+          } catch (err) {
+            clearInterval(pollInterval);
+            console.error("Polling error", err);
+            toast.error("Error checking zip status");
+            if (downloadProgressHook) {
+               downloadProgressHook.failDownload(downloadId);
+            }
+          }
+        }, 1000);
+
+      } catch (error) {
+        console.error("Bulk download error:", error);
+        toast.error("Failed to start download");
+        if (downloadProgressHook) {
+           downloadProgressHook.failDownload(downloadId);
+        }
       }
     },
     [api, downloadProgressHook]
@@ -967,6 +1091,7 @@ export const useFileOperations = (
     deleteItem,
     handleDownload,
     handleFolderDownload,
+    handleBulkDownload,
     handleChunkedDownload,
     restoreItem,
     emptyTrash,

@@ -254,135 +254,114 @@ export const useSelection = (api, folders, files, type) => {
       // Show initial zipping progress
       updateZippingProgress(downloadId, 0, totalItems);
 
-      // Make API call with XMLHttpRequest for progress tracking
-      const token = localStorage.getItem("token");
-      const API_URL = process.env.REACT_APP_API_URL;
+      // Start download
+      const items = [
+        ...fileIds.map(id => ({ id, type: 'file' })),
+        ...folderIds.map(id => ({ id, type: 'folder' }))
+      ];
+
+      // 1. Request zip job
+      const response = await api.post('/downloads/zip', { items });
+      const { jobId } = response.data;
       
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_URL}/files/download`, true);
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.responseType = "blob";
-      xhr.timeout = 30 * 60 * 1000; // 30 minutes
+      toast.info("Preparing download...");
 
-      // Register XHR for cancel functionality
-      registerXhr(downloadId, xhr);
+      // 2. Poll for status
+      const pollInterval = setInterval(async () => {
+         try {
+           const statusRes = await api.get(`/downloads/zip/${jobId}/status`);
+           const { status, progress, message } = statusRes.data;
 
-      let lastLoaded = 0;
-      let lastTime = Date.now();
-      let isFirstProgress = true;
+           if (status === 'FAILED') {
+             clearInterval(pollInterval);
+             failDownload(downloadId);
+             toast.error(message || "Zip generation failed");
+             logger.error("Zip generation failed", { jobId, message });
+             return;
+           }
 
-      // Track download progress
-      xhr.onprogress = (event) => {
-        // On first progress event, we know zipping is complete and download has started
-        if (isFirstProgress && event.loaded > 0) {
-          isFirstProgress = false;
-          // Mark zipping as complete
-          updateZippingProgress(downloadId, totalItems, totalItems);
-        }
-        
-        if (event.lengthComputable) {
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          const bytesDiff = event.loaded - lastLoaded;
-          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+           if (status === 'READY') {
+             clearInterval(pollInterval);
+             
+             // 3. Download the file
+             const token = localStorage.getItem("token");
+             const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
+             // Server route is now mounted at /api/downloads/zip
+             const downloadUrl = `${API_BASE}/downloads/zip/${jobId}`;
 
-          lastLoaded = event.loaded;
-          lastTime = now;
+             const xhr = new XMLHttpRequest();
+             xhr.open("GET", downloadUrl, true);
+             xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+             xhr.responseType = "blob";
+             xhr.timeout = 30 * 60 * 1000;
+             
+             registerXhr(downloadId, xhr);
 
-          updateDownloadProgress(downloadId, event.loaded, event.total, speed);
-        }
-      };
+             let lastLoaded = 0;
+             let lastTime = Date.now();
 
-      xhr.onload = () => {
-        // Unregister XHR on completion
-        unregisterXhr(downloadId);
-        
-        if (xhr.status === 200) {
-          const blob = xhr.response;
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", downloadName);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-
-          completeDownload(downloadId, true);
-          toast.success(`Downloaded ${totalItems} item${totalItems > 1 ? 's' : ''} successfully`);
-
-          logger.info("Multi-item download completed", {
-            downloadId,
-            totalItems,
-          });
-        } else {
-          // Try to parse error message from blob response
-          let errorMsg = xhr.statusText || "Download failed";
-          
-          // If response is JSON error, extract message
-          if (xhr.response && xhr.response.type === 'application/json') {
-            try {
-              const reader = new FileReader();
-              reader.onload = () => {
-                try {
-                  const error = JSON.parse(reader.result);
-                  const errorMessage = error.error || error.message || errorMsg;
-                  failDownload(downloadId);
-                  toast.error(errorMessage);
-                  logger.error("Multi-item download failed", {
-                    downloadId,
-                    status: xhr.status,
-                    error: errorMessage,
-                  });
-                } catch (e) {
-                  failDownload(downloadId);
-                  toast.error(errorMsg);
+             xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                   const now = Date.now();
+                   const timeDiff = (now - lastTime) / 1000;
+                   const bytesDiff = event.loaded - lastLoaded;
+                   const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+                   lastLoaded = event.loaded;
+                   lastTime = now;
+                   updateDownloadProgress(downloadId, event.loaded, event.total, speed);
                 }
-              };
-              reader.readAsText(xhr.response);
-              return;
-            } catch (e) {
-              // Fall through to default error handling
-            }
-          }
-          
-          failDownload(downloadId);
-          toast.error(errorMsg);
-          logger.error("Multi-item download failed", {
-            downloadId,
-            status: xhr.status,
-            error: errorMsg,
-          });
-        }
-      };
+             };
 
-      xhr.onerror = () => {
-        unregisterXhr(downloadId);
-        failDownload(downloadId);
-        toast.error("Download failed");
-        logger.error("Multi-item download error", { downloadId });
-      };
+             xhr.onload = () => {
+                unregisterXhr(downloadId);
+                if (xhr.status === 200) {
+                   const blob = xhr.response;
+                   const url = window.URL.createObjectURL(blob);
+                   const link = document.createElement("a");
+                   link.href = url;
+                   link.setAttribute("download", downloadName);
+                   document.body.appendChild(link);
+                   link.click();
+                   link.remove();
+                   window.URL.revokeObjectURL(url);
+                   
+                   completeDownload(downloadId, true);
+                   toast.success("Download completed");
+                } else {
+                   failDownload(downloadId);
+                   toast.error("Download failed");
+                }
+             };
 
-      xhr.onabort = () => {
-        unregisterXhr(downloadId);
-        // Don't call cancelDownload here - it's already handled by the cancel action
-        // Just show the toast
-        toast.info("Download cancelled");
-        logger.info("Multi-item download cancelled", { downloadId });
-      };
+             xhr.onerror = () => {
+                unregisterXhr(downloadId);
+                failDownload(downloadId);
+                toast.error("Download network error");
+             };
+             
+             xhr.onabort = () => {
+                unregisterXhr(downloadId);
+                toast.info("Download cancelled");
+             };
 
-      xhr.ontimeout = () => {
-        unregisterXhr(downloadId);
-        failDownload(downloadId);
-        toast.error("Download timed out");
-        logger.error("Multi-item download timeout", { downloadId });
-      };
+             xhr.send();
 
-      // Send request
-      xhr.send(JSON.stringify({ files: fileIds, folders: folderIds }));
-
+           } else {
+              // Update zipping progress
+              const numericProgress = parseInt(progress) || 0;
+              updateZippingProgress(downloadId, numericProgress, 100);
+           }
+         } catch (err) {
+            clearInterval(pollInterval);
+            failDownload(downloadId);
+            console.error("Polling error", err);
+            toast.error("Error checking zip status");
+         }
+      }, 1000);
+      
+      // We return true immediately as the process is async background
       return true;
+
     } catch (error) {
       failDownload(downloadId);
       toast.error("Download failed");
@@ -393,6 +372,7 @@ export const useSelection = (api, folders, files, type) => {
       console.error(error);
       return false;
     }
+
   }, [
     selectedItems, 
     files, 
