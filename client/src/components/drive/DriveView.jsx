@@ -99,6 +99,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     propertiesItemType,
     openPropertiesModal,
     closePropertiesModal,
+    openPreviewModal,
+    clipboard,
+    copyToClipboard,
+    cutToClipboard,
+    clearClipboard,
   } = useUIContext();
 
   // Refs
@@ -503,24 +508,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   }, [allItemIds, selectedItems, selectAll, clearSelection]);
 
-  // Keyboard shortcuts for selection
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
-        return;
-      }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
-        e.preventDefault();
-        handleToggleSelectAll();
-      } else if (e.key === "Escape") {
-        clearSelection();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleToggleSelectAll, clearSelection]);
 
   // Event handlers
   const handleFileUpload = async (e) => {
@@ -804,6 +792,202 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     handleExternalDragOver,
     handleExternalDragEnter,
     handleExternalDragLeave,
+  ]);
+
+  // Keyboard shortcuts
+  const handlePasteShortcut = useCallback(async () => {
+    if (!clipboard.items.length) return;
+
+    const { items, operation } = clipboard;
+    const isCopy = operation === "copy";
+
+    try {
+      const promises = items.map((item) => {
+        const itemType = item.type === "files" ? "files" : "folders"; // Ensure correct type string if needed
+        return isCopy
+          ? item.type === "files"
+             ? api.copyFile(item._id, currentFolderId, null)
+             : api.copyFolder(item._id, currentFolderId, null)
+          : item.type === "files"
+             ? api.moveFile(item._id, currentFolderId)
+             : api.moveFolder(item._id, currentFolderId);
+      });
+
+      await Promise.all(promises);
+      toast.success(
+        `${items.length} item${items.length > 1 ? "s" : ""} ${
+          isCopy ? "copied" : "moved"
+        } successfully`
+      );
+      
+      // If it was a move operation, clear clipboard
+      if (!isCopy) {
+        clearClipboard();
+      }
+
+      // Reload folder contents
+      await loadFolderContents(currentFolderId, 1, false);
+    } catch (error) {
+      console.error("Paste failed:", error);
+      toast.error(`Failed to ${isCopy ? "copy" : "move"} items`);
+    }
+  }, [clipboard, currentFolderId, loadFolderContents, clearClipboard]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if input/textarea is focused
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Cmd/Ctrl + A: Select All
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        handleToggleSelectAll();
+        return;
+      }
+      
+      // Cmd/Ctrl + C: Copy
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        e.preventDefault();
+        if (selectedItems.size > 0) {
+           const itemsToCopy = [];
+           // We need to map selected IDs back to types
+           selectedItems.forEach(id => {
+             const file = files.find(f => f._id === id);
+             const folder = folders.find(f => f._id === id);
+             if (file) itemsToCopy.push({ _id: id, type: "files" });
+             else if (folder) itemsToCopy.push({ _id: id, type: "folders" });
+           });
+           if (itemsToCopy.length > 0) {
+             copyToClipboard(itemsToCopy);
+             toast.info(`Copied ${itemsToCopy.length} item${itemsToCopy.length > 1 ? 's' : ''}`);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + X: Cut
+      if ((e.ctrlKey || e.metaKey) && e.key === "x") {
+        e.preventDefault();
+        if (selectedItems.size > 0) {
+           const itemsToCut = [];
+           selectedItems.forEach(id => {
+             const file = files.find(f => f._id === id);
+             const folder = folders.find(f => f._id === id);
+             if (file) itemsToCut.push({ _id: id, type: "files" });
+             else if (folder) itemsToCut.push({ _id: id, type: "folders" });
+           });
+           if (itemsToCut.length > 0) {
+             cutToClipboard(itemsToCut);
+             toast.info(`Cut ${itemsToCut.length} item${itemsToCut.length > 1 ? 's' : ''}`);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + V: Paste
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        e.preventDefault();
+        handlePasteShortcut();
+        return;
+      }
+      
+      // Delete / Backspace
+      // Be careful with Backspace as it can be navigation. 
+      // Usually browsers map Backspace to generic navigation back if not prevented?
+      // Modern browsers: Alt+Left for back. Backspace might be safe if no input focus.
+      if (e.key === "Delete" || e.key === "Backspace") {
+         // Only if we have selection
+         if (selectedItems.size > 0) {
+            e.preventDefault(); // Prevent back navigation
+            handleBulkDelete();
+         }
+         return;
+      }
+
+      // Cmd/Ctrl + D: Download
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        e.preventDefault(); // Prevent bookmark
+        if (selectedItems.size > 0) {
+          bulkDownload();
+        }
+        return;
+      }
+
+      // F2: Rename (Single Item)
+      // Check for single selection
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (selectedItems.size === 1) {
+           const id = [...selectedItems][0];
+           const file = files.find(f => f._id === id);
+           const folder = folders.find(f => f._id === id);
+           if (file) openRenameDialog(file, "files");
+           else if (folder) openRenameDialog(folder, "folders");
+        }
+        return;
+      }
+
+      // Enter: Open (Single Item)
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (selectedItems.size === 1) {
+           const id = [...selectedItems][0];
+           const file = files.find(f => f._id === id);
+           const folder = folders.find(f => f._id === id);
+           
+           if (folder) {
+             handleOpenFolder(folder);
+           } else if (file) {
+             // For file, generic open/preview?
+             openPreviewModal(file, files);
+           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + N or Alt + N: New Folder
+      // Note: Cmd+Shift+N is often Incognito/Private window in browsers, which we CANNOT prevent in most cases.
+      // But we can try or support Alt+N as alternative.
+      if (
+         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "n") ||
+         (e.altKey && e.key === "n")
+      ) {
+         e.preventDefault();
+         handleCreateFolder();
+         return;
+      }
+      
+      // Escape: Clear Selection
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
+
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [
+    files, 
+    folders, 
+    selectedItems, 
+    handleToggleSelectAll, 
+    clearSelection, 
+    copyToClipboard, 
+    cutToClipboard,     handlePasteShortcut,
+     handleBulkDelete, 
+     bulkDownload,
+     openRenameDialog,
+     handleOpenFolder,
+     openPreviewModal,
+     handleCreateFolder
   ]);
 
   return (

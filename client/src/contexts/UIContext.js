@@ -46,6 +46,9 @@ export const UIProvider = ({ children }) => {
   const [propertiesItem, setPropertiesItem] = useState(null);
   const [propertiesItemType, setPropertiesItemType] = useState(null);
 
+  // Clipboard state
+  const [clipboard, setClipboard] = useState({ items: [], operation: null }); // items: Array of {id, type}, operation: "copy" | "move"
+
   // Storage refresh trigger
   const [storageRefreshTrigger, setStorageRefreshTrigger] = useState(0);
 
@@ -185,6 +188,26 @@ export const UIProvider = ({ children }) => {
     setPropertiesItemType(null);
   }, []);
 
+  const copyToClipboard = useCallback((items) => {
+    // items should be array of { _id, type } - wait, based on other code it might be full objects?
+    // Let's store just what we need: { id, type } to be safe, or just the ID if we know the type context?
+    // The previous context uses selectedItems (Set of IDs).
+    setClipboard({ items, operation: "copy" });
+    const count = items.length;
+    // toast.info(`Copied ${count} item${count !== 1 ? "s" : ""} to clipboard`); 
+    // Commented out toast to avoid spamming if user just presses Ctrl+C
+  }, []);
+
+  const cutToClipboard = useCallback((items) => {
+    setClipboard({ items, operation: "move" });
+    // const count = items.length;
+    // toast.info(`Cut ${count} item${count !== 1 ? "s" : ""} to clipboard`);
+  }, []);
+
+  const clearClipboard = useCallback(() => {
+    setClipboard({ items: [], operation: null });
+  }, []);
+
   const value = {
     sidebarOpen,
     actionsMenuOpen,
@@ -238,6 +261,10 @@ export const UIProvider = ({ children }) => {
     closePropertiesModal,
     storageRefreshTrigger,
     refreshStorage,
+    clipboard,
+    copyToClipboard,
+    cutToClipboard,
+    clearClipboard,
   };
 
   return (
