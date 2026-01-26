@@ -383,14 +383,18 @@ export default function UserProfile() {
 
   return (
     <div className={styles.profileWrapper}>
-      {/* Mobile Hamburger Menu */}
-      <button 
-        className={styles.mobileMenuButton} 
-        onClick={toggleSidebar}
-        aria-label="Open navigation menu"
-      >
-        <Menu size={24} />
-      </button>
+      {/* Mobile Header */}
+      <div className={styles.mobileHeader}>
+        <button
+          className={styles.hamburgerBtn}
+          onClick={toggleSidebar}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={24} />
+        </button>
+
+        <h1 className={styles.pageTitle}>User Profile</h1>
+      </div>
       
       <div className={styles.profileContainer}>
         <div className={styles.profileCard}>

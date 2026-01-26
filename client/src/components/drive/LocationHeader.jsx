@@ -1,4 +1,5 @@
-import { Share2, Trash2, Grid, List, CheckSquare } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Share2, Trash2, Grid, List, CheckSquare, ChevronRight, Home, Folder, MoreHorizontal } from "lucide-react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import styles from "./LocationHeader.module.css";
 
@@ -14,6 +15,10 @@ const LocationHeader = ({
   breadcrumbRef,
 }) => {
   const { selectedItems } = useSelectionContext();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [collapsedItems, setCollapsedItems] = useState([]);
+  const dropdownRef = useRef(null);
+
   const getLocationIcon = () => {
     switch (type) {
       case "shared":
@@ -28,85 +33,132 @@ const LocationHeader = ({
   const allSelected =
     allItemIds.length > 0 && allItemIds.every((id) => selectedItems.has(id));
 
+  // Determine if we should collapse the breadcrumb (more than 4 items)
+  const shouldCollapse = path.length > 4;
+
+  useEffect(() => {
+    if (shouldCollapse) {
+      // Show first, ellipsis, and last 2
+      setCollapsedItems(path.slice(1, -2));
+    } else {
+      setCollapsedItems([]);
+    }
+  }, [path, shouldCollapse]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDropdown]);
+
+  const handleDropdownItemClick = (item, index) => {
+    const actualIndex = path.findIndex((p) => p.id === item.id);
+    navigateTo(actualIndex);
+    setShowDropdown(false);
+  };
+
+  const renderBreadcrumbItems = () => {
+    if (!shouldCollapse) {
+      return path.map((p, i) => renderBreadcrumbItem(p, i, false));
+    }
+
+    // Collapsed view: First item, ellipsis, last 2 items
+    const items = [];
+    
+    // First item (root)
+    items.push(renderBreadcrumbItem(path[0], 0, false));
+
+    // Ellipsis dropdown
+    if (collapsedItems.length > 0) {
+      items.push(
+        <span key="ellipsis-wrapper" className={styles.breadcrumbItem}>
+          <div className={styles.dropdownContainer} ref={dropdownRef}>
+            <button
+              className={`${styles.breadcrumbLink} ${styles.ellipsisButton}`}
+              onClick={() => setShowDropdown(!showDropdown)}
+              aria-label="Show hidden folders"
+              title="Show hidden folders"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {showDropdown && (
+              <div className={styles.dropdown}>
+                {collapsedItems.map((item, idx) => (
+                  <button
+                    key={item.id}
+                    className={styles.dropdownItem}
+                    onClick={() => handleDropdownItemClick(item, idx)}
+                  >
+                    <Folder size={14} />
+                    <span>{item.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <ChevronRight size={16} className={styles.separator} />
+        </span>
+      );
+    }
+
+    // Last 2 items
+    const lastItems = path.slice(-2);
+    lastItems.forEach((p, i) => {
+      const actualIndex = path.length - 2 + i;
+      items.push(renderBreadcrumbItem(p, actualIndex, false));
+    });
+
+    return items;
+  };
+
+  const renderBreadcrumbItem = (p, i, isLast = i === path.length - 1) => {
+    const Icon = i === 0 ? Home : Folder;
+    const isCurrent = i === path.length - 1;
+
+    return (
+      <span
+        key={p.id}
+        className={`${styles.breadcrumbItem} ${styles[`item-${i}`]}`}
+        style={{ animationDelay: `${i * 0.05}s` }}
+      >
+        <button
+          onClick={() => navigateTo(i)}
+          className={`${styles.breadcrumbLink} ${
+            isCurrent ? styles.breadcrumbCurrent : ""
+          }`}
+          title={p.name}
+          aria-label={`Navigate to ${p.name}`}
+        >
+          {isCurrent && <span className={styles.gradientBg} />}
+          <Icon size={i === 0 ? 16 : 14} className={styles.breadcrumbIcon} />
+          <span className={styles.breadcrumbText}>{p.name}</span>
+        </button>
+        {!isCurrent && (
+          <ChevronRight size={16} className={styles.separator} />
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className={styles.locationHeader}>
       <div className={styles.breadcrumbScroll} ref={breadcrumbRef}>
-        {path.map((p, i) => (
-          <span key={p.id} className={styles.breadcrumbItem}>
-            <button
-              onClick={() => navigateTo(i)}
-              className={`${styles.breadcrumbLink} ${
-                i === path.length - 1 ? styles.breadcrumbCurrent : ""
-              }`}
-              title={p.name}
-              aria-label={`Navigate to ${p.name}`}
-            >
-              {i === 0 && (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className={styles.breadcrumbIcon}
-                >
-                  {type === "shared" ? (
-                    <path
-                      d="M16 5l6 6h-4v6h-4v-6h-4l6-6z"
-                      fill="currentColor"
-                    />
-                  ) : type === "trash" ? (
-                    <path
-                      d="M3 6h18l-1.5 14H4.5L3 6zm2-3h14l1 3H4l1-3z"
-                      fill="currentColor"
-                    />
-                  ) : (
-                    <path
-                      d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
-                      fill="currentColor"
-                    />
-                  )}
-                </svg>
-              )}
-              {i > 0 && (
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className={styles.breadcrumbIcon}
-                >
-                  <path
-                    d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
-                    fill="currentColor"
-                  />
-                </svg>
-              )}
-              <span className={styles.breadcrumbText}>{p.name}</span>
-            </button>
-            {i < path.length - 1 && (
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                className={styles.separator}
-              >
-                <path
-                  d="m9 18 6-6-6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
-              </svg>
-            )}
-          </span>
-        ))}
+        {renderBreadcrumbItems()}
       </div>
       <div className={styles.locationControls}>
         <button
           className={`${styles.controlBtn} ${allSelected ? styles.active : ""}`}
           onClick={onSelectAll}
           title="Select all"
+          aria-label="Select all items"
         >
           <CheckSquare size={18} />
         </button>

@@ -74,25 +74,40 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
 
   // Build path from currentFolderId on mount and whenever it changes
   useEffect(() => {
-    // Skip if we just set the path manually for this specific folder (from openFolder or navigateTo)
-    // This handles multiple effect triggers for the same folder (e.g., context update + URL navigation)
-    if (skipBuildForFolderRef.current === currentFolderId) {
+    // Check if we're within the navigation lock period (prevent race conditions)
+    // skipBuildForFolderRef stores either a folder ID or a timestamp when navigation started
+    const skipValue = skipBuildForFolderRef.current;
+    
+    // If skipValue is a number (timestamp), check if we're still within lock period (500ms)
+    if (typeof skipValue === 'number') {
+      const timeSinceNavigation = Date.now() - skipValue;
+      if (timeSinceNavigation < 500) {
+        // Still within lock period - skip all builds
+        console.log("🔒 Breadcrumb: Within navigation lock period, skipping build");
+        previousFolderIdRef.current = currentFolderId;
+        isInitializedRef.current = true;
+        return;
+      } else {
+        // Lock expired, clear it
+        skipBuildForFolderRef.current = null;
+      }
+    }
+    
+    // Legacy: Handle folder ID skip flag (for compatibility)
+    if (skipValue === currentFolderId) {
       previousFolderIdRef.current = currentFolderId;
       isInitializedRef.current = true;
+      skipBuildForFolderRef.current = null;
       return;
     }
     
     // Clear the skip flag if we're now on a different folder
-    if (skipBuildForFolderRef.current !== null && skipBuildForFolderRef.current !== currentFolderId) {
+    if (skipValue !== null && skipValue !== currentFolderId) {
       skipBuildForFolderRef.current = null;
     }
     
     // Skip if type is not synchronized with context (during view transitions)
     if (driveType !== type) {
-      logger.debug("Breadcrumb: Skipping path build - type not synchronized", {
-        propType: type,
-        contextType: driveType,
-      });
       return;
     }
     
@@ -104,12 +119,6 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
       if (isBuildingRef.current) {
         return;
       }
-      
-      logger.debug("Breadcrumb: Building path", {
-        currentFolderId,
-        previousFolderId: previousFolderIdRef.current,
-        isInitialized: isInitializedRef.current,
-      });
       
       const folderIdForBuild = currentFolderId;
       previousFolderIdRef.current = currentFolderId;
@@ -152,11 +161,14 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
     const newPath = path.slice(0, index + 1);
     const newFolderId = newPath[newPath.length - 1].id;
     
-    // Mark this folder ID to skip building - persists across multiple effect triggers
-    skipBuildForFolderRef.current = newFolderId;
+    // Set timestamp lock to prevent race conditions with useEffect rebuilds
+    skipBuildForFolderRef.current = Date.now();
     previousFolderIdRef.current = newFolderId;
     
+    // Update path immediately
     setPath(newPath);
+    
+    // Update context and URL
     updateCurrentFolder(newFolderId);
 
     // Update URL
@@ -168,8 +180,8 @@ export const useBreadcrumbs = (type, customNavigate = null) => {
   };
 
   const openFolder = (folder) => {
-    // Mark this folder ID to skip building - persists across multiple effect triggers
-    skipBuildForFolderRef.current = folder._id;
+    // Set timestamp lock to prevent race conditions
+    skipBuildForFolderRef.current = Date.now();
     previousFolderIdRef.current = folder._id;
     
     setPath([...path, { id: folder._id, name: folder.name }]);

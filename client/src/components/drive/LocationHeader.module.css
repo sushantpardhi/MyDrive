@@ -1,126 +1,334 @@
-/* Location header styles - Mobile First */
+/* Location Header - Enhanced Premium Design */
+
+/* Main header container */
 .locationHeader {
   display: flex;
   align-items: center;
-  gap: 10px; /* Reduced gap for mobile */
-  padding: 12px 12px; /* Mobile padding */
-  background: var(--bg-primary);
+  gap: 10px;
+  padding: 12px 12px;
+  background: linear-gradient(
+    135deg,
+    var(--bg-primary) 0%,
+    var(--bg-secondary) 100%
+  );
   border-bottom: 1px solid var(--border-color);
   transition: background-color var(--transition-normal),
     border-color var(--transition-normal);
-  height: 56px; /* Fixed height for consistency */
+  height: 56px;
+  position: relative;
 }
 
 /* Breadcrumb Navigation - Hidden on mobile by default */
 .breadcrumbScroll {
   flex: 1;
-  display: none; /* Hidden on mobile */
+  display: none;
   align-items: center;
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;
   padding: 2px 0;
   gap: 4px;
+  scroll-behavior: smooth;
 }
 
 .breadcrumbScroll::-webkit-scrollbar {
   display: none;
 }
 
+/* Breadcrumb item with entrance animation */
 .breadcrumbItem {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  animation: breadcrumbFadeIn 0.4s ease-out backwards;
 }
 
+@keyframes breadcrumbFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Breadcrumb link button */
 .breadcrumbLink {
-  background: none;
+  background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 200px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  max-width: 220px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  overflow: hidden;
 }
 
+/* Hover effect with glassmorphism */
 .breadcrumbLink:hover {
-  background: var(--hover-overlay);
-  color: var(--text-primary);
-  transform: translateY(-1px);
+  background: rgba(var(--accent-rgb, 102, 126, 234), 0.08);
+  color: var(--accent-primary);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb, 102, 126, 234), 0.15);
 }
 
 .breadcrumbLink:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
 }
 
+/* Current/active breadcrumb item */
 .breadcrumbCurrent {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb, 102, 126, 234), 0.12) 0%,
+    rgba(var(--accent-secondary-rgb, 118, 75, 162), 0.12) 100%
+  );
   color: var(--text-primary);
   font-weight: 600;
-  background: var(--bg-tertiary);
   cursor: default;
+  border: 1px solid rgba(var(--accent-rgb, 102, 126, 234), 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb, 102, 126, 234), 0.15),
+              inset 0 1px 2px rgba(255, 255, 255, 0.1);
 }
 
+.breadcrumbCurrent:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb, 102, 126, 234), 0.15),
+              inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Animated gradient background for current item */
+.gradientBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb, 102, 126, 234), 0.15),
+    rgba(var(--accent-secondary-rgb, 118, 75, 162), 0.15),
+    rgba(var(--accent-rgb, 102, 126, 234), 0.15)
+  );
+  background-size: 200% 200%;
+  animation: gradientFlow 4s ease infinite;
+  z-index: 0;
+}
+
+@keyframes gradientFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Breadcrumb icon */
 .breadcrumbIcon {
   flex-shrink: 0;
   opacity: 0.7;
-  transition: opacity 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .breadcrumbLink:hover .breadcrumbIcon {
   opacity: 1;
+  transform: rotate(-5deg) scale(1.1);
 }
 
+.breadcrumbCurrent .breadcrumbIcon {
+  opacity: 1;
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Breadcrumb text */
 .breadcrumbText {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 150px;
+  max-width: 180px;
+  position: relative;
+  z-index: 1;
 }
 
+/* Separator chevron */
 .separator {
-  margin: 0 2px;
+  margin: 0 4px;
   color: var(--text-tertiary);
   flex-shrink: 0;
-  opacity: 0.6;
-  transition: opacity 0.2s ease;
+  opacity: 0.4;
+  transition: all 0.3s ease;
 }
 
+.breadcrumbItem:has(.breadcrumbLink:hover) .separator {
+  opacity: 0.7;
+  transform: translateX(2px);
+  color: var(--accent-primary);
+}
+
+/* Ellipsis dropdown container */
+.dropdownContainer {
+  position: relative;
+}
+
+.ellipsisButton {
+  min-width: 36px;
+  padding: 8px;
+  background: rgba(var(--text-rgb, 150, 150, 150), 0.08);
+  border: 1px solid rgba(var(--text-rgb, 150, 150, 150), 0.15);
+  color: var(--text-secondary);
+}
+
+.ellipsisButton:hover {
+  background: rgba(var(--accent-rgb, 102, 126, 234), 0.12);
+  border-color: rgba(var(--accent-rgb, 102, 126, 234), 0.25);
+  color: var(--accent-primary);
+}
+
+/* Dropdown menu */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  padding: 6px;
+  animation: dropdownSlideIn 0.2s ease-out;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.dropdownItem:hover {
+  background: rgba(var(--accent-rgb, 102, 126, 234), 0.1);
+  color: var(--accent-primary);
+  transform: translateX(4px);
+}
+
+.dropdownItem svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.dropdownItem:hover svg {
+  opacity: 1;
+}
+
+.dropdownItem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Location controls section */
 .locationControls {
   display: flex;
   align-items: center;
-  gap: 4px; /* Mobile gap */
+  gap: 4px;
   margin-left: auto;
 }
 
+/* Control buttons */
 .controlBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0; /* Centered icon */
+  border-radius: 10px;
+  padding: 0;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 14px;
-  width: 40px; /* Touch friendly square */
+  width: 40px;
   height: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.controlBtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .controlBtn:hover {
-  background: var(--bg-secondary);
+  background: rgba(var(--accent-rgb, 102, 126, 234), 0.08);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb, 102, 126, 234), 0.2);
 }
 
+.controlBtn:active {
+  transform: translateY(0);
+}
+
+.controlBtn svg {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+
+.controlBtn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Active control button */
 .controlBtn.active {
   background: linear-gradient(
     135deg,
@@ -129,49 +337,32 @@
   );
   border-color: var(--accent-primary);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb, 102, 126, 234), 0.35),
+              inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
-/* Breadcrumb tooltip - Desktop only */
-.breadcrumbLink[title]:hover::after,
-.locationName[title]:hover::after {
-  display: none; /* Hide by default on mobile */
-  content: attr(title);
-  position: absolute;
-  top: 100%;
-  margin-top: 8px;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-text);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 1002;
-  box-shadow: var(--shadow-lg);
-  pointer-events: none;
-  animation: tooltipFadeIn 0.2s ease-out;
+.controlBtn.active:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(var(--accent-rgb, 102, 126, 234), 0.45),
+              inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
+.controlBtn.active svg {
+  animation: activeButtonPulse 2s ease-in-out infinite;
+}
+
+@keyframes activeButtonPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* Tooltip - Desktop only */
 .breadcrumbLink[title]:hover::after {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.locationName[title]:hover::after {
-  left: 0;
-  max-width: 300px;
-  word-wrap: break-word;
-}
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  display: none;
 }
 
 /* ============================================
@@ -179,31 +370,124 @@
    ============================================ */
 @media (min-width: 769px) {
   .locationHeader {
-    padding: 18px 32px 12px 32px;
+    padding: 16px 32px;
     height: auto;
-    gap: 12px;
+    gap: 16px;
   }
 
   .breadcrumbScroll {
-    display: flex; /* Show on desktop */
-  }
-
-  .locationControls {
+    display: flex;
     gap: 6px;
   }
 
-  .controlBtn {
-    padding: 8px 12px;
-    width: auto;
-    height: auto;
-    min-width: 40px;
+  .locationControls {
+    gap: 8px;
   }
 
-  /* Show tooltips on hover capable devices */
+  .controlBtn {
+    padding: 10px 14px;
+    width: auto;
+    height: auto;
+    min-width: 44px;
+  }
+
+  /* Show native tooltips on hover capable devices */
   @media (hover: hover) {
     .breadcrumbLink[title]:hover::after,
-    .locationName[title]:hover::after {
-      display: block;
+    .ellipsisButton[title]:hover::after {
+      content: attr(title);
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--tooltip-bg, rgba(0, 0, 0, 0.9));
+      color: var(--tooltip-text, #fff);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 1002;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+      animation: tooltipFadeIn 0.2s ease-out;
     }
+  }
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1200px) {
+  .breadcrumbText {
+    max-width: 250px;
+  }
+
+  .breadcrumbLink {
+    max-width: 300px;
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .breadcrumbLink:hover {
+    background: rgba(var(--accent-rgb, 102, 126, 234), 0.15);
+    box-shadow: 0 4px 16px rgba(var(--accent-rgb, 102, 126, 234), 0.25);
+  }
+
+  .breadcrumbCurrent {
+    background: linear-gradient(
+      135deg,
+      rgba(var(--accent-rgb, 102, 126, 234), 0.2) 0%,
+      rgba(var(--accent-secondary-rgb, 118, 75, 162), 0.2) 100%
+    );
+    border-color: rgba(var(--accent-rgb, 102, 126, 234), 0.35);
+    box-shadow: 0 2px 12px rgba(var(--accent-rgb, 102, 126, 234), 0.25),
+                inset 0 1px 2px rgba(255, 255, 255, 0.05);
+  }
+
+  .dropdown {
+    background: var(--bg-secondary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .controlBtn:hover {
+    background: rgba(var(--accent-rgb, 102, 126, 234), 0.15);
+    box-shadow: 0 4px 16px rgba(var(--accent-rgb, 102, 126, 234), 0.3);
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .breadcrumbItem {
+    animation: none;
+  }
+
+  .gradientBg,
+  .breadcrumbCurrent .breadcrumbIcon,
+  .controlBtn.active svg {
+    animation: none;
+  }
+
+  .breadcrumbLink,
+  .breadcrumbIcon,
+  .separator,
+  .controlBtn,
+  .dropdownItem,
+  .dropdown {
+    transition: none;
+  }
+
+  .breadcrumbLink:hover,
+  .controlBtn:hover {
+    transform: none;
   }
 }
