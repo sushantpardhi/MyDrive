@@ -12,7 +12,7 @@ axios.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor to handle session expiration
@@ -75,9 +75,8 @@ axios.interceptors.response.use(
         });
     }
 
-    logger.clearRequestId();
     return Promise.reject(error);
-  }
+  },
 );
 
 const api = {
@@ -138,7 +137,7 @@ const api = {
     page = 1,
     limit = 50,
     sortBy = "createdAt",
-    sortOrder = "desc"
+    sortOrder = "desc",
   ) =>
     axios.get(`${API_URL}/folders/${folderId}`, {
       params: { trash: isTrash, page, limit, sortBy, sortOrder },
@@ -186,7 +185,7 @@ const api = {
     axios.post(
       `${API_URL}/files/download`,
       { files: fileIds, folders: folderIds },
-      { responseType: "blob", timeout: 30 * 60 * 1000 } // 30 min timeout
+      { responseType: "blob", timeout: 30 * 60 * 1000 }, // 30 min timeout
     ),
 
   // Get thumbnail for file card previews (optimized, cached)
@@ -377,7 +376,7 @@ const api = {
     return axios.post(
       `${API_URL}/files/chunked-upload/${uploadId}/chunk`,
       formData,
-      config
+      config,
     );
   },
 
@@ -385,7 +384,7 @@ const api = {
   completeChunkedUpload: (uploadId, completeData) =>
     axios.post(
       `${API_URL}/files/chunked-upload/${uploadId}/complete`,
-      completeData
+      completeData,
     ),
 
   // Get upload session status
@@ -434,7 +433,7 @@ const api = {
 
     return axios.get(
       `${API_URL}/files/chunked-download/${downloadId}/chunk/${chunkIndex}`,
-      config
+      config,
     );
   },
 
