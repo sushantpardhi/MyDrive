@@ -185,25 +185,40 @@ async function handlePostUploadNotification(user, fileSize) {
       formattedUsed: formatBytes(updatedUser.storageUsed),
       formattedLimit: formatBytes(updatedUser.storageLimit),
       formattedRemaining: formatBytes(
-        updatedUser.storageLimit - updatedUser.storageUsed
+        updatedUser.storageLimit - updatedUser.storageUsed,
       ),
     };
 
     // Check which threshold has been crossed
     const currentThreshold = getNotificationThreshold(storageInfo.percentage);
 
-    if (currentThreshold && shouldNotifyUser(updatedUser, currentThreshold)) {
-      // Send notification
-      await sendStorageNotification(updatedUser, currentThreshold, storageInfo);
+    if (currentThreshold) {
+      // Atomically check and update user's notification level
+      // Only update if the new threshold is greater than the last one
+      const userToNotify = await User.findOneAndUpdate(
+        {
+          _id: updatedUser._id,
+          lastStorageNotificationLevel: { $lt: currentThreshold },
+        },
+        {
+          $set: { lastStorageNotificationLevel: currentThreshold },
+        },
+        { new: true },
+      );
 
-      // Update last notification level
-      updatedUser.lastStorageNotificationLevel = currentThreshold;
-      await updatedUser.save();
+      // If update was successful (userToNotify is not null), send email
+      if (userToNotify) {
+        await sendStorageNotification(
+          userToNotify,
+          currentThreshold,
+          storageInfo,
+        );
 
-      logger.info("Updated user storage notification level", {
-        userId: updatedUser._id,
-        level: currentThreshold,
-      });
+        logger.info("Updated user storage notification level", {
+          userId: userToNotify._id,
+          level: currentThreshold,
+        });
+      }
     }
   } catch (error) {
     logger.error("Error handling post-upload notification", {
@@ -246,11 +261,11 @@ function validateStorageForUpload(user, fileSize) {
     return {
       error: "Storage limit exceeded",
       message: `You have exceeded your storage limit. Current usage: ${formatBytes(
-        storageCheck.currentUsage
+        storageCheck.currentUsage,
       )} of ${formatBytes(
-        storageCheck.limit
+        storageCheck.limit,
       )} (${storageCheck.percentage.toFixed(
-        1
+        1,
       )}%). Please delete some files to free up space.`,
       code: "STORAGE_LIMIT_EXCEEDED",
       details: {

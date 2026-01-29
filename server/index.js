@@ -146,7 +146,6 @@ app.use("/api/users", authenticateToken, usersRouter);
 app.use("/api/shared", authenticateToken, sharedRouter);
 app.use("/api/admin", authenticateToken, adminRouter);
 app.use("/api/downloads/zip", zipRouter); // Zip download endpoints
-app.use("/api", authenticateToken, sharedRouter); // For /api/search and /api/trash/empty
 
 app.get("/", (req, res) => {
   res.send(
