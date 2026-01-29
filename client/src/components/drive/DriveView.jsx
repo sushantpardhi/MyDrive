@@ -46,7 +46,7 @@ const inFlightFolderLoads = {};
 const DriveView = ({ type = "drive", onMenuClick }) => {
   const { folderId: urlFolderId } = useParams();
   const navigate = useNavigate();
-  
+
   // Context data
   const {
     folders,
@@ -135,7 +135,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Custom hooks
   const { viewMode, itemsPerPage, changeViewMode } = useUserSettings();
-  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(type, navigate);
+  const { path, breadcrumbRef, navigateTo, openFolder } = useBreadcrumbs(
+    type,
+    navigate,
+  );
 
   // Remove lastRequestedFolderRef and debounce logic. Add robust global in-flight lock.
   const loadFolderContents = useCallback(
@@ -161,7 +164,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
               page,
               itemsPerPage,
               sortByRef.current,
-              sortOrderRef.current
+              sortOrderRef.current,
             );
           }
 
@@ -169,14 +172,14 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
             setFolders((prev) => {
               const existingIds = new Set(prev.map((f) => f._id));
               const newFolders = (response.data.folders || []).filter(
-                (f) => !existingIds.has(f._id)
+                (f) => !existingIds.has(f._id),
               );
               return [...prev, ...newFolders];
             });
             setFiles((prev) => {
               const existingIds = new Set(prev.map((f) => f._id));
               const newFiles = (response.data.files || []).filter(
-                (f) => !existingIds.has(f._id)
+                (f) => !existingIds.has(f._id),
               );
               return [...prev, ...newFiles];
             });
@@ -213,7 +216,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       setFiles,
       setHasMore,
       setCurrentPage,
-    ]
+    ],
   );
 
   // Use global transfer context instead of local hooks
@@ -264,7 +267,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     api,
     loadFolderContents,
     uploadProgressHook,
-    downloadProgressHook
+    downloadProgressHook,
   );
 
   const {
@@ -292,19 +295,6 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     bulkMove,
   } = useSelection(api, folders, files, type);
 
-  // Drag and drop functionality
-  const {
-    isDragging,
-    draggedItem,
-    dropTarget,
-    handleDragStart,
-    handleDragOver,
-    handleDragEnter,
-    handleDragLeave,
-    handleDrop,
-    handleDragEnd,
-  } = useDragAndDrop(api, loadFolderContents);
-
   // Drag select functionality (lasso selection)
   const {
     isSelecting,
@@ -328,7 +318,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Update sort refs when search filters change and reload if not searching
   useEffect(() => {
     // Skip if folder just changed - the loading effect will handle loading
-    const folderJustChanged = lastSortEffectFolderRef.current !== currentFolderId;
+    const folderJustChanged =
+      lastSortEffectFolderRef.current !== currentFolderId;
     if (folderJustChanged) {
       lastSortEffectFolderRef.current = currentFolderId;
       return;
@@ -368,8 +359,21 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       ...displayFolders.map((f) => f._id),
       ...displayFiles.map((f) => f._id),
     ],
-    [displayFolders, displayFiles]
+    [displayFolders, displayFiles],
   );
+
+  // Drag and drop functionality
+  const {
+    isDragging,
+    draggedItem,
+    dropTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+  } = useDragAndDrop(api, loadFolderContents, displayFolders, displayFiles);
 
   // Infinite scroll
   useInfiniteScroll({
@@ -401,47 +405,65 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     // When switching types, always go to root (ignore any folder ID from URL of previous type)
     // Only use urlFolderId if it's explicitly in the current URL path
     const targetFolder = urlFolderId || "root";
-    
+
     // Check if type changed (switching between drive/shared/trash)
     const typeChanged = currentTypeRef.current !== type;
-    
+
     // Skip URL-based updates if we're navigating programmatically to this folder
     // This prevents the URL change from triggering extra context updates
-    if (programmaticNavFolderIdRef.current === targetFolder || 
-        programmaticNavFolderIdRef.current === currentFolderId) {
-      logger.debug("DriveView: Skipping URL-based update - programmatic navigation in progress", {
-        targetFolder,
-        currentFolderId,
-        programmaticNavFolderId: programmaticNavFolderIdRef.current
-      });
+    if (
+      programmaticNavFolderIdRef.current === targetFolder ||
+      programmaticNavFolderIdRef.current === currentFolderId
+    ) {
+      logger.debug(
+        "DriveView: Skipping URL-based update - programmatic navigation in progress",
+        {
+          targetFolder,
+          currentFolderId,
+          programmaticNavFolderId: programmaticNavFolderIdRef.current,
+        },
+      );
       // Clear the ref after URL has synchronized
       if (targetFolder === currentFolderId) {
         programmaticNavFolderIdRef.current = null;
       }
       return;
     }
-    
-    logger.debug("DriveView: Initialization check", { 
-      type, 
-      folderId: targetFolder, 
+
+    logger.debug("DriveView: Initialization check", {
+      type,
+      folderId: targetFolder,
       typeChanged,
-      isInitialized
+      isInitialized,
     });
-    
+
     // Initialize on mount or when type changes
     if (!isInitialized || typeChanged) {
       currentTypeRef.current = type;
-      
-      logger.info("DriveView: Initializing/Switching to", { type, folderId: targetFolder });
+
+      logger.info("DriveView: Initializing/Switching to", {
+        type,
+        folderId: targetFolder,
+      });
       updateDriveType(type, targetFolder);
       setIsInitialized(true);
-    } 
+    }
     // If already initialized and type hasn't changed, just update folder if URL changed
     else if (targetFolder !== currentFolderId) {
-      logger.info("DriveView: URL folder changed", { from: currentFolderId, to: targetFolder });
+      logger.info("DriveView: URL folder changed", {
+        from: currentFolderId,
+        to: targetFolder,
+      });
       updateCurrentFolder(targetFolder, type);
     }
-  }, [type, urlFolderId, currentFolderId, updateDriveType, updateCurrentFolder, isInitialized]);
+  }, [
+    type,
+    urlFolderId,
+    currentFolderId,
+    updateDriveType,
+    updateCurrentFolder,
+    isInitialized,
+  ]);
 
   // Load folder contents when currentFolderId changes or reloadTrigger fires
   // Only load after initialization is complete and type is synchronized
@@ -459,27 +481,40 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       });
       return;
     }
-    
+
     // Check if this folder was already loaded (prevent duplicate loads)
     // Must also check type because "root" folder exists in multiple views (drive, shared, trash)
-    const folderAlreadyLoaded = 
-      lastLoadedFolderRef.current === currentFolderId && 
+    const folderAlreadyLoaded =
+      lastLoadedFolderRef.current === currentFolderId &&
       lastLoadedTypeRef.current === driveType &&
       lastReloadTriggerRef.current === reloadTrigger;
 
     if (folderAlreadyLoaded) {
-      logger.debug("DriveView: Skipping load - folder already loaded", { currentFolderId, type: driveType });
+      logger.debug("DriveView: Skipping load - folder already loaded", {
+        currentFolderId,
+        type: driveType,
+      });
       return;
     }
-    
+
     // Mark this folder as loaded
     lastLoadedFolderRef.current = currentFolderId;
     lastLoadedTypeRef.current = driveType;
     lastReloadTriggerRef.current = reloadTrigger;
-    
-    logger.info("DriveView: Loading folder contents", { currentFolderId, type: driveType });
+
+    logger.info("DriveView: Loading folder contents", {
+      currentFolderId,
+      type: driveType,
+    });
     loadFolderContents(currentFolderId);
-  }, [currentFolderId, reloadTrigger, isInitialized, loadFolderContents, driveType, type]);
+  }, [
+    currentFolderId,
+    reloadTrigger,
+    isInitialized,
+    loadFolderContents,
+    driveType,
+    type,
+  ]);
 
   // Reset selections when changing folders or type
   useEffect(() => {
@@ -489,7 +524,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Wrapper for openFolder that clears search and updates URL when navigating to a folder
   const handleOpenFolder = useCallback(
     (folder) => {
-      logger.debug("DriveView: Opening folder", { folderId: folder._id, name: folder.name });
+      logger.debug("DriveView: Opening folder", {
+        folderId: folder._id,
+        name: folder.name,
+      });
       // Clear search state without triggering a reload (navigation handles loading)
       clearSearchForNavigation();
       // Mark this folder as being navigated to programmatically to skip URL-based context updates
@@ -500,7 +538,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       navigate(`/${type}/${folder._id}`, { replace: false });
       // Loading is handled by the loading effect when currentFolderId changes
     },
-    [openFolder, clearSearchForNavigation, navigate, type]
+    [openFolder, clearSearchForNavigation, navigate, type],
   );
 
   // Toggle select all handler
@@ -514,8 +552,6 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     }
   }, [allItemIds, selectedItems, selectAll, clearSelection]);
 
-
-
   // Event handlers
   const handleFileUpload = async (e) => {
     const uploadedFiles = Array.from(e.target.files || []);
@@ -528,7 +564,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       (completedFile) => {
         // Add each file to UI as it completes
         setFiles((prev) => [...prev, completedFile]);
-      }
+      },
     );
     e.target.value = "";
   };
@@ -546,7 +582,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       id,
       itemType,
       isPermanent,
-      isPermanent ? showPasswordModal : null
+      isPermanent ? showPasswordModal : null,
     );
     if (success) {
       await loadFolderContents(currentFolderId, 1, false);
@@ -558,7 +594,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     const isPermanent = type === "trash";
     const success = await bulkDelete(
       () => loadFolderContents(currentFolderId, 1, false),
-      isPermanent ? showPasswordModal : null
+      isPermanent ? showPasswordModal : null,
     );
     if (success) {
       clearSelection();
@@ -730,11 +766,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
           (completedFile) => {
             // Add each file to UI as it completes
             setFiles((prev) => [...prev, completedFile]);
-          }
+          },
         );
       }
     },
-    [uploadFiles, setFiles, currentFolderId]
+    [uploadFiles, setFiles, currentFolderId],
   );
 
   const handleExternalDragOver = useCallback((e) => {
@@ -812,20 +848,20 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         const itemType = item.type === "files" ? "files" : "folders"; // Ensure correct type string if needed
         return isCopy
           ? item.type === "files"
-             ? api.copyFile(item._id, currentFolderId, null)
-             : api.copyFolder(item._id, currentFolderId, null)
+            ? api.copyFile(item._id, currentFolderId, null)
+            : api.copyFolder(item._id, currentFolderId, null)
           : item.type === "files"
-             ? api.moveFile(item._id, currentFolderId)
-             : api.moveFolder(item._id, currentFolderId);
+            ? api.moveFile(item._id, currentFolderId)
+            : api.moveFolder(item._id, currentFolderId);
       });
 
       await Promise.all(promises);
       toast.success(
         `${items.length} item${items.length > 1 ? "s" : ""} ${
           isCopy ? "copied" : "moved"
-        } successfully`
+        } successfully`,
       );
-      
+
       // If it was a move operation, clear clipboard
       if (!isCopy) {
         clearClipboard();
@@ -856,23 +892,25 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         handleToggleSelectAll();
         return;
       }
-      
+
       // Cmd/Ctrl + C: Copy
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         e.preventDefault();
         if (selectedItems.size > 0) {
-           const itemsToCopy = [];
-           // We need to map selected IDs back to types
-           selectedItems.forEach(id => {
-             const file = files.find(f => f._id === id);
-             const folder = folders.find(f => f._id === id);
-             if (file) itemsToCopy.push({ _id: id, type: "files" });
-             else if (folder) itemsToCopy.push({ _id: id, type: "folders" });
-           });
-           if (itemsToCopy.length > 0) {
-             copyToClipboard(itemsToCopy);
-             toast.info(`Copied ${itemsToCopy.length} item${itemsToCopy.length > 1 ? 's' : ''}`);
-           }
+          const itemsToCopy = [];
+          // We need to map selected IDs back to types
+          selectedItems.forEach((id) => {
+            const file = files.find((f) => f._id === id);
+            const folder = folders.find((f) => f._id === id);
+            if (file) itemsToCopy.push({ _id: id, type: "files" });
+            else if (folder) itemsToCopy.push({ _id: id, type: "folders" });
+          });
+          if (itemsToCopy.length > 0) {
+            copyToClipboard(itemsToCopy);
+            toast.info(
+              `Copied ${itemsToCopy.length} item${itemsToCopy.length > 1 ? "s" : ""}`,
+            );
+          }
         }
         return;
       }
@@ -881,17 +919,19 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "x") {
         e.preventDefault();
         if (selectedItems.size > 0) {
-           const itemsToCut = [];
-           selectedItems.forEach(id => {
-             const file = files.find(f => f._id === id);
-             const folder = folders.find(f => f._id === id);
-             if (file) itemsToCut.push({ _id: id, type: "files" });
-             else if (folder) itemsToCut.push({ _id: id, type: "folders" });
-           });
-           if (itemsToCut.length > 0) {
-             cutToClipboard(itemsToCut);
-             toast.info(`Cut ${itemsToCut.length} item${itemsToCut.length > 1 ? 's' : ''}`);
-           }
+          const itemsToCut = [];
+          selectedItems.forEach((id) => {
+            const file = files.find((f) => f._id === id);
+            const folder = folders.find((f) => f._id === id);
+            if (file) itemsToCut.push({ _id: id, type: "files" });
+            else if (folder) itemsToCut.push({ _id: id, type: "folders" });
+          });
+          if (itemsToCut.length > 0) {
+            cutToClipboard(itemsToCut);
+            toast.info(
+              `Cut ${itemsToCut.length} item${itemsToCut.length > 1 ? "s" : ""}`,
+            );
+          }
         }
         return;
       }
@@ -902,18 +942,18 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         handlePasteShortcut();
         return;
       }
-      
+
       // Delete / Backspace
-      // Be careful with Backspace as it can be navigation. 
+      // Be careful with Backspace as it can be navigation.
       // Usually browsers map Backspace to generic navigation back if not prevented?
       // Modern browsers: Alt+Left for back. Backspace might be safe if no input focus.
       if (e.key === "Delete" || e.key === "Backspace") {
-         // Only if we have selection
-         if (selectedItems.size > 0) {
-            e.preventDefault(); // Prevent back navigation
-            handleBulkDelete();
-         }
-         return;
+        // Only if we have selection
+        if (selectedItems.size > 0) {
+          e.preventDefault(); // Prevent back navigation
+          handleBulkDelete();
+        }
+        return;
       }
 
       // Cmd/Ctrl + D: Download
@@ -930,11 +970,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       if (e.key === "F2") {
         e.preventDefault();
         if (selectedItems.size === 1) {
-           const id = [...selectedItems][0];
-           const file = files.find(f => f._id === id);
-           const folder = folders.find(f => f._id === id);
-           if (file) openRenameDialog(file, "files");
-           else if (folder) openRenameDialog(folder, "folders");
+          const id = [...selectedItems][0];
+          const file = files.find((f) => f._id === id);
+          const folder = folders.find((f) => f._id === id);
+          if (file) openRenameDialog(file, "files");
+          else if (folder) openRenameDialog(folder, "folders");
         }
         return;
       }
@@ -943,16 +983,16 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       if (e.key === "Enter") {
         e.preventDefault();
         if (selectedItems.size === 1) {
-           const id = [...selectedItems][0];
-           const file = files.find(f => f._id === id);
-           const folder = folders.find(f => f._id === id);
-           
-           if (folder) {
-             handleOpenFolder(folder);
-           } else if (file) {
-             // For file, generic open/preview?
-             openPreviewModal(file, files);
-           }
+          const id = [...selectedItems][0];
+          const file = files.find((f) => f._id === id);
+          const folder = folders.find((f) => f._id === id);
+
+          if (folder) {
+            handleOpenFolder(folder);
+          } else if (file) {
+            // For file, generic open/preview?
+            openPreviewModal(file, files);
+          }
         }
         return;
       }
@@ -961,39 +1001,39 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       // Note: Cmd+Shift+N is often Incognito/Private window in browsers, which we CANNOT prevent in most cases.
       // But we can try or support Alt+N as alternative.
       if (
-         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "n") ||
-         (e.altKey && e.key === "n")
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "n") ||
+        (e.altKey && e.key === "n")
       ) {
-         e.preventDefault();
-         handleCreateFolder();
-         return;
+        e.preventDefault();
+        handleCreateFolder();
+        return;
       }
-      
+
       // Escape: Clear Selection
       if (e.key === "Escape") {
         e.preventDefault();
         clearSelection();
         return;
       }
-
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [
-    files, 
-    folders, 
-    selectedItems, 
-    handleToggleSelectAll, 
-    clearSelection, 
-    copyToClipboard, 
-    cutToClipboard,     handlePasteShortcut,
-     handleBulkDelete, 
-     bulkDownload,
-     openRenameDialog,
-     handleOpenFolder,
-     openPreviewModal,
-     handleCreateFolder
+    files,
+    folders,
+    selectedItems,
+    handleToggleSelectAll,
+    clearSelection,
+    copyToClipboard,
+    cutToClipboard,
+    handlePasteShortcut,
+    handleBulkDelete,
+    bulkDownload,
+    openRenameDialog,
+    handleOpenFolder,
+    openPreviewModal,
+    handleCreateFolder,
   ]);
 
   return (

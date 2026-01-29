@@ -4,6 +4,7 @@
   top: 0;
   left: 0;
   right: 0;
+  bottom: 0;
   background-color: var(--modal-overlay);
   display: flex;
   align-items: flex-end;
@@ -49,7 +50,7 @@
     max-height: 90vh;
     animation: fadeInScale 0.2s ease-out;
   }
-  
+
   @keyframes fadeInScale {
     from {
       opacity: 0;
@@ -86,7 +87,9 @@
   cursor: pointer;
   color: var(--text-tertiary);
   border-radius: 8px;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
   min-width: 44px;
   min-height: 44px;
   display: flex;
@@ -258,7 +261,7 @@
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .overlay {
-    padding: 12px;
+    padding: 0;
   }
 
   .dialog {
@@ -308,7 +311,7 @@
 /* Small Mobile */
 @media (max-width: 480px) {
   .overlay {
-    padding: 8px;
+    padding: 0;
   }
 
   .dialog {
