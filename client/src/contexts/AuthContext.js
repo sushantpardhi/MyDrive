@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import logger from "../utils/logger";
+import api from "../services/api";
 
 const AuthContext = createContext();
 
@@ -48,12 +49,14 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const logout = () => {
+  const logout = async () => {
     const userId = user?.id;
+
+    // Call server logout
+    await api.logout();
+
     setUser(null);
     setToken(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
     clearUserSettings();
 
     logger.logAuth("logout", userId, "User logged out");

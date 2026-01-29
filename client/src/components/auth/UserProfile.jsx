@@ -130,7 +130,7 @@ export default function UserProfile() {
           stack: err.stack,
         });
         setError(
-          err.response?.data?.error || err.message || "Failed to fetch profile"
+          err.response?.data?.error || err.message || "Failed to fetch profile",
         );
       } finally {
         setLoading(false);
@@ -225,7 +225,7 @@ export default function UserProfile() {
       logger.error("Error saving field", { fieldName, error: err.message });
       setSavingFields((prev) => ({ ...prev, [fieldName]: false }));
       setError(
-        err.response?.data?.error || err.message || "Failed to save changes"
+        err.response?.data?.error || err.message || "Failed to save changes",
       );
     }
   }
@@ -297,7 +297,7 @@ export default function UserProfile() {
       logger.info("Attempting to change password");
       await api.changePassword(
         passwordForm.currentPassword,
-        passwordForm.newPassword
+        passwordForm.newPassword,
       );
       setPasswordSuccess(true);
       setPasswordForm({
@@ -310,7 +310,7 @@ export default function UserProfile() {
     } catch (err) {
       logger.error("Password change failed", { error: err.message });
       setPasswordError(
-        err.response?.data?.error || "Failed to change password"
+        err.response?.data?.error || "Failed to change password",
       );
     }
   }
@@ -328,7 +328,7 @@ export default function UserProfile() {
       logger.warn("Attempting account deletion", { userId: profile._id });
       await api.deleteAccount(deletePassword);
       logger.info("Account deleted successfully");
-      api.logout();
+      await api.logout();
       window.location.href = "/register";
     } catch (err) {
       logger.error("Account deletion failed", { error: err.message });
@@ -395,7 +395,7 @@ export default function UserProfile() {
 
         <h1 className={styles.pageTitle}>User Profile</h1>
       </div>
-      
+
       <div className={styles.profileContainer}>
         <div className={styles.profileCard}>
           <div className={styles.profileHeader}>
@@ -887,9 +887,14 @@ export default function UserProfile() {
               <button
                 type="button"
                 className={styles.logoutBtn}
-                onClick={() => {
-                  api.logout();
-                  window.location.href = "/login";
+                onClick={async () => {
+                  try {
+                    await api.logout();
+                  } catch (error) {
+                    console.error("Logout failed:", error);
+                  } finally {
+                    window.location.href = "/login";
+                  }
                 }}
               >
                 Logout
