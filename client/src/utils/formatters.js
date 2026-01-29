@@ -88,3 +88,19 @@ export const getFileIcon = (fileName) => {
   };
   return icons[ext] || "📄";
 };
+
+/**
+ * Calculate remaining days for trash items (30 days retention)
+ */
+export const getTrashRemainingDays = (trashedAt) => {
+  if (!trashedAt) return 30;
+  const retentionPeriod = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+  const trashedDate = new Date(trashedAt).getTime();
+  const deleteDate = trashedDate + retentionPeriod;
+  const now = Date.now();
+
+  const diffMs = deleteDate - now;
+  const daysLeft = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+
+  return daysLeft > 0 ? daysLeft : 0;
+};

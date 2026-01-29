@@ -16,7 +16,7 @@ import {
   Info,
   X,
 } from "lucide-react";
-import { formatDate } from "../../utils/formatters";
+import { formatDate, getTrashRemainingDays } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import SearchHighlight from "../common/SearchHighlight";
 
@@ -45,7 +45,10 @@ const FolderCardNew = ({
   isDropTarget = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ horizontal: "right", vertical: "below" });
+  const [menuPosition, setMenuPosition] = useState({
+    horizontal: "right",
+    vertical: "below",
+  });
   const menuRef = useRef(null);
   const menuBtnRef = useRef(null);
   const { isSelected, getSelectedCount } = useSelectionContext();
@@ -79,30 +82,30 @@ const FolderCardNew = ({
   const handleMenuToggle = (e) => {
     e.preventDefault(); // Prevent default action
     e.stopPropagation(); // Stop propagation to card click
-    
+
     if (!menuOpen && menuBtnRef.current) {
       const btnRect = menuBtnRef.current.getBoundingClientRect();
-      const menuWidth = 200; 
-      const menuHeight = 300; 
+      const menuWidth = 200;
+      const menuHeight = 300;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       let top = btnRect.bottom + 8;
-      let left = btnRect.right - menuWidth; 
+      let left = btnRect.right - menuWidth;
 
       // Horizontal check
       if (left < 10) {
-        left = btnRect.left; 
+        left = btnRect.left;
       }
-      
+
       // Vertical check
       if (top + menuHeight > viewportHeight) {
         top = btnRect.top - menuHeight - 8;
       }
-      
+
       setMenuPosition({ top, left });
     }
-    
+
     setMenuOpen(!menuOpen);
   };
 
@@ -156,11 +159,23 @@ const FolderCardNew = ({
     if (type === "trash") {
       return (
         <>
-          <button onClick={() => { onRestore?.(); setMenuOpen(false); }} className={styles.menuItem}>
+          <button
+            onClick={() => {
+              onRestore?.();
+              setMenuOpen(false);
+            }}
+            className={styles.menuItem}
+          >
             <RotateCcw size={16} />
             <span>Restore</span>
           </button>
-          <button onClick={() => { onDelete(); setMenuOpen(false); }} className={styles.menuItemDanger}>
+          <button
+            onClick={() => {
+              onDelete();
+              setMenuOpen(false);
+            }}
+            className={styles.menuItemDanger}
+          >
             <Trash2 size={16} />
             <span>Delete Permanently</span>
           </button>
@@ -170,33 +185,76 @@ const FolderCardNew = ({
 
     return (
       <>
-        <button onClick={() => { onRename?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onRename?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Edit3 size={16} />
           <span>Rename</span>
         </button>
-        <button onClick={() => { onCopy?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onCopy?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Copy size={16} />
           <span>Copy</span>
         </button>
-        <button onClick={() => { onMove?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onMove?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Move size={16} />
           <span>Move</span>
         </button>
         <div className={styles.menuDivider} />
-        <button onClick={() => { onDownload?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onDownload?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Download size={16} />
           <span>Download</span>
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onShare(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onShare();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Share2 size={16} />
           <span>Share</span>
         </button>
-        <button onClick={() => { onProperties?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onProperties?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Info size={16} />
           <span>Properties</span>
         </button>
         <div className={styles.menuDivider} />
-        <button onClick={() => { onDelete(); setMenuOpen(false); }} className={styles.menuItemDanger}>
+        <button
+          onClick={() => {
+            onDelete();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItemDanger}
+        >
           <Trash2 size={16} />
           <span>Move to Trash</span>
         </button>
@@ -240,7 +298,11 @@ const FolderCardNew = ({
             />
           </div>
           <div className={styles.meta}>
-            <span className={styles.date}>Updated {formatDate(folder.updatedAt)}</span>
+            <span className={styles.date}>
+              {type === "trash"
+                ? `${getTrashRemainingDays(folder.trashedAt)} days left`
+                : `Updated ${formatDate(folder.updatedAt)}`}
+            </span>
           </div>
         </div>
       </div>
@@ -249,7 +311,11 @@ const FolderCardNew = ({
       {viewType === "list" && (
         <>
           <div className={styles.sizeColumn}>—</div>
-          <div className={styles.dateColumn}>{formatDate(folder.updatedAt)}</div>
+          <div className={styles.dateColumn}>
+            {type === "trash"
+              ? `${getTrashRemainingDays(folder.trashedAt)} days left`
+              : formatDate(folder.updatedAt)}
+          </div>
         </>
       )}
 
@@ -304,7 +370,7 @@ const FolderCardNew = ({
                   <div className={styles.dropdownBody}>{renderMenuItems()}</div>
                 </div>
               </>,
-              document.body
+              document.body,
             )}
         </div>
       )}
