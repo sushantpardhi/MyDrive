@@ -8,7 +8,12 @@ import logger from "../utils/logger";
  * Custom hook for drag and drop functionality
  * Handles dragging files/folders and dropping them into folders
  */
-export const useDragAndDrop = (api, loadFolderContents) => {
+export const useDragAndDrop = (
+  api,
+  loadFolderContents,
+  folders = [],
+  files = [],
+) => {
   const { currentFolderId } = useDriveContext();
   const { selectedItems, clearSelection } = useSelectionContext();
   const [draggedItem, setDraggedItem] = useState(null);
@@ -50,7 +55,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
 
     // Check if trying to drop folder into itself
     const droppingIntoSelf = draggedItemsArray.some(
-      (item) => item.itemType === "folder" && item._id === targetFolder._id
+      (item) => item.itemType === "folder" && item._id === targetFolder._id,
     );
     if (droppingIntoSelf) {
       return {
@@ -75,7 +80,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
 
     // Check if items are already in the target folder
     const allAlreadyInTarget = draggedItemsArray.every(
-      (item) => item.parent === targetFolder._id
+      (item) => item.parent === targetFolder._id,
     );
     if (allAlreadyInTarget) {
       return {
@@ -102,9 +107,28 @@ export const useDragAndDrop = (api, loadFolderContents) => {
 
       // If item is part of selection, drag all selected items
       if (selectedItems.has(item._id)) {
-        // Get all selected items (need to be passed from parent)
-        setDraggedItems([itemWithType]);
-        setDraggedItem(itemWithType);
+        // Get all selected items from the passed folders and files
+        const selectedFolders = folders
+          .filter((f) => selectedItems.has(f._id))
+          .map((f) => ({ ...f, itemType: "folder" }));
+        const selectedFiles = files
+          .filter((f) => selectedItems.has(f._id))
+          .map((f) => ({ ...f, itemType: "file" }));
+
+        const allSelectedItems = [...selectedFolders, ...selectedFiles];
+
+        // If for some reason the current item isn't in the lists (shouldn't happen usually), add it
+        if (!allSelectedItems.find((i) => i._id === item._id)) {
+          allSelectedItems.push(itemWithType);
+        }
+
+        logger.info("Dragging multiple items", {
+          count: allSelectedItems.length,
+          items: allSelectedItems.map((i) => ({ id: i._id, type: i.itemType })),
+        });
+
+        setDraggedItems(allSelectedItems);
+        setDraggedItem(itemWithType); // Main dragged item for visual feedback
       } else {
         // Drag single item
         setDraggedItems([itemWithType]);
@@ -118,7 +142,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData(
           "application/json",
-          JSON.stringify(itemWithType)
+          JSON.stringify(itemWithType),
         );
 
         // Create custom drag image
@@ -131,7 +155,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
         setTimeout(() => document.body.removeChild(dragImage), 0);
       }
     },
-    [selectedItems]
+    [selectedItems, folders, files],
   );
 
   /**
@@ -237,7 +261,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
 
         const itemWord = itemsToDrop.length === 1 ? "item" : "items";
         toast.success(
-          `Successfully moved ${itemsToDrop.length} ${itemWord} to ${targetFolder.name}`
+          `Successfully moved ${itemsToDrop.length} ${itemWord} to ${targetFolder.name}`,
         );
 
         logger.info("Drop completed successfully", {
@@ -277,7 +301,7 @@ export const useDragAndDrop = (api, loadFolderContents) => {
       api,
       loadFolderContents,
       clearSelection,
-    ]
+    ],
   );
 
   /**
