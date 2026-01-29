@@ -61,10 +61,18 @@ const ListViewNew = ({
                   <CheckSquare size={16} />
                 </button>
               </div>
-              <div className={`${styles.headerCell} ${styles.nameCell}`}>Name</div>
-              <div className={`${styles.headerCell} ${styles.sizeCell}`}>Size</div>
-              <div className={`${styles.headerCell} ${styles.dateCell}`}>Modified</div>
-              <div className={`${styles.headerCell} ${styles.actionsCell}`}>Actions</div>
+              <div className={`${styles.headerCell} ${styles.nameCell}`}>
+                Name
+              </div>
+              <div className={`${styles.headerCell} ${styles.sizeCell}`}>
+                Size
+              </div>
+              <div className={`${styles.headerCell} ${styles.dateCell}`}>
+                {type === "trash" ? "Time Left" : "Modified"}
+              </div>
+              <div className={`${styles.headerCell} ${styles.actionsCell}`}>
+                Actions
+              </div>
             </div>
 
             {/* Table Body */}
@@ -119,10 +127,18 @@ const ListViewNew = ({
                   <CheckSquare size={16} />
                 </button>
               </div>
-              <div className={`${styles.headerCell} ${styles.nameCell}`}>Name</div>
-              <div className={`${styles.headerCell} ${styles.sizeCell}`}>Size</div>
-              <div className={`${styles.headerCell} ${styles.dateCell}`}>Modified</div>
-              <div className={`${styles.headerCell} ${styles.actionsCell}`}>Actions</div>
+              <div className={`${styles.headerCell} ${styles.nameCell}`}>
+                Name
+              </div>
+              <div className={`${styles.headerCell} ${styles.sizeCell}`}>
+                Size
+              </div>
+              <div className={`${styles.headerCell} ${styles.dateCell}`}>
+                {type === "trash" ? "Time Left" : "Modified"}
+              </div>
+              <div className={`${styles.headerCell} ${styles.actionsCell}`}>
+                Actions
+              </div>
             </div>
 
             {/* Table Body */}

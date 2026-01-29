@@ -17,14 +17,14 @@ export const useUserSettings = () => {
   const context = useContext(UserSettingsContext);
   if (!context) {
     throw new Error(
-      "useUserSettings must be used within a UserSettingsProvider"
+      "useUserSettings must be used within a UserSettingsProvider",
     );
   }
   return context;
 };
 
 export const UserSettingsProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { setTheme } = useTheme();
   const setThemeRef = useRef(setTheme);
   const [viewMode, setViewMode] = useState("grid");
@@ -39,6 +39,9 @@ export const UserSettingsProvider = ({ children }) => {
 
   // Fetch user settings from backend when user logs in or changes
   useEffect(() => {
+    // Wait for auth to finish loading before doing anything
+    if (authLoading) return;
+
     async function fetchSettings() {
       if (!user) {
         // User logged out, reset to defaults
@@ -70,8 +73,21 @@ export const UserSettingsProvider = ({ children }) => {
           });
           setThemeRef.current(res.data.settings.theme);
         } else {
-          logger.debug("UserSettings: No backend theme, using default: light");
-          setThemeRef.current("light");
+          // If no backend theme, check if we have a local preference
+          const localTheme = localStorage.getItem("theme");
+          if (localTheme) {
+            logger.debug(
+              "UserSettings: No backend theme, keeping local preference",
+              { theme: localTheme },
+            );
+            // Ensure state matches local storage (though it should already)
+            setThemeRef.current(localTheme);
+          } else {
+            logger.debug(
+              "UserSettings: No backend theme and no local preference, using default: light",
+            );
+            setThemeRef.current("light");
+          }
         }
 
         // Apply viewMode from preferences.viewMode
@@ -84,7 +100,7 @@ export const UserSettingsProvider = ({ children }) => {
         } else {
           // No backend preference, use default
           logger.debug(
-            "UserSettings: No backend preference, using default: grid"
+            "UserSettings: No backend preference, using default: grid",
           );
           setViewMode("grid");
           localStorage.setItem("viewMode", "grid");
@@ -98,12 +114,12 @@ export const UserSettingsProvider = ({ children }) => {
           setItemsPerPage(res.data.preferences.itemsPerPage);
           localStorage.setItem(
             "itemsPerPage",
-            res.data.preferences.itemsPerPage.toString()
+            res.data.preferences.itemsPerPage.toString(),
           );
         } else {
           // No backend preference, use default
           logger.debug(
-            "UserSettings: No backend preference, using default: 25"
+            "UserSettings: No backend preference, using default: 25",
           );
           setItemsPerPage(25);
           localStorage.setItem("itemsPerPage", "25");
@@ -116,7 +132,7 @@ export const UserSettingsProvider = ({ children }) => {
         const savedTheme = localStorage.getItem("theme");
         setViewMode(savedViewMode || "grid");
         setItemsPerPage(
-          savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 25
+          savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 25,
         );
         setThemeRef.current(savedTheme || "light");
         logger.info("UserSettings: Using localStorage fallback", {
@@ -131,7 +147,7 @@ export const UserSettingsProvider = ({ children }) => {
     }
 
     fetchSettings();
-  }, [user?.id]); // Only re-fetch when user ID changes
+  }, [user?.id, authLoading]); // Only re-fetch when user ID changes or auth finishes loading
 
   // Update backend when viewMode changes
   const updateSettings = useCallback(async (newViewMode) => {
@@ -155,7 +171,7 @@ export const UserSettingsProvider = ({ children }) => {
       localStorage.setItem("viewMode", mode);
       updateSettings(mode);
     },
-    [updateSettings]
+    [updateSettings],
   );
 
   const changeItemsPerPage = useCallback(async (perPage) => {

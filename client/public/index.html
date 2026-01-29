@@ -1,9 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />    
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>My Drive</title>
+    <script>
+      (function () {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+        document.body.setAttribute("data-theme", savedTheme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

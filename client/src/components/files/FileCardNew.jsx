@@ -25,6 +25,7 @@ import {
   formatFileSize as formatSize,
   formatDate,
   getFileIcon,
+  getTrashRemainingDays,
 } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import { useUIContext } from "../../contexts";
@@ -55,7 +56,10 @@ const FileCardNew = ({
   isDragging = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ horizontal: "right", vertical: "below" });
+  const [menuPosition, setMenuPosition] = useState({
+    horizontal: "right",
+    vertical: "below",
+  });
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   const [thumbnailError, setThumbnailError] = useState(false);
   const [thumbnailLoading, setThumbnailLoading] = useState(false);
@@ -104,10 +108,42 @@ const FileCardNew = ({
     if (["xlsx", "xls", "xlsm", "xlsb", "csv"].includes(ext)) return "excel";
     if (["docx", "doc"].includes(ext)) return "word";
     if (["pptx", "ppt"].includes(ext)) return "powerpoint";
-    if (["mp4", "webm", "ogg", "mov", "avi", "mkv"].includes(ext)) return "video";
+    if (["mp4", "webm", "ogg", "mov", "avi", "mkv"].includes(ext))
+      return "video";
     if (["mp3", "wav", "ogg", "flac", "m4a"].includes(ext)) return "audio";
     if (
-      ["txt", "md", "json", "js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "cs", "go", "rs", "php", "rb", "swift", "kt", "scala", "html", "css", "scss", "less", "xml", "yaml", "yml", "sql", "sh", "bash", "dockerfile"].includes(ext)
+      [
+        "txt",
+        "md",
+        "json",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "c",
+        "cpp",
+        "cs",
+        "go",
+        "rs",
+        "php",
+        "rb",
+        "swift",
+        "kt",
+        "scala",
+        "html",
+        "css",
+        "scss",
+        "less",
+        "xml",
+        "yaml",
+        "yml",
+        "sql",
+        "sh",
+        "bash",
+        "dockerfile",
+      ].includes(ext)
     ) {
       return "code";
     }
@@ -121,7 +157,12 @@ const FileCardNew = ({
   useEffect(() => {
     let cancelled = false;
 
-    if (!isVisible || fileType !== "image" || safeFile._id === "unknown" || safeFile._id === "invalid") {
+    if (
+      !isVisible ||
+      fileType !== "image" ||
+      safeFile._id === "unknown" ||
+      safeFile._id === "invalid"
+    ) {
       return;
     }
 
@@ -130,8 +171,8 @@ const FileCardNew = ({
 
       try {
         // First, check if we have a cached version
-        const cachedBlob = await getCachedImage(safeFile._id, 'thumbnail');
-        
+        const cachedBlob = await getCachedImage(safeFile._id, "thumbnail");
+
         if (cachedBlob && !cancelled) {
           const url = URL.createObjectURL(cachedBlob);
           setThumbnailUrl(url);
@@ -145,8 +186,8 @@ const FileCardNew = ({
 
         if (!cancelled) {
           // Cache the blob for future use
-          await setCachedImage(safeFile._id, response.data, 'thumbnail');
-          
+          await setCachedImage(safeFile._id, response.data, "thumbnail");
+
           const url = URL.createObjectURL(response.data);
           setThumbnailUrl(url);
           setThumbnailError(false);
@@ -194,7 +235,9 @@ const FileCardNew = ({
       case "code":
         return <FileCode size={iconSize} className={styles.typeIcon} />;
       default:
-        return <div className={styles.emojiIcon}>{getFileIcon(safeFile.name)}</div>;
+        return (
+          <div className={styles.emojiIcon}>{getFileIcon(safeFile.name)}</div>
+        );
     }
   };
 
@@ -203,10 +246,64 @@ const FileCardNew = ({
     if (!filename) return false;
     const ext = filename.split(".").pop().toLowerCase();
     const previewableExts = [
-      "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "heic", "heif", "avif",
-      "pdf", "xlsx", "xls", "xlsm", "xlsb", "csv", "docx", "doc", "pptx", "ppt",
-      "mp4", "webm", "ogg", "mov", "mp3", "wav", "flac", "m4a",
-      "txt", "md", "json", "js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "cs", "go", "rs", "php", "rb", "swift", "kt", "scala", "html", "css", "scss", "less", "xml", "yaml", "yml", "sql", "sh", "bash", "dockerfile",
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "bmp",
+      "webp",
+      "svg",
+      "heic",
+      "heif",
+      "avif",
+      "pdf",
+      "xlsx",
+      "xls",
+      "xlsm",
+      "xlsb",
+      "csv",
+      "docx",
+      "doc",
+      "pptx",
+      "ppt",
+      "mp4",
+      "webm",
+      "ogg",
+      "mov",
+      "mp3",
+      "wav",
+      "flac",
+      "m4a",
+      "txt",
+      "md",
+      "json",
+      "js",
+      "jsx",
+      "ts",
+      "tsx",
+      "py",
+      "java",
+      "c",
+      "cpp",
+      "cs",
+      "go",
+      "rs",
+      "php",
+      "rb",
+      "swift",
+      "kt",
+      "scala",
+      "html",
+      "css",
+      "scss",
+      "less",
+      "xml",
+      "yaml",
+      "yml",
+      "sql",
+      "sh",
+      "bash",
+      "dockerfile",
     ];
     return previewableExts.includes(ext);
   };
@@ -243,30 +340,30 @@ const FileCardNew = ({
   const handleMenuToggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!menuOpen && menuBtnRef.current) {
       const btnRect = menuBtnRef.current.getBoundingClientRect();
-      const menuWidth = 200; 
-      const menuHeight = 300; 
+      const menuWidth = 200;
+      const menuHeight = 300;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       let top = btnRect.bottom + 8;
       let left = btnRect.right - menuWidth; // Default align right edge
 
       // Horizontal check
       if (left < 10) {
-        left = btnRect.left; 
+        left = btnRect.left;
       }
-      
+
       // Vertical check
       if (top + menuHeight > viewportHeight) {
         top = btnRect.top - menuHeight - 8;
       }
-      
+
       setMenuPosition({ top, left });
     }
-    
+
     setMenuOpen(!menuOpen);
   };
 
@@ -276,7 +373,7 @@ const FileCardNew = ({
     if (e.target.closest(`.${styles.actions}`)) {
       return;
     }
-    
+
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -341,11 +438,23 @@ const FileCardNew = ({
     if (type === "trash") {
       return (
         <>
-          <button onClick={() => { onRestore?.(); setMenuOpen(false); }} className={styles.menuItem}>
+          <button
+            onClick={() => {
+              onRestore?.();
+              setMenuOpen(false);
+            }}
+            className={styles.menuItem}
+          >
             <RotateCcw size={16} />
             <span>Restore</span>
           </button>
-          <button onClick={() => { onDelete(); setMenuOpen(false); }} className={styles.menuItemDanger}>
+          <button
+            onClick={() => {
+              onDelete();
+              setMenuOpen(false);
+            }}
+            className={styles.menuItemDanger}
+          >
             <Trash2 size={16} />
             <span>Delete Permanently</span>
           </button>
@@ -356,37 +465,85 @@ const FileCardNew = ({
     return (
       <>
         {isPreviewable(safeFile.name) && (
-          <button onClick={() => { handlePreview(); setMenuOpen(false); }} className={styles.menuItem}>
+          <button
+            onClick={() => {
+              handlePreview();
+              setMenuOpen(false);
+            }}
+            className={styles.menuItem}
+          >
             <Eye size={16} />
             <span>Preview</span>
           </button>
         )}
-        <button onClick={() => { onDownload(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onDownload();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Download size={16} />
           <span>Download</span>
         </button>
-        <button onClick={() => { onRename?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onRename?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Edit3 size={16} />
           <span>Rename</span>
         </button>
-        <button onClick={() => { onCopy?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onCopy?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Copy size={16} />
           <span>Copy</span>
         </button>
-        <button onClick={() => { onMove?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onMove?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Move size={16} />
           <span>Move</span>
         </button>
         <div className={styles.menuDivider} />
-        <button onClick={() => { onShare(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onShare();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Share2 size={16} />
           <span>Share</span>
         </button>
-        <button onClick={() => { onProperties?.(); setMenuOpen(false); }} className={styles.menuItem}>
+        <button
+          onClick={() => {
+            onProperties?.();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItem}
+        >
           <Info size={16} />
           <span>Properties</span>
         </button>
-        <button onClick={() => { onDelete(); setMenuOpen(false); }} className={styles.menuItemDanger}>
+        <button
+          onClick={() => {
+            onDelete();
+            setMenuOpen(false);
+          }}
+          className={styles.menuItemDanger}
+        >
           <Trash2 size={16} />
           <span>Move to Trash</span>
         </button>
@@ -430,7 +587,11 @@ const FileCardNew = ({
           <div className={styles.meta}>
             <span className={styles.size}>{formatSize(safeFile.size)}</span>
             <span className={styles.dot}>•</span>
-            <span className={styles.date}>{formatDate(safeFile.updatedAt)}</span>
+            <span className={styles.date}>
+              {type === "trash"
+                ? `${getTrashRemainingDays(safeFile.trashedAt)} days left`
+                : formatDate(safeFile.updatedAt)}
+            </span>
           </div>
         </div>
       </div>
@@ -439,7 +600,11 @@ const FileCardNew = ({
       {viewType === "list" && (
         <>
           <div className={styles.sizeColumn}>{formatSize(safeFile.size)}</div>
-          <div className={styles.dateColumn}>{formatDate(safeFile.updatedAt)}</div>
+          <div className={styles.dateColumn}>
+            {type === "trash"
+              ? `${getTrashRemainingDays(safeFile.trashedAt)} days left`
+              : formatDate(safeFile.updatedAt)}
+          </div>
         </>
       )}
 
@@ -495,7 +660,7 @@ const FileCardNew = ({
                   <div className={styles.dropdownBody}>{renderMenuItems()}</div>
                 </div>
               </>,
-              document.body
+              document.body,
             )}
         </div>
       )}
