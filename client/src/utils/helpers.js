@@ -19,7 +19,7 @@ export const downloadFile = async (api, fileId, fileName, progressCallback) => {
     try {
       // First verify download permissions (this is fast)
       const verifyResponse = await api.verifyFileDownload(fileId);
-      
+
       if (!verifyResponse.data.verified) {
         throw new Error("Download verification failed");
       }
@@ -29,11 +29,16 @@ export const downloadFile = async (api, fileId, fileName, progressCallback) => {
       // Now initiate the actual download with progress tracking
       const token = localStorage.getItem("token");
       const API_URL = process.env.REACT_APP_API_URL;
-      
+
       const xhr = new XMLHttpRequest();
       xhr.open("GET", `${API_URL}/files/download/${fileId}`, true);
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.responseType = "blob";
+
+      // Register XHR for cancellation if callback provided
+      if (progressCallback && progressCallback.onRegisterXhr) {
+        progressCallback.onRegisterXhr(xhr);
+      }
 
       let lastLoaded = 0;
       let lastTime = Date.now();
@@ -51,7 +56,11 @@ export const downloadFile = async (api, fileId, fileName, progressCallback) => {
             lastLoaded = event.loaded;
             lastTime = now;
 
-            progressCallback.onProgress(event.loaded, event.total || fileSize, speed);
+            progressCallback.onProgress(
+              event.loaded,
+              event.total || fileSize,
+              speed,
+            );
           } else {
             progressCallback.onProgress(event.loaded, fileSize, 0);
           }
@@ -99,7 +108,8 @@ export const downloadFile = async (api, fileId, fileName, progressCallback) => {
           progressCallback.onCancel();
         }
 
-        reject(new Error("Download cancelled"));
+        // Resolve instead of reject to avoid error overlays
+        resolve({ cancelled: true });
       };
 
       xhr.send();
@@ -159,24 +169,19 @@ export const getAvatarColor = (name) => {
  * @param {object} progressCallbacks - Progress callback functions
  */
 export const downloadMultiple = async (
-  api, 
-  fileIds = [], 
-  folderIds = [], 
+  api,
+  fileIds = [],
+  folderIds = [],
   downloadName = "download.zip",
-  progressCallbacks = {}
+  progressCallbacks = {},
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const { 
-        onZipping, 
-        onProgress, 
-        onComplete, 
-        onCancel 
-      } = progressCallbacks;
+      const { onZipping, onProgress, onComplete, onCancel } = progressCallbacks;
 
       const token = localStorage.getItem("token");
       const API_URL = process.env.REACT_APP_API_URL;
-      
+
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API_URL}/files/download`, true);
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -252,7 +257,8 @@ export const downloadMultiple = async (
           onCancel();
         }
 
-        reject(new Error("Download cancelled"));
+        // Resolve instead of reject to avoid error overlays
+        resolve({ cancelled: true });
       };
 
       xhr.ontimeout = () => {

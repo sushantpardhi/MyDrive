@@ -390,6 +390,11 @@ export const useFileOperations = (
 
         // Then download in background with progress tracking
         await downloadFile(api, fileId, fileName, {
+          onRegisterXhr: (xhr) => {
+            if (downloadProgressHook && downloadProgressHook.registerXhr) {
+              downloadProgressHook.registerXhr(downloadId, xhr);
+            }
+          },
           onProgress: (loaded, total, speed) => {
             if (downloadProgressHook) {
               downloadProgressHook.updateProgress(
@@ -403,6 +408,9 @@ export const useFileOperations = (
           onComplete: (success) => {
             if (downloadProgressHook) {
               downloadProgressHook.completeDownload(downloadId, success);
+              if (downloadProgressHook.unregisterXhr) {
+                downloadProgressHook.unregisterXhr(downloadId);
+              }
             }
             if (success) {
               toast.success("Download completed");
@@ -572,7 +580,8 @@ export const useFileOperations = (
             }
 
             toast.info("Download cancelled");
-            reject(new Error("Download cancelled"));
+            // Resolve instead of reject to avoid error overlays
+            resolve({ cancelled: true });
           };
 
           xhr.send();
@@ -1076,6 +1085,11 @@ export const useFileOperations = (
           toast.info("Starting download...");
 
           await downloadFile(api, fileId, fileName || fileData.name, {
+            onRegisterXhr: (xhr) => {
+              if (downloadProgressHook && downloadProgressHook.registerXhr) {
+                downloadProgressHook.registerXhr(clientDownloadId, xhr);
+              }
+            },
             onProgress: (loaded, total, speed) => {
               if (downloadProgressHook) {
                 downloadProgressHook.updateProgress(
@@ -1092,6 +1106,9 @@ export const useFileOperations = (
                   clientDownloadId,
                   success,
                 );
+                if (downloadProgressHook.unregisterXhr) {
+                  downloadProgressHook.unregisterXhr(clientDownloadId);
+                }
               }
               if (success) {
                 toast.success("Download completed");
