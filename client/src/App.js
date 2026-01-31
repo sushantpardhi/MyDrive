@@ -32,30 +32,33 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import { TransferProvider, useTransfer } from "./contexts/TransferContext";
 import { AdminProvider } from "./contexts/AdminContext";
+import { GuestProvider } from "./contexts/GuestContext";
 import DevelopmentBanner from "./components/common/DevelopmentBanner.jsx";
+import GuestBanner from "./components/guest/GuestBanner.jsx";
+import GuestConvertModal from "./components/guest/GuestConvertModal.jsx";
 import styles from "./App.module.css";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  
+
   // Wait for auth state to be loaded before making redirect decision
   if (loading) {
     return null; // Or a loading spinner
   }
-  
+
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
 };
 
 // Auth Route Component (redirects to drive if already logged in)
 const AuthRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  
+
   // Wait for auth state to be loaded before making redirect decision
   if (loading) {
     return null; // Or a loading spinner
   }
-  
+
   return isAuthenticated() ? <Navigate to="/drive" replace /> : children;
 };
 
@@ -247,7 +250,11 @@ const App = () => {
                         <DriveProvider>
                           <SelectionProvider>
                             <AdminProvider>
-                              <AppLayout />
+                              <GuestProvider>
+                                <GuestBanner />
+                                <GuestConvertModal />
+                                <AppLayout />
+                              </GuestProvider>
                             </AdminProvider>
                           </SelectionProvider>
                         </DriveProvider>

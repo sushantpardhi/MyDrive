@@ -8,6 +8,7 @@ const {
   shareContentsRecursively,
 } = require("../utils/shareHelpers");
 const emailService = require("../utils/emailService");
+const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get("/", async (req, res) => {
     }).select("_id parent");
 
     const sharedFolderIds = new Set(
-      allSharedFolders.map((f) => f._id.toString())
+      allSharedFolders.map((f) => f._id.toString()),
     );
 
     // Get folders that are shared but their parent is not a shared folder (top-level shared folders)
@@ -293,85 +294,90 @@ router.delete("/trash/empty", async (req, res) => {
 });
 
 // Bulk share items
-router.post("/bulk-share", async (req, res) => {
-  try {
-    const { email, items } = req.body; // items: [{id, type: 'file'|'folder'}]
+router.post(
+  "/bulk-share",
+  requireNonTemporaryGuestFor("Sharing files"),
+  async (req, res) => {
+    try {
+      const { email, items } = req.body; // items: [{id, type: 'file'|'folder'}]
 
-    if (!email || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Email and items array required" });
-    }
+      if (!email || !items || !Array.isArray(items) || items.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "Email and items array required" });
+      }
 
-    // Find user by email
-    const userToShareWith = await User.findOne({ email });
-    if (!userToShareWith) {
-      return res.status(404).json({ error: "User not found" });
-    }
+      // Find user by email
+      const userToShareWith = await User.findOne({ email });
+      if (!userToShareWith) {
+        return res.status(404).json({ error: "User not found" });
+      }
 
-    // Don't share with yourself
-    if (userToShareWith._id.toString() === req.user.id) {
-      return res.status(400).json({ error: "Cannot share with yourself" });
-    }
+      // Don't share with yourself
+      if (userToShareWith._id.toString() === req.user.id) {
+        return res.status(400).json({ error: "Cannot share with yourself" });
+      }
 
-    const sharedItems = [];
-    const errors = [];
+      const sharedItems = [];
+      const errors = [];
 
-    // Process each item
-    for (const itemData of items) {
-      try {
-        const Model = itemData.type === 'file' ? File : Folder;
-        const item = await Model.findById(itemData.id);
+      // Process each item
+      for (const itemData of items) {
+        try {
+          const Model = itemData.type === "file" ? File : Folder;
+          const item = await Model.findById(itemData.id);
 
-        if (!item) {
-          errors.push({ id: itemData.id, error: "Item not found" });
-          continue;
-        }
-
-        // Verify ownership
-        if (item.owner.toString() !== req.user.id) {
-          errors.push({ id: itemData.id, error: "Not authorized" });
-          continue;
-        }
-
-        // Add user to shared array if not already shared
-        if (!item.shared.includes(userToShareWith._id)) {
-          item.shared.push(userToShareWith._id);
-          await item.save();
-
-          // If it's a folder, recursively share its contents
-          if (itemData.type === 'folder') {
-            await shareContentsRecursively(item._id, userToShareWith._id);
+          if (!item) {
+            errors.push({ id: itemData.id, error: "Item not found" });
+            continue;
           }
 
-          sharedItems.push({
-            name: item.name,
-            type: itemData.type
-          });
+          // Verify ownership
+          if (item.owner.toString() !== req.user.id) {
+            errors.push({ id: itemData.id, error: "Not authorized" });
+            continue;
+          }
+
+          // Add user to shared array if not already shared
+          if (!item.shared.includes(userToShareWith._id)) {
+            item.shared.push(userToShareWith._id);
+            await item.save();
+
+            // If it's a folder, recursively share its contents
+            if (itemData.type === "folder") {
+              await shareContentsRecursively(item._id, userToShareWith._id);
+            }
+
+            sharedItems.push({
+              name: item.name,
+              type: itemData.type,
+            });
+          }
+        } catch (error) {
+          errors.push({ id: itemData.id, error: error.message });
         }
-      } catch (error) {
-        errors.push({ id: itemData.id, error: error.message });
       }
-    }
 
-    // Send bulk share email if any items were shared
-    if (sharedItems.length > 0) {
-      const owner = await User.findById(req.user.id);
-      emailService
-        .sendBulkShareEmail(userToShareWith, owner, sharedItems)
-        .catch(() => {
-          // Email send failure is non-critical
-        });
-    }
+      // Send bulk share email if any items were shared
+      if (sharedItems.length > 0) {
+        const owner = await User.findById(req.user.id);
+        emailService
+          .sendBulkShareEmail(userToShareWith, owner, sharedItems)
+          .catch(() => {
+            // Email send failure is non-critical
+          });
+      }
 
-    res.json({
-      message: `${sharedItems.length} items shared successfully`,
-      sharedCount: sharedItems.length,
-      errorCount: errors.length,
-      errors: errors.length > 0 ? errors : undefined,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+      res.json({
+        message: `${sharedItems.length} items shared successfully`,
+        sharedCount: sharedItems.length,
+        errorCount: errors.length,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 module.exports = router;
-

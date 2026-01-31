@@ -45,7 +45,7 @@
 /* Tablet and up */
 @media (min-width: 769px) {
   .dialog {
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     max-width: 400px;
     max-height: 90vh;
     animation: fadeInScale 0.2s ease-out;
@@ -86,7 +86,7 @@
   padding: 8px;
   cursor: pointer;
   color: var(--text-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition:
     background-color var(--transition-normal),
     color var(--transition-normal);
@@ -133,7 +133,7 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   transition: color var(--transition-normal);
 }
@@ -148,7 +148,7 @@
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--input-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 1rem;
   background: var(--input-bg);
   color: var(--text-primary);
@@ -167,8 +167,8 @@
   background: var(--bg-tertiary);
   border: 1px solid var(--input-border);
   border-left: none;
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
   font-size: 1rem;
   color: var(--text-tertiary);
   font-weight: 500;
@@ -189,18 +189,18 @@
 .errorMessage {
   margin: 4px 0 0 0;
   font-size: 0.8rem;
-  color: #dc3545;
+  color: var(--error-color);
   font-weight: 500;
 }
 
 .nameInput:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
 .nameInput:disabled {
-  background-color: #f8f9fa;
+  background-color: var(--input-disabled-bg);
   cursor: not-allowed;
 }
 
@@ -212,38 +212,49 @@
 
 .cancelButton,
 .renameButton {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
+  transition: all var(--transition-normal);
+  border: none;
 }
 
 .cancelButton {
-  background: #f8f9fa;
-  color: #6c757d;
-  border-color: #dee2e6;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 
 .cancelButton:hover:not(:disabled) {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 
 .renameButton {
-  background: #007bff;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
   color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .renameButton:hover:not(:disabled) {
-  background: #0056b3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.renameButton:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .renameButton:disabled,
 .cancelButton:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -301,9 +312,9 @@
   .cancelButton,
   .renameButton {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     min-height: 44px;
-    font-size: 0.9rem;
+    font-size: 1rem;
     justify-content: center;
   }
 }

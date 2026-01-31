@@ -35,7 +35,7 @@ const defaultPreferences = {
 };
 
 export default function UserProfile() {
-  const { user: authUser } = useAuth();
+  const { user: authUser, updateUser } = useAuth();
   const { toggleSidebar } = useUIContext();
   const [profile, setProfile] = useState({
     name: "",
@@ -211,6 +211,7 @@ export default function UserProfile() {
 
       const res = await api.updateUserProfile(updateData);
       setProfile(res.data.user);
+      updateUser(res.data.user);
 
       setSavingFields((prev) => ({ ...prev, [fieldName]: false }));
       setSavedFields((prev) => ({ ...prev, [fieldName]: true }));

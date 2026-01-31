@@ -25,27 +25,29 @@ export const useFileOperations = (
   const [uploadLoading, setUploadLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const createFolder = useCallback(async () => {
-    const name = prompt("Enter new folder name:");
-    if (!name?.trim()) return null;
+  const createFolder = useCallback(
+    async (name) => {
+      if (!name?.trim()) return null;
 
-    try {
-      logger.logFileOperation("create_folder", name, {
-        parentId: currentFolderId,
-      });
-      const response = await api.createFolder(name, currentFolderId);
-      toast.success("Folder created successfully");
-      logger.info("Folder created successfully", {
-        folderName: name,
-        folderId: response.data._id,
-      });
-      return response.data;
-    } catch (error) {
-      toast.error("Failed to create folder");
-      logger.logError(error, "Failed to create folder", { folderName: name });
-      return null;
-    }
-  }, [api, currentFolderId]);
+      try {
+        logger.logFileOperation("create_folder", name, {
+          parentId: currentFolderId,
+        });
+        const response = await api.createFolder(name, currentFolderId);
+        toast.success("Folder created successfully");
+        logger.info("Folder created successfully", {
+          folderName: name,
+          folderId: response.data._id,
+        });
+        return response.data;
+      } catch (error) {
+        toast.error("Failed to create folder");
+        logger.logError(error, "Failed to create folder", { folderName: name });
+        return null;
+      }
+    },
+    [api, currentFolderId],
+  );
 
   const uploadFiles = useCallback(
     async (files, onSuccess, useChunked = true, onFileComplete = null) => {

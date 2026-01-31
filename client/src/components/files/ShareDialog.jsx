@@ -149,13 +149,13 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
 
         if (response.data.errorCount > 0) {
           toast.warning(
-            `${response.data.sharedCount} items shared, ${response.data.errorCount} failed`
+            `${response.data.sharedCount} items shared, ${response.data.errorCount} failed`,
           );
         } else {
           toast.success(
             `${response.data.sharedCount} item${
               response.data.sharedCount > 1 ? "s" : ""
-            } shared with ${userEmail}`
+            } shared with ${userEmail}`,
           );
         }
 
@@ -167,15 +167,16 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
           onClose();
         }, 500);
       } else {
-        // Single item share
+        // Single item share - keep search input to allow sharing with multiple users
         const response = await api.shareItem(itemType, item._id, userEmail);
         toast.success(`Shared with ${userEmail}`);
         // Update shared users list
         if (response.data?.item?.shared) {
           setSharedWith(response.data.item.shared);
         }
-        setSearchQuery("");
-        setSearchResults([]);
+        // Don't clear search - allow user to continue sharing with other users
+        // setSearchQuery("");
+        // setSearchResults([]);
       }
     } catch (error) {
       const errorMsg =
@@ -184,7 +185,7 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
       logger.logError(error, "Failed to share item", {
         itemType,
         isBulkOperation,
-        userId: user._id,
+        userEmail,
       });
     } finally {
       hideLoading();
@@ -206,8 +207,8 @@ const ShareDialog = ({ item, items = [], itemType, onClose, isOpen }) => {
             {isBulkOperation
               ? `${itemCount} Items`
               : itemType === "folders"
-              ? "Folder"
-              : "File"}
+                ? "Folder"
+                : "File"}
           </h3>
           <button
             className={styles.closeButton}

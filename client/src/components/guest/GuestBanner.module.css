@@ -1,0 +1,307 @@
+/* Guest Banner Styles */
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 8px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.banner.warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon {
+  font-size: 18px;
+}
+
+.text {
+  font-size: 14px;
+}
+
+.urgentTime {
+  color: #fef3c7;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extendButton,
+.createAccountButton,
+.dismissButton {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.extendButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.extendButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.extendButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.createAccountButton {
+  background: white;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.createAccountButton:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.dismissButton {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dismissButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.error {
+  text-align: center;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #fef3c7;
+}
+
+/* Warning Modal */
+.warningOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--modal-overlay);
+  z-index: 10001; /* High z-index to stay on top */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.warningModal {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.warningIcon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  display: inline-block;
+  animation: bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bounce {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.warningModal h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.warningModal p {
+  margin: 0 0 28px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.warningActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.warningActions button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.warningActions .extendButton {
+  background: var(--accent-primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.warningActions .extendButton:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.warningActions .createAccountButton {
+  background: var(--success-color);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.warningActions .createAccountButton:hover {
+  filter: brightness(1.05); /* Generic hover for success color */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.warningActions .dismissButton {
+  background: transparent;
+  color: var(--text-tertiary);
+  border: 1px solid transparent;
+}
+
+.warningActions .dismissButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .banner {
+    padding: 8px 12px;
+  }
+
+  .content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .icon {
+    font-size: 16px;
+  }
+
+  .text {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .actions {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  .extendButton,
+  .createAccountButton {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .warningModal {
+    padding: 24px;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    border-bottom: none;
+  }
+
+  .warningOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+}

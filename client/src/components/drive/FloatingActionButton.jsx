@@ -30,8 +30,8 @@ const FloatingActionButton = ({
         <>
           <button
             onClick={() => {
-              onCreateFolder();
               setIsOpen(false);
+              onCreateFolder();
             }}
             className={styles.mobileMenuItem}
           >

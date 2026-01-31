@@ -5,7 +5,9 @@ const logger = require("../utils/logger");
 const ROLE_STORAGE_LIMITS = {
   admin: -1, // Unlimited (represented as -1)
   family: -1, // Unlimited (represented as -1)
-  guest: 5 * 1024 * 1024 * 1024, // 5GB in bytes
+  user: 5 * 1024 * 1024 * 1024, // 5GB for registered users
+  guest: 500 * 1024 * 1024, // 500MB for temporary guests
+  temporaryGuest: 500 * 1024 * 1024, // 500MB for temporary guests (legacy)
 };
 
 const UserSchema = new mongoose.Schema({
@@ -14,13 +16,18 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: {
     type: String,
-    enum: ["admin", "family", "guest"],
-    default: "guest",
+    enum: ["admin", "family", "user", "guest"],
+    default: "user",
   },
   createdAt: { type: Date, default: Date.now },
   storageUsed: { type: Number, default: 0 }, // Storage used in bytes
   storageLimit: { type: Number, default: 5 * 1024 * 1024 * 1024 }, // Default 5GB limit in bytes
   lastStorageNotificationLevel: { type: Number, default: 0 }, // Last storage notification threshold sent (0, 50, 75, 90, 100)
+
+  // Guest session fields
+  isTemporaryGuest: { type: Boolean, default: false },
+  guestSessionId: { type: mongoose.Schema.Types.ObjectId, ref: "GuestSession" },
+
   settings: {
     emailNotifications: { type: Boolean, default: true },
     language: { type: String, default: "en" },

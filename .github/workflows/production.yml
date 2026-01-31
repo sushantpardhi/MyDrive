@@ -24,7 +24,6 @@ jobs:
           set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
-
       - name: Install & restart
         run: |
           set -e
@@ -47,7 +46,6 @@ jobs:
           set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
-
       - name: Install & build
         run: |
           set -e
@@ -56,7 +54,6 @@ jobs:
           export REACT_APP_SHOW_DEV_BANNER=false
           npm install
           npm run build
-
       - name: Restart frontend
         run: |
           set -e
@@ -79,7 +76,6 @@ jobs:
           cd /home/sushant/app/prod/MyDrive
           git fetch origin
           git reset --hard origin/main
-
       - name: Compile CUDA kernels
         run: |
           set -e
@@ -87,13 +83,11 @@ jobs:
           nvcc -c -arch=sm_75 \
             -Xcompiler -fPIC \
             cuda/image_ops.cu -o cuda/image_ops.o
-
       - name: Create CUDA static library
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/worker/image-worker
           ar rcs cuda/libimage_ops.a cuda/image_ops.o
-
       - name: Build worker binary
         run: |
           set -e
@@ -103,14 +97,12 @@ jobs:
           export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
           go build -o image-worker
           [ -f image-worker ] || (echo "Build failed: no image-worker binary" && exit 1)
-
       - name: Install new binary
         run: |
           set -e
           sudo install -m 755 \
             /home/sushant/app/prod/MyDrive/worker/image-worker/image-worker \
             /usr/local/bin/image-worker
-
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload
@@ -131,21 +123,18 @@ jobs:
           cd /home/sushant/app/prod/MyDrive
           git fetch origin
           git reset --hard origin/main
-
       - name: Build worker binary
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/worker/zipping-worker
           go build -o zipping-worker-prod
           [ -f zipping-worker-prod ] || (echo "Build failed: no zipping-worker binary" && exit 1)
-
       - name: Install new binary
         run: |
           set -e
           sudo install -m 755 \
             /home/sushant/app/prod/MyDrive/worker/zipping-worker/zipping-worker-prod \
             /usr/local/bin/zipping-worker
-
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload

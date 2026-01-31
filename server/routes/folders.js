@@ -13,6 +13,7 @@ const {
 const emailService = require("../utils/emailService");
 const ZipStreamService = require("../utils/zipStreamService");
 const DownloadHelpers = require("../utils/downloadHelpers");
+const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ const markFolderTrashState = async (
   folderId,
   userId,
   trashState,
-  trashedAt = null
+  trashedAt = null,
 ) => {
   const timestamp = trashState ? trashedAt || new Date() : null;
   const queue = [folderId];
@@ -32,19 +33,19 @@ const markFolderTrashState = async (
     // Update the current folder
     await Folder.updateOne(
       { _id: currentId, owner: userId },
-      { trash: trashState, trashedAt: timestamp }
+      { trash: trashState, trashedAt: timestamp },
     );
 
     // Update files directly under this folder
     await File.updateMany(
       { parent: currentId, owner: userId },
-      { trash: trashState, trashedAt: timestamp }
+      { trash: trashState, trashedAt: timestamp },
     );
 
     // Queue child folders for processing
     const childFolders = await Folder.find(
       { parent: currentId, owner: userId },
-      "_id"
+      "_id",
     );
 
     childFolders.forEach((child) => queue.push(child._id));
@@ -57,7 +58,7 @@ router.get("/verify-download/:folderId", async (req, res) => {
     const folder = await Folder.findById(req.params.folderId);
     if (!folder) {
       logger.warn(
-        `Download verification failed - Folder not found: ${req.params.folderId} - User: ${req.user.id} - IP: ${req.ip}`
+        `Download verification failed - Folder not found: ${req.params.folderId} - User: ${req.user.id} - IP: ${req.ip}`,
       );
       return res.status(404).json({ error: "Folder not found" });
     }
@@ -65,17 +66,20 @@ router.get("/verify-download/:folderId", async (req, res) => {
     // Count files recursively
     async function countFolderContents(folderId) {
       const files = await File.find({ parent: folderId, isDeleted: false });
-      const subfolders = await Folder.find({ parent: folderId, isDeleted: false });
-      
+      const subfolders = await Folder.find({
+        parent: folderId,
+        isDeleted: false,
+      });
+
       let totalFiles = files.length;
       let totalSize = files.reduce((sum, file) => sum + file.size, 0);
-      
+
       for (const subfolder of subfolders) {
         const subStats = await countFolderContents(subfolder._id);
         totalFiles += subStats.files;
         totalSize += subStats.size;
       }
-      
+
       return { files: totalFiles, size: totalSize };
     }
 
@@ -87,7 +91,7 @@ router.get("/verify-download/:folderId", async (req, res) => {
       name: folder.name,
       totalFiles: stats.files,
       totalSize: stats.size,
-      verified: true
+      verified: true,
     });
   } catch (error) {
     logger.logError(error, {
@@ -339,85 +343,91 @@ router.get("/:folderId/stats", async (req, res) => {
 });
 
 // Share folder - Updated to accept email instead of userId
-router.post("/:id/share", async (req, res) => {
-  const startTime = Date.now();
-  try {
-    const { id } = req.params;
-    const { email } = req.body;
+router.post(
+  "/:id/share",
+  requireNonTemporaryGuestFor("Sharing folders"),
+  async (req, res) => {
+    const startTime = Date.now();
+    try {
+      const { id } = req.params;
+      const { email } = req.body;
 
-    const item = await Folder.findById(id);
-    if (!item) {
-      logger.warn(
-        `Folder share failed - Folder not found: ${id} - User: ${req.user.id} - IP: ${req.ip}`
-      );
-      return res.status(404).json({ error: "Folder not found" });
-    }
+      const item = await Folder.findById(id);
+      if (!item) {
+        logger.warn(
+          `Folder share failed - Folder not found: ${id} - User: ${req.user.id} - IP: ${req.ip}`,
+        );
+        return res.status(404).json({ error: "Folder not found" });
+      }
 
-    // Check if user is the owner
-    if (item.owner.toString() !== req.user.id) {
-      logger.warn(
-        `Folder share failed - Not owner: ${id} - User: ${req.user.id} - IP: ${req.ip}`
-      );
-      return res
-        .status(403)
-        .json({ error: "You can only share items you own" });
-    }
+      // Check if user is the owner
+      if (item.owner.toString() !== req.user.id) {
+        logger.warn(
+          `Folder share failed - Not owner: ${id} - User: ${req.user.id} - IP: ${req.ip}`,
+        );
+        return res
+          .status(403)
+          .json({ error: "You can only share items you own" });
+      }
 
-    // Find user by email
-    const userToShareWith = await User.findOne({ email });
-    if (!userToShareWith) {
-      logger.warn(
-        `Folder share failed - User not found: ${email} - Folder: ${id} - Owner: ${req.user.id}`
-      );
-      return res.status(404).json({ error: "User not found" });
-    }
+      // Find user by email
+      const userToShareWith = await User.findOne({ email });
+      if (!userToShareWith) {
+        logger.warn(
+          `Folder share failed - User not found: ${email} - Folder: ${id} - Owner: ${req.user.id}`,
+        );
+        return res.status(404).json({ error: "User not found" });
+      }
 
-    // Don't share with yourself
-    if (userToShareWith._id.toString() === req.user.id) {
-      return res.status(400).json({ error: "Cannot share with yourself" });
-    }
+      // Don't share with yourself
+      if (userToShareWith._id.toString() === req.user.id) {
+        return res.status(400).json({ error: "Cannot share with yourself" });
+      }
 
-    // Add user to shared array if not already shared
-    if (!item.shared.includes(userToShareWith._id)) {
-      item.shared.push(userToShareWith._id);
-      await item.save();
+      // Add user to shared array if not already shared
+      if (!item.shared.includes(userToShareWith._id)) {
+        item.shared.push(userToShareWith._id);
+        await item.save();
 
-      // Recursively share all contents of this folder
-      await shareContentsRecursively(item._id, userToShareWith._id);
+        // Recursively share all contents of this folder
+        await shareContentsRecursively(item._id, userToShareWith._id);
 
-      logger.logShare("folder-shared", item, req.user.id, {
-        sharedWith: userToShareWith.email,
-        resourceType: "folder",
-        ip: req.ip,
+        logger.logShare("folder-shared", item, req.user.id, {
+          sharedWith: userToShareWith.email,
+          resourceType: "folder",
+          ip: req.ip,
+        });
+
+        // Send email notification to the user (non-blocking)
+        const owner = await User.findById(req.user.id);
+        emailService
+          .sendFileSharedEmail(userToShareWith, owner, item.name, "folder")
+          .catch((emailError) => {
+            logger.warn(
+              `Share notification email failed: ${emailError.message}`,
+            );
+          });
+      }
+
+      logger.logPerformance("share-folder", Date.now() - startTime, {
+        folderId: id,
       });
 
-      // Send email notification to the user (non-blocking)
-      const owner = await User.findById(req.user.id);
-      emailService
-        .sendFileSharedEmail(userToShareWith, owner, item.name, "folder")
-        .catch((emailError) => {
-          logger.warn(`Share notification email failed: ${emailError.message}`);
-        });
+      res.json({
+        message: "Folder shared successfully",
+        item: await Folder.findById(id).populate("shared", "name email"),
+      });
+    } catch (error) {
+      logger.logError(error, {
+        operation: "share-folder",
+        userId: req.user.id,
+        ip: req.ip,
+        additionalInfo: req.params.id,
+      });
+      res.status(500).json({ error: error.message });
     }
-
-    logger.logPerformance("share-folder", Date.now() - startTime, {
-      folderId: id,
-    });
-
-    res.json({
-      message: "Folder shared successfully",
-      item: await Folder.findById(id).populate("shared", "name email"),
-    });
-  } catch (error) {
-    logger.logError(error, {
-      operation: "share-folder",
-      userId: req.user.id,
-      ip: req.ip,
-      additionalInfo: req.params.id,
-    });
-    res.status(500).json({ error: error.message });
-  }
-});
+  },
+);
 
 // Unshare folder - Remove user from shared list
 router.delete("/:id/share/:userId", async (req, res) => {
@@ -438,7 +448,7 @@ router.delete("/:id/share/:userId", async (req, res) => {
 
     // Remove user from shared array
     item.shared = item.shared.filter(
-      (sharedUserId) => sharedUserId.toString() !== userId
+      (sharedUserId) => sharedUserId.toString() !== userId,
     );
     await item.save();
 
@@ -645,7 +655,7 @@ router.post("/:id/copy", async (req, res) => {
     const copyFolderRecursive = async (
       sourceFolderId,
       targetParent,
-      newName = null
+      newName = null,
     ) => {
       const sourceFolder = await Folder.findById(sourceFolderId);
       if (!sourceFolder) return null;
@@ -843,7 +853,7 @@ router.get("/download/:folderId", async (req, res) => {
     const resolvedFiles = await DownloadHelpers.getFolderFilesRecursive(
       folderId,
       req.user.id,
-      "" // No base path - use folder name as root
+      "", // No base path - use folder name as root
     );
 
     // If folder is empty, return error
@@ -857,7 +867,10 @@ router.get("/download/:folderId", async (req, res) => {
     }
 
     // Calculate total size
-    const totalSize = resolvedFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+    const totalSize = resolvedFiles.reduce(
+      (sum, file) => sum + (file.size || 0),
+      0,
+    );
     const totalFiles = resolvedFiles.length;
 
     logger.info("Starting folder ZIP stream", {
@@ -882,15 +895,19 @@ router.get("/download/:folderId", async (req, res) => {
     });
 
     // Handle client disconnect - returns abort checker
-    const disconnectHandler = ZipStreamService.handleClientDisconnect(req, archive, () => {
-      logger.warn("Client disconnected during folder download", {
-        folderId,
-        folderName: folder.name,
-        filesProcessed,
-        totalFiles,
-        userId: req.user.id,
-      });
-    });
+    const disconnectHandler = ZipStreamService.handleClientDisconnect(
+      req,
+      archive,
+      () => {
+        logger.warn("Client disconnected during folder download", {
+          folderId,
+          folderName: folder.name,
+          filesProcessed,
+          totalFiles,
+          userId: req.user.id,
+        });
+      },
+    );
 
     // Add all files to ZIP
     for (const fileEntry of resolvedFiles) {
@@ -905,15 +922,15 @@ router.get("/download/:folderId", async (req, res) => {
         });
         break;
       }
-      
+
       try {
         // Use folder name as root in zip path
         const zipPath = `${folder.name}/${fileEntry.zipPath}`;
-        
+
         await ZipStreamService.addFileToZip(
           archive,
           fileEntry.filePath,
-          zipPath
+          zipPath,
         );
         filesProcessed++;
       } catch (error) {
@@ -928,7 +945,7 @@ router.get("/download/:folderId", async (req, res) => {
           });
           break;
         }
-        
+
         logger.error("Error adding file to folder ZIP", {
           folderId,
           fileId: fileEntry.fileDoc._id,
@@ -954,7 +971,8 @@ router.get("/download/:folderId", async (req, res) => {
         totalFiles,
         totalSize: DownloadHelpers.formatSize(totalSize),
         duration: `${(duration / 1000).toFixed(2)}s`,
-        avgSpeed: DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
+        avgSpeed:
+          DownloadHelpers.formatSize(totalSize / (duration / 1000)) + "/s",
         userId: req.user.id,
         ip: req.ip,
       });
@@ -988,9 +1006,9 @@ router.get("/download/:folderId", async (req, res) => {
 
     // Only send error response if headers not sent
     if (!res.headersSent) {
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Folder download failed",
-        message: error.message
+        message: error.message,
       });
     }
   }

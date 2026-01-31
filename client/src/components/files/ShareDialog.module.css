@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--modal-overlay, rgba(0, 0, 0, 0.5));
+  background-color: var(--modal-overlay);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -23,15 +23,15 @@
 
 /* Mobile-first: Dialog box */
 .dialog {
-  background: var(--modal-bg, #ffffff);
+  background: var(--modal-bg);
   border-radius: 16px 16px 0 0;
-  box-shadow: var(--shadow-xl, 0 4px 12px rgba(0, 0, 0, 0.15));
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 100%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  transition: background-color var(--transition-normal, 0.2s);
+  transition: background-color var(--transition-normal);
   animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -47,12 +47,12 @@
 /* Tablet and up: Centered modal */
 @media (min-width: 769px) {
   .dialog {
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     max-width: 500px;
     max-height: 80vh;
     animation: fadeIn 0.3s ease;
   }
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -79,8 +79,8 @@
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary, #333);
-  transition: color var(--transition-normal, 0.2s);
+  color: var(--text-primary);
+  transition: color var(--transition-normal);
 }
 
 /* Tablet and up */
@@ -88,7 +88,7 @@
   .header {
     padding: 20px 20px 16px;
   }
-  
+
   .header h3 {
     font-size: 1.25rem;
   }
@@ -100,10 +100,11 @@
   border: none;
   padding: 8px;
   cursor: pointer;
-  color: var(--text-tertiary, #6c757d);
-  border-radius: 8px;
-  transition: background-color var(--transition-normal, 0.2s),
-    color var(--transition-normal, 0.2s);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-lg);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
   min-width: 44px;
   min-height: 44px;
   display: flex;
@@ -113,8 +114,8 @@
 }
 
 .closeButton:hover {
-  background-color: var(--hover-overlay, #f5f5f5);
-  color: var(--text-primary, #333);
+  background-color: var(--hover-overlay);
+  color: var(--text-primary);
 }
 
 .closeButton:active {
@@ -151,7 +152,7 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: var(--text-primary, #333);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
@@ -162,7 +163,7 @@
 .itemInfo label {
   display: block;
   font-weight: 500;
-  color: var(--text-primary, #333);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
@@ -170,7 +171,7 @@
   margin-top: 8px;
   padding: 12px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   max-height: 100px;
   overflow-y: auto;
 }
@@ -190,7 +191,7 @@
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--input-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 12px;
   background: var(--input-bg);
   transition: border-color var(--transition-normal);
@@ -199,11 +200,11 @@
 
 .searchBar:focus-within {
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
 .searchBar svg {
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
@@ -213,11 +214,11 @@
   background: transparent;
   outline: none;
   font-size: 1rem;
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
 }
 
 .searchBar input::placeholder {
-  color: var(--text-tertiary, #9ca3af);
+  color: var(--text-tertiary);
 }
 
 .searchBar input:disabled {
@@ -227,7 +228,7 @@
 
 .searchResults {
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -235,7 +236,7 @@
 .loading {
   padding: 20px;
   text-align: center;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   font-style: italic;
 }
@@ -261,7 +262,11 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
   color: white;
   display: flex;
   align-items: center;
@@ -280,7 +285,7 @@
 .userName {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -288,7 +293,7 @@
 
 .userEmail {
   font-size: 0.8rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -299,24 +304,30 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: #007bff;
+  padding: 8px 14px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-normal);
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
 }
 
 .shareButton:hover:not(:disabled) {
-  background: var(--accent-hover);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
 }
 
 .shareButton:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -326,7 +337,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary);
 }
 
 .noResults svg {
@@ -340,8 +351,8 @@
 }
 
 .sharedList {
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -351,8 +362,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: background-color var(--transition-normal);
 }
 
 .sharedItem:last-child {
@@ -360,28 +371,28 @@
 }
 
 .sharedItem:hover {
-  background-color: #f8f9fa;
+  background-color: var(--hover-overlay);
 }
 
 .removeShareButton {
-  padding: 6px 12px;
-  background: #dc3545;
+  padding: 8px 14px;
+  background: var(--error-color);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-normal);
   flex-shrink: 0;
 }
 
 .removeShareButton:hover:not(:disabled) {
-  background: #c82333;
+  background: var(--danger-color-dark);
 }
 
 .removeShareButton:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -394,38 +405,45 @@
 
 .cancelButton,
 .doneButton {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
+  transition: all var(--transition-normal);
+  border: none;
 }
 
 .cancelButton {
-  background: #f8f9fa;
-  color: #6c757d;
-  border-color: #dee2e6;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 
 .cancelButton:hover:not(:disabled) {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 
 .doneButton {
-  background: #007bff;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
   color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .doneButton:hover:not(:disabled) {
-  background: #0056b3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
 }
 
 .doneButton:disabled,
 .cancelButton:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -442,13 +460,13 @@
 
 .searchResults::-webkit-scrollbar-thumb,
 .sharedList::-webkit-scrollbar-thumb {
-  background: #dee2e6;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 .searchResults::-webkit-scrollbar-thumb:hover,
 .sharedList::-webkit-scrollbar-thumb:hover {
-  background: #6c757d;
+  background: var(--text-tertiary);
 }
 
 /* Tablet responsive */
@@ -466,7 +484,7 @@
 /* Mobile responsive */
 @media (max-width: 768px) {
   .overlay {
-    padding: 12px;
+    padding: 0;
   }
 
   .dialog {
@@ -503,7 +521,7 @@
 
   .shareButton,
   .removeShareButton {
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 0.75rem;
     min-height: 36px;
   }
@@ -516,9 +534,9 @@
   .cancelButton,
   .doneButton {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     min-height: 44px;
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .searchResults {
@@ -533,7 +551,7 @@
 /* Small Mobile */
 @media (max-width: 480px) {
   .overlay {
-    padding: 8px;
+    padding: 0;
   }
 
   .dialog {
@@ -564,7 +582,7 @@
 
   .shareButton,
   .removeShareButton {
-    padding: 4px 8px;
+    padding: 6px 10px;
     font-size: 0.7rem;
     min-height: 32px;
   }
