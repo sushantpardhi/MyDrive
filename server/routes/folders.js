@@ -163,8 +163,6 @@ router.get("/:folderId", async (req, res) => {
       query = {
         parent: folderId,
         trash: { $ne: true },
-        // For shared folders, show items that are shared with the user
-        shared: req.user.id,
       };
     } else {
       query = {

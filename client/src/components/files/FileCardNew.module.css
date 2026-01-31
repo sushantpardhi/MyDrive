@@ -525,6 +525,19 @@
   justify-content: center;
 }
 
+.nameBase {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.nameExt {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* ============================================
    SMALL MOBILE (max-width: 480px)
    ============================================ */

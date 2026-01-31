@@ -100,6 +100,20 @@ const FileCardNew = ({
   const selectedCount = getSelectedCount();
   const hasMultipleSelections = selectedCount > 1;
 
+  // Split filename into base and extension for better truncation
+  const splitFilename = (filename) => {
+    if (!filename) return { base: "", ext: "" };
+    const lastDotIndex = filename.lastIndexOf(".");
+    // If no dot, or dot is first char (hidden file), treat whole name as base
+    if (lastDotIndex <= 0) return { base: filename, ext: "" };
+    return {
+      base: filename.substring(0, lastDotIndex),
+      ext: filename.substring(lastDotIndex),
+    };
+  };
+
+  const { base: fileBase, ext: fileExt } = splitFilename(safeFile.name);
+
   // Get file type for preview
   const getFileType = (filename) => {
     if (!filename) return "unknown";
@@ -629,11 +643,18 @@ const FileCardNew = ({
         <div className={styles.info}>
           <div className={styles.name} title={safeFile.name}>
             <div className={styles.fileNameRow}>
-              <SearchHighlight
-                text={safeFile.name}
-                searchTerm={searchQuery}
-                searchMeta={safeFile._searchMeta}
-              />
+              {searchQuery ? (
+                <SearchHighlight
+                  text={safeFile.name}
+                  searchTerm={searchQuery}
+                  searchMeta={safeFile._searchMeta}
+                />
+              ) : (
+                <>
+                  <span className={styles.nameBase}>{fileBase}</span>
+                  {fileExt && <span className={styles.nameExt}>{fileExt}</span>}
+                </>
+              )}
             </div>
           </div>
           <div className={styles.meta}>

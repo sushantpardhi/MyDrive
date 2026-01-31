@@ -61,6 +61,20 @@ const FolderCardNew = ({
   const selectedCount = getSelectedCount();
   const hasMultipleSelections = selectedCount > 1;
 
+  // Split folder name for better truncation (folders rarely have extensions, but handle it)
+  const splitName = (name) => {
+    if (!name) return { base: "", ext: "" };
+    const lastDotIndex = name.lastIndexOf(".");
+    // If no dot, or dot is first char (hidden folder), treat whole name as base
+    if (lastDotIndex <= 0) return { base: name, ext: "" };
+    return {
+      base: name.substring(0, lastDotIndex),
+      ext: name.substring(lastDotIndex),
+    };
+  };
+
+  const { base: folderBase, ext: folderExt } = splitName(folder.name);
+
   // Close menu on outside click and escape key
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -342,11 +356,20 @@ const FolderCardNew = ({
         <div className={styles.info}>
           <div className={styles.name} title={folder.name}>
             <div className={styles.folderNameRow}>
-              <SearchHighlight
-                text={folder.name}
-                searchTerm={searchQuery}
-                searchMeta={folder._searchMeta}
-              />
+              {searchQuery ? (
+                <SearchHighlight
+                  text={folder.name}
+                  searchTerm={searchQuery}
+                  searchMeta={folder._searchMeta}
+                />
+              ) : (
+                <>
+                  <span className={styles.nameBase}>{folderBase}</span>
+                  {folderExt && (
+                    <span className={styles.nameExt}>{folderExt}</span>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <div className={styles.meta}>
