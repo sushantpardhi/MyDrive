@@ -204,7 +204,7 @@ const App = () => {
       <AuthProvider>
         <UserSettingsProvider>
           <BrowserRouter>
-            {/* <DevelopmentBanner /> */}
+            <DevelopmentBanner />
             <Routes>
               {/* Auth Routes */}
               <Route

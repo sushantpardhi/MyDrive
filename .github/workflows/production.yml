@@ -33,81 +33,36 @@ jobs:
           pm2 restart backend-8080 || pm2 start index.js --name backend-8080
 
   deploy-frontend:
-    needs: deploy-backend
+    needs: deploy-backend # ← waits for backend
     runs-on: self-hosted
     environment: production
-
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-      REACT_APP_SHOW_DEV_BANNER: false
-      DISABLE_ESLINT_PLUGIN: true
-      GENERATE_SOURCEMAP: false
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Pull latest code
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
 
-      - name: Cache npm + CRA build
-        uses: actions/cache@v4
-        with:
-          path: |
-            /home/sushant/app/prod/MyDrive/client/node_modules
-            /home/sushant/app/prod/MyDrive/client/.cache
-          key: ${{ runner.os }}-npm-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install deps (only if needed)
+      - name: Install & build
         run: |
+          set -e
           cd /home/sushant/app/prod/MyDrive/client
-          npm ci --prefer-offline --no-audit
-
-      - name: Build frontend
-        run: |
-          cd /home/sushant/app/prod/MyDrive/client
+          export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
+          export REACT_APP_SHOW_DEV_BANNER=false
+          npm install
           npm run build
 
-      - name: Restart frontend (zero-downtime)
+      - name: Restart frontend
         run: |
-          pm2 reload frontend-3000 || \
+          set -e
+          cd /home/sushant/app/prod/MyDrive/client
+          pm2 delete frontend-3000 || true
           pm2 start serve --name frontend-3000 -- -s build -l 3000
-
-  # deploy-frontend:
-  #   needs: deploy-backend # ← waits for backend
-  #   runs-on: self-hosted
-  #   environment: production
-  #   env:
-  #     REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-
-  #     - name: Pull latest code
-  #       run: |
-  #         set -e
-  #         cd /home/sushant/app/prod/MyDrive
-  #         git pull origin main
-
-  #     - name: Install & build
-  #       run: |
-  #         set -e
-  #         cd /home/sushant/app/prod/MyDrive/client
-  #         export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
-  #         export REACT_APP_SHOW_DEV_BANNER=true
-  #         npm install
-  #         npm run build
-
-  #     - name: Restart frontend
-  #       run: |
-  #         set -e
-  #         cd /home/sushant/app/prod/MyDrive/client
-  #         pm2 delete frontend-3000 || true
-  #         pm2 start serve --name frontend-3000 -- -s build -l 3000
 
   deploy-image-worker:
     needs: deploy-frontend # ← waits for frontend
