@@ -44,6 +44,7 @@ const usersRouter = require("./routes/users");
 const sharedRouter = require("./routes/shared");
 const adminRouter = require("./routes/admin");
 const zipRouter = require("./routes/zipRoutes");
+const guestRouter = require("./routes/guest");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -58,7 +59,7 @@ app.use(
     origin: CORS_ORIGIN,
     credentials: true,
     exposedHeaders: ["X-Total-Size", "X-Total-Files"],
-  })
+  }),
 );
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -67,7 +68,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow thumbnail loading
-  })
+  }),
 ); // Security headers
 app.use(mongoSanitize()); // Prevent MongoDB injection
 app.use(compression()); // Response compression
@@ -109,7 +110,6 @@ app.use((req, res, next) => {
 // MongoDB connection with resilience settings
 const MONGODB_URI = process.env.MONGODB_URI;
 
-
 mongoose
   .connect(`${MONGODB_URI}`, {
     serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
@@ -140,6 +140,7 @@ app.get("/health", async (req, res) => {
 
 // Routes
 app.use("/api/auth", authRouter);
+app.use("/api/auth/guest", guestRouter);
 app.use("/api/files", authenticateToken, filesRouter);
 app.use("/api/folders", authenticateToken, foldersRouter);
 app.use("/api/users", authenticateToken, usersRouter);
@@ -151,7 +152,7 @@ app.get("/", (req, res) => {
   res.send(
     `MyDrive Backend is running in ${
       process.env.NODE_ENV || "development"
-    } mode.`
+    } mode.`,
   );
 });
 
@@ -191,11 +192,11 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   logger.info(
     `🚀 Server started - Port: ${PORT} - Environment: ${
       process.env.NODE_ENV || "development"
-    } - CORS: ${CORS_ORIGIN}`
+    } - CORS: ${CORS_ORIGIN}`,
   );
   logger.info(`📦 Upload timeout: ${UPLOAD_TIMEOUT}ms - JSON limit: 10mb`);
   logger.info(
-    `🔒 Security: Helmet, Rate Limiting, MongoDB Sanitization enabled`
+    `🔒 Security: Helmet, Rate Limiting, MongoDB Sanitization enabled`,
   );
   logger.info(`📧 Email configured: ${config.emailConfigured}`);
 });
@@ -205,10 +206,10 @@ const gracefulShutdown = async (signal) => {
   logger.info(`${signal} received: closing HTTP server gracefully`);
   server.close(async () => {
     logger.info("HTTP server closed");
-    
+
     // Close Redis connection
     await redisQueue.disconnect();
-    
+
     mongoose.connection.close(false, () => {
       logger.info("MongoDB connection closed");
       process.exit(0);

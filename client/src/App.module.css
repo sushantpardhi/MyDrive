@@ -4,13 +4,16 @@
   height: 100vh;
   overflow: hidden;
   position: relative;
-  padding-top: var(--dev-banner-height, 0);
+  padding-top: calc(
+    var(--dev-banner-height, 0) + var(--guest-banner-height, 0)
+  );
   width: 100%;
 }
 
 /* Development banner height variable - default to 0, set by DevelopmentBanner component */
 :root {
   --dev-banner-height: 0px;
+  --guest-banner-height: 0px;
 }
 
 .sidebar {

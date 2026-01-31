@@ -112,8 +112,7 @@ const api = {
 
   getCurrentUser: () => axios.get(`${API_URL}/auth/me`),
 
-  refreshToken: () =>
-    axios.post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true }),
+  refreshToken: () => axios.post(`${API_URL}/auth/refresh-token`, {}),
 
   // Password reset operations
   forgotPassword: (email) =>
@@ -124,11 +123,26 @@ const api = {
 
   logout: async () => {
     try {
-      await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+      await axios.post(`${API_URL}/auth/logout`, {});
     } catch (e) {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // Keep guestSession in localStorage to allow resuming session later
   },
+
+  // Guest session operations
+  createGuestSession: (previousSessionId) =>
+    axios.post(`${API_URL}/auth/guest`, { previousSessionId }),
+
+  getGuestStatus: () => axios.get(`${API_URL}/auth/guest/status`),
+
+  extendGuestSession: () => axios.post(`${API_URL}/auth/guest/extend`),
+
+  resumeGuestSession: (sessionId) =>
+    axios.post(`${API_URL}/auth/guest/resume`, { sessionId }),
+
+  convertGuestToUser: (name, email, password) =>
+    axios.post(`${API_URL}/auth/guest/convert`, { name, email, password }),
 
   // Folder operations
   getFolderContents: (

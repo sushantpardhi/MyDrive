@@ -63,7 +63,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = () => {
-    return !!token;
+    // Check both React state and localStorage for immediate auth after login
+    return !!token || !!localStorage.getItem("token");
   };
 
   const clearUserSettings = () => {

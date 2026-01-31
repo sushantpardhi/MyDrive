@@ -314,3 +314,127 @@
     min-height: 48px;
   }
 }
+
+/* Guest Link Styles */
+.guestDivider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.guestDivider::before,
+.guestDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.guestDivider span {
+  padding: 0 12px;
+}
+
+.guestLink {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.guestLink:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.guestLink:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .guestLink {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+}
+
+/* Guest Session Options */
+.guestSessionOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resumeSessionButton {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.resumeSessionButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.resumeSessionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.newSessionButton {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.newSessionButton:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.newSessionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .resumeSessionButton,
+  .newSessionButton {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+
+  .newSessionButton {
+    font-size: 13px;
+  }
+}

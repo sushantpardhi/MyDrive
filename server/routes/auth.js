@@ -53,7 +53,7 @@ router.post("/refresh-token", async (req, res) => {
         role: payload.role,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRATION }
+      { expiresIn: JWT_EXPIRATION },
     );
     res.json({ token });
   } catch (error) {
@@ -69,7 +69,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       logger.warn(
-        `Profile fetch failed - User not found: ${req.user.id} - IP: ${req.ip}`
+        `Profile fetch failed - User not found: ${req.user.id} - IP: ${req.ip}`,
       );
       return res.status(404).json({ error: "User not found" });
     }
@@ -111,8 +111,8 @@ router.post(
       if (!errors.isEmpty()) {
         logger.warn(
           `Registration failed - Validation errors: ${JSON.stringify(
-            errors.array()
-          )} - IP: ${ip}`
+            errors.array(),
+          )} - IP: ${ip}`,
         );
         return res.status(400).json({ errors: errors.array() });
       }
@@ -123,7 +123,7 @@ router.post(
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         logger.warn(
-          `Registration failed - Email already exists: ${email} - IP: ${ip}`
+          `Registration failed - Email already exists: ${email} - IP: ${ip}`,
         );
         return res.status(409).json({
           error: "An account with this email address already exists",
@@ -131,9 +131,9 @@ router.post(
         });
       }
 
-      // Validate role if provided (default is 'guest')
-      const validRoles = ["admin", "family", "guest"];
-      const userRole = role && validRoles.includes(role) ? role : "guest";
+      // Validate role if provided (default is 'user')
+      const validRoles = ["admin", "family", "user", "guest"];
+      const userRole = role && validRoles.includes(role) ? role : "user";
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -165,7 +165,7 @@ router.post(
       // Send welcome email (non-blocking)
       emailService.sendWelcomeEmail(user).catch((emailError) => {
         logger.warn(
-          `Welcome email failed for user ${user._id}: ${emailError.message}`
+          `Welcome email failed for user ${user._id}: ${emailError.message}`,
         );
       });
 
@@ -173,7 +173,7 @@ router.post(
       const token = jwt.sign(
         { id: user._id, email: user.email, name: user.name },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRATION }
+        { expiresIn: JWT_EXPIRATION },
       );
       // Generate refresh token
       const refreshToken = generateRefreshToken(user);
@@ -209,7 +209,7 @@ router.post(
       });
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 );
 
 // Login route
@@ -229,8 +229,8 @@ router.post(
       if (!errors.isEmpty()) {
         logger.warn(
           `Login failed - Validation errors: ${JSON.stringify(
-            errors.array()
-          )} - IP: ${ip}`
+            errors.array(),
+          )} - IP: ${ip}`,
         );
         return res.status(400).json({ errors: errors.array() });
       }
@@ -273,7 +273,7 @@ router.post(
       const token = jwt.sign(
         { id: user._id, email: user.email, name: user.name, role: user.role },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRATION }
+        { expiresIn: JWT_EXPIRATION },
       );
       // Generate refresh token
       const refreshToken = generateRefreshToken(user);
@@ -317,7 +317,7 @@ router.post(
       });
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 );
 
 // Request password reset
@@ -333,8 +333,8 @@ router.post(
       if (!errors.isEmpty()) {
         logger.warn(
           `Forgot password failed - Validation errors: ${JSON.stringify(
-            errors.array()
-          )} - IP: ${ip}`
+            errors.array(),
+          )} - IP: ${ip}`,
         );
         return res.status(400).json({ errors: errors.array() });
       }
@@ -346,7 +346,7 @@ router.post(
       if (!user) {
         // Don't reveal if email exists or not for security
         logger.info(
-          `Password reset requested for non-existent email: ${email} - IP: ${ip}`
+          `Password reset requested for non-existent email: ${email} - IP: ${ip}`,
         );
         return res.json({
           message:
@@ -358,7 +358,7 @@ router.post(
       const resetToken = jwt.sign(
         { id: user._id, email: user.email, type: "password_reset" },
         JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1h" },
       );
 
       // Create reset URL
@@ -393,7 +393,7 @@ router.post(
         .status(500)
         .json({ error: "Failed to process password reset request" });
     }
-  }
+  },
 );
 
 // Reset password with token
@@ -414,8 +414,8 @@ router.post(
       if (!errors.isEmpty()) {
         logger.warn(
           `Password reset failed - Validation errors: ${JSON.stringify(
-            errors.array()
-          )} - IP: ${ip}`
+            errors.array(),
+          )} - IP: ${ip}`,
         );
         return res.status(400).json({ errors: errors.array() });
       }
@@ -440,7 +440,7 @@ router.post(
       const user = await User.findById(decoded.id);
       if (!user) {
         logger.warn(
-          `Password reset failed - User not found: ${decoded.id} - IP: ${ip}`
+          `Password reset failed - User not found: ${decoded.id} - IP: ${ip}`,
         );
         return res.status(404).json({ error: "User not found" });
       }
@@ -468,7 +468,7 @@ router.post(
       logger.logError(error, { operation: "reset-password", ip: req.ip });
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 );
 
 module.exports = router;
