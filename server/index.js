@@ -45,6 +45,7 @@ const sharedRouter = require("./routes/shared");
 const adminRouter = require("./routes/admin");
 const zipRouter = require("./routes/zipRoutes");
 const guestRouter = require("./routes/guest");
+const trashRouter = require("./routes/trash");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -146,6 +147,7 @@ app.use("/api/folders", authenticateToken, foldersRouter);
 app.use("/api/users", authenticateToken, usersRouter);
 app.use("/api/shared", authenticateToken, sharedRouter);
 app.use("/api/admin", authenticateToken, adminRouter);
+app.use("/api/trash", authenticateToken, trashRouter);
 app.use("/api/downloads/zip", zipRouter); // Zip download endpoints
 
 app.get("/", (req, res) => {
