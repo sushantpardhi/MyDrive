@@ -26,17 +26,38 @@ export const GuestProvider = ({ children }) => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [warningTriggered, setWarningTriggered] = useState(false);
   const countdownRef = useRef(null);
   const statusCheckRef = useRef(null);
 
   const isTemporaryGuest = user?.isTemporaryGuest === true;
 
+  // Cleanup guest session and logout
+  const cleanupGuestSession = useCallback(() => {
+    logger.info("Cleaning up guest session");
+    localStorage.removeItem("guestSession");
+
+    // Clear any theme/settings through AuthContext logout
+    // logic or explicitly here if needed, but logout() handles
+    // clearing user-specific settings via clearUserSettings()
+    logout();
+
+    // Reset local state
+    setSessionExpired(false);
+    setWarningTriggered(false);
+    setSessionData(null);
+    setTimeRemaining(null);
+    setShowExpiryWarning(false);
+  }, [logout]);
+
   // Handle session expiration - defined first as other callbacks depend on it
   const handleSessionExpired = useCallback(() => {
-    logger.info("Guest session expired, logging out");
-    localStorage.removeItem("guestSession");
-    logout();
-  }, [logout]);
+    logger.info("Guest session expired, waiting for user dismissal");
+    setSessionExpired(true);
+    setTimeRemaining(0);
+    // STUB: We do NOT logout immediately anymore.
+  }, []);
 
   // Fetch session status from API
   const fetchSessionStatus = useCallback(async () => {
@@ -49,9 +70,22 @@ export const GuestProvider = ({ children }) => {
       setSessionData(data);
       setTimeRemaining(data.remainingMs);
 
-      // Show warning when less than 5 minutes remaining
-      if (data.remainingMs <= 5 * 60 * 1000 && data.remainingMs > 0) {
-        setShowExpiryWarning(true);
+      // Check for warning threshold on initial load
+      if (data.createdAt && data.expiresAt) {
+        const created = new Date(data.createdAt).getTime();
+        const expires = new Date(data.expiresAt).getTime();
+        const totalDuration = expires - created;
+        const threshold = totalDuration * 0.1;
+
+        if (
+          data.remainingMs <= threshold &&
+          data.remainingMs > 0 &&
+          !warningTriggered
+        ) {
+          // If we load and are ALREADY in the danger zone, show it
+          setWarningTriggered(true);
+          setShowExpiryWarning(true);
+        }
       }
 
       // Session explicitly marked as invalid by server
@@ -72,7 +106,7 @@ export const GuestProvider = ({ children }) => {
       }
       // For other errors (401, network, etc.), just log and continue
     }
-  }, [isTemporaryGuest, handleSessionExpired]);
+  }, [isTemporaryGuest, handleSessionExpired, warningTriggered]);
 
   // Extend session
   const extendSession = useCallback(async () => {
@@ -85,6 +119,7 @@ export const GuestProvider = ({ children }) => {
       setSessionData(data);
       setTimeRemaining(data.remainingMs);
       setShowExpiryWarning(false);
+      setWarningTriggered(false); // Reset warning trigger on extension
 
       // Update localStorage
       const storedSession = JSON.parse(
@@ -145,20 +180,15 @@ export const GuestProvider = ({ children }) => {
 
   // Countdown timer effect
   useEffect(() => {
-    if (!isTemporaryGuest || !timeRemaining) return;
+    if (!isTemporaryGuest) return;
+
+    // Only start if we have a valid time setup or waiting for init
+    // but the interval should just run and update time
 
     countdownRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
-        if (prev <= 1000) {
-          handleSessionExpired();
-          return 0;
-        }
-
-        // Show warning when less than 5 minutes
-        if (prev <= 5 * 60 * 1000 + 1000 && prev > 5 * 60 * 1000) {
-          setShowExpiryWarning(true);
-        }
-
+        if (prev === null) return null;
+        if (prev <= 0) return 0;
         return prev - 1000;
       });
     }, 1000);
@@ -168,7 +198,45 @@ export const GuestProvider = ({ children }) => {
         clearInterval(countdownRef.current);
       }
     };
-  }, [isTemporaryGuest, timeRemaining, handleSessionExpired]);
+  }, [isTemporaryGuest]);
+
+  // Handle expiration and warning logic
+  useEffect(() => {
+    if (!isTemporaryGuest || timeRemaining === null || !sessionData) return;
+
+    // 1. Check for Expiration
+    if (timeRemaining <= 0 && !sessionExpired) {
+      handleSessionExpired();
+      return;
+    }
+
+    // 2. Check for Warning (10% of total time)
+    // We need start time to calculate total time.
+    // sessionData should have createdAt and expiresAt.
+    if (
+      sessionData.createdAt &&
+      sessionData.expiresAt &&
+      !warningTriggered &&
+      !sessionExpired
+    ) {
+      const created = new Date(sessionData.createdAt).getTime();
+      const expires = new Date(sessionData.expiresAt).getTime();
+      const totalDuration = expires - created;
+      const threshold = totalDuration * 0.1;
+
+      if (timeRemaining <= threshold && timeRemaining > 0) {
+        setWarningTriggered(true);
+        setShowExpiryWarning(true);
+      }
+    }
+  }, [
+    isTemporaryGuest,
+    timeRemaining,
+    sessionExpired,
+    warningTriggered,
+    sessionData,
+    handleSessionExpired,
+  ]);
 
   // Periodic status check (every 30 seconds)
   // Delay initial check to allow auth to settle after login
@@ -247,6 +315,8 @@ export const GuestProvider = ({ children }) => {
     setShowExpiryWarning,
     extendSession,
     convertToAccount,
+    sessionExpired,
+    cleanupGuestSession,
   };
 
   return (

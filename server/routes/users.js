@@ -34,7 +34,7 @@ router.put("/profile", async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: update },
-      { new: true }
+      { new: true },
     ).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -48,11 +48,11 @@ router.put("/profile", async (req, res) => {
 // Get storage statistics
 router.get("/storage", async (req, res) => {
   try {
-    logger.info("Fetching storage stats", { userId: req.user.id });
+    // logger.info("Fetching storage stats", { userId: req.user.id });
 
     // Get user data
     const user = await User.findById(req.user.id).select(
-      "storageUsed storageLimit"
+      "storageUsed storageLimit",
     );
     if (!user) {
       logger.error("User not found for storage stats", { userId: req.user.id });
@@ -102,8 +102,8 @@ router.get("/storage", async (req, res) => {
     const percentage = isUnlimited
       ? 0
       : storageLimit > 0
-      ? (actualStorageUsed / storageLimit) * 100
-      : 0;
+        ? (actualStorageUsed / storageLimit) * 100
+        : 0;
 
     const storageStats = {
       storageUsed: actualStorageUsed,
@@ -237,7 +237,7 @@ router.put("/change-password", async (req, res) => {
     // Verify current password
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.password
+      user.password,
     );
     if (!isPasswordValid) {
       logger.warn("Password change failed - Incorrect current password", {
@@ -365,7 +365,7 @@ router.delete("/account", async (req, res) => {
     const userUploadDir = path.join(
       __dirname,
       "../uploads",
-      user._id.toString()
+      user._id.toString(),
     );
     try {
       await fs.rm(userUploadDir, { recursive: true, force: true });
@@ -394,7 +394,7 @@ router.delete("/account", async (req, res) => {
 router.get("/storage", async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "storageUsed storageLimit lastStorageNotificationLevel role"
+      "storageUsed storageLimit lastStorageNotificationLevel role",
     );
 
     if (!user) {

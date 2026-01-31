@@ -12,6 +12,8 @@ const GuestBanner = () => {
     setShowExpiryWarning,
     setShowConvertModal,
     extendSession,
+    sessionExpired,
+    cleanupGuestSession,
   } = useGuest();
 
   const [extending, setExtending] = useState(false);
@@ -147,6 +149,33 @@ const GuestBanner = () => {
                 onClick={() => setShowExpiryWarning(false)}
               >
                 Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Expired Modal */}
+      {sessionExpired && (
+        <div className={styles.warningOverlay} style={{ zIndex: 10001 }}>
+          <div className={styles.warningModal}>
+            <div className={styles.warningIcon}>🛑</div>
+            <h3>Session Expired</h3>
+            <p>
+              Your guest session has ended. All temporary files will be deleted.
+            </p>
+            <div className={styles.warningActions}>
+              <button
+                className={styles.createAccountButton}
+                onClick={handleCreateAccount}
+              >
+                Create Account to Save Files
+              </button>
+              <button
+                className={styles.dismissButton}
+                onClick={cleanupGuestSession}
+              >
+                Dismiss & Exit
               </button>
             </div>
           </div>
