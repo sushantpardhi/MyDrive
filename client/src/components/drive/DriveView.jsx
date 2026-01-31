@@ -15,6 +15,7 @@ import CopyMoveDialog from "../files/CopyMoveDialog";
 import SelectionBar from "./SelectionBar";
 import PropertiesModal from "../files/PropertiesModal";
 import PasswordConfirmModal from "../common/PasswordConfirmModal";
+import CreateFolderModal from "../files/CreateFolderModal";
 
 // Hooks
 import { useFileOperations } from "../../hooks/useFileOperations";
@@ -123,6 +124,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // State for external drag
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
+
+  // State for create folder modal
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
 
   // Password confirmation for permanent deletion
   const {
@@ -573,8 +577,12 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     e.target.value = "";
   };
 
-  const handleCreateFolder = async () => {
-    const newFolder = await createFolder();
+  const handleCreateFolder = () => {
+    setIsCreateFolderModalOpen(true);
+  };
+
+  const handleCreateFolderSubmit = async (folderName) => {
+    const newFolder = await createFolder(folderName);
     if (newFolder) {
       setFolders((prev) => [...prev, newFolder]);
     }
@@ -1193,6 +1201,12 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onClose={handlePasswordModalClose}
         onConfirm={handlePasswordConfirm}
         message={passwordModalMessage}
+      />
+
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setIsCreateFolderModalOpen(false)}
+        onCreateFolder={handleCreateFolderSubmit}
       />
     </div>
   );
