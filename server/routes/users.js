@@ -143,6 +143,8 @@ router.get("/search", async (req, res) => {
     const users = await User.find({
       $and: [
         { _id: { $ne: req.user.id } }, // Exclude current user
+        { role: { $ne: "guest" } }, // Exclude guest users
+        { isTemporaryGuest: { $ne: true } }, // Exclude temporary guests
         {
           $or: [
             { email: new RegExp(query, "i") },
