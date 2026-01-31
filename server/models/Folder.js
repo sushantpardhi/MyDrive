@@ -13,6 +13,7 @@ const FolderSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
   trash: { type: Boolean, default: false },
   trashedAt: { type: Date },
+  isLocked: { type: Boolean, default: false },
 });
 
 // Text index for full-text search

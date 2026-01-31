@@ -67,6 +67,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     updateCurrentFolder,
     updateDriveType,
     reloadTrigger,
+    currentFolder,
+    setCurrentFolder,
   } = useDriveContext();
 
   const { selectedItems, toggleSelection, selectAll, clearSelection } =
@@ -188,6 +190,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
               return [...prev, ...newFiles];
             });
           } else {
+            setCurrentFolder(response.data.folder || null);
             setFolders(response.data.folders || []);
             setFiles(response.data.files || []);
           }
@@ -271,6 +274,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     renameItem: renameItemOperation,
     copyItem,
     moveItem,
+    toggleLock,
   } = useFileOperations(
     api,
     loadFolderContents,
@@ -370,6 +374,17 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     [displayFolders, displayFiles],
   );
 
+  // Apply inherited lock status
+  const effectiveFolders = useMemo(() => {
+    if (!currentFolder?.isLocked) return displayFolders;
+    return displayFolders.map((f) => ({ ...f, isLocked: true }));
+  }, [displayFolders, currentFolder]);
+
+  const effectiveFiles = useMemo(() => {
+    if (!currentFolder?.isLocked) return displayFiles;
+    return displayFiles.map((f) => ({ ...f, isLocked: true }));
+  }, [displayFiles, currentFolder]);
+
   // Drag and drop functionality
   const {
     isDragging,
@@ -381,7 +396,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     handleDragLeave,
     handleDrop,
     handleDragEnd,
-  } = useDragAndDrop(api, loadFolderContents, displayFolders, displayFiles);
+  } = useDragAndDrop(api, loadFolderContents, effectiveFolders, effectiveFiles);
 
   // Infinite scroll
   useInfiniteScroll({
@@ -565,6 +580,13 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     const uploadedFiles = Array.from(e.target.files || []);
     if (!uploadedFiles.length) return;
 
+    // Check if current folder is locked
+    if (currentFolder?.isLocked) {
+      toast.error("Unlock folder to upload files");
+      e.target.value = "";
+      return;
+    }
+
     const newFiles = await uploadFiles(
       uploadedFiles,
       null,
@@ -578,6 +600,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   };
 
   const handleCreateFolder = () => {
+    if (currentFolder?.isLocked) {
+      toast.error("Unlock folder to create new folders");
+      return;
+    }
     setIsCreateFolderModalOpen(true);
   };
 
@@ -763,6 +789,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         return; // Internal drag handled by useDragAndDrop hook
       }
 
+      if (currentFolder?.isLocked) {
+        toast.error("Unlock folder to upload files");
+        return;
+      }
+
       logger.info("External files dropped", {
         fileCount: e.dataTransfer.files.length,
         currentFolder: currentFolderId,
@@ -783,6 +814,16 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       }
     },
     [uploadFiles, setFiles, currentFolderId],
+  );
+
+  const handleLockToggle = useCallback(
+    async (item, itemType) => {
+      const success = await toggleLock(item, itemType);
+      if (success) {
+        await loadFolderContents(currentFolderId, 1, false);
+      }
+    },
+    [toggleLock, currentFolderId, loadFolderContents],
   );
 
   const handleExternalDragOver = useCallback((e) => {
@@ -1110,8 +1151,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         loading={loading}
         loadingMore={loadingMore}
         isSearching={isSearching}
-        folders={displayFolders}
-        files={displayFiles}
+        folders={effectiveFolders}
+        files={effectiveFiles}
         viewMode={viewMode}
         onFolderClick={handleOpenFolder}
         onFolderDelete={(id) => handleDelete(id, "folders")}
@@ -1132,6 +1173,8 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         onFileCopy={(file) => openCopyMoveDialog(file, "files", "copy")}
         onFileMove={(file) => openCopyMoveDialog(file, "files", "move")}
         onFileProperties={handleFileProperties}
+        onFileLock={(file) => handleLockToggle(file, "files")}
+        onFolderLock={(folder) => handleLockToggle(folder, "folders")}
         onToggleSelection={toggleSelection}
         onSelectAll={handleToggleSelectAll}
         type={type}

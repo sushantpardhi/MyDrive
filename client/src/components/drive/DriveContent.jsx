@@ -29,6 +29,8 @@ const DriveContent = ({
   onFileCopy,
   onFileMove,
   onFileProperties,
+  onFileLock,
+  onFolderLock,
   onToggleSelection,
   onSelectAll,
   type,
@@ -104,6 +106,8 @@ const DriveContent = ({
           onFileCopy={onFileCopy}
           onFileMove={onFileMove}
           onFileProperties={onFileProperties}
+          onFileLock={onFileLock}
+          onFolderLock={onFolderLock}
           onToggleSelection={onToggleSelection}
           type={type}
           searchQuery={searchQuery}
@@ -137,6 +141,8 @@ const DriveContent = ({
           onFileCopy={onFileCopy}
           onFileMove={onFileMove}
           onFileProperties={onFileProperties}
+          onFileLock={onFileLock}
+          onFolderLock={onFolderLock}
           onToggleSelection={onToggleSelection}
           onSelectAll={onSelectAll}
           type={type}

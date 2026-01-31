@@ -12,6 +12,7 @@ const FileSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
   trash: { type: Boolean, default: false },
   trashedAt: { type: Date },
+  isLocked: { type: Boolean, default: false },
 
   // Chunked upload metadata
   uploadMetadata: {

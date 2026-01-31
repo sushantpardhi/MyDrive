@@ -33,7 +33,9 @@ export const DriveProvider = ({ children }) => {
     // Match /drive/:folderId, /shared/:folderId, or /trash/:folderId
     const match = path.match(/^\/(drive|shared|trash)\/([a-fA-F0-9]{24})$/);
     if (match) {
-      logger.debug("DriveContext: Initializing from URL", { folderId: match[2] });
+      logger.debug("DriveContext: Initializing from URL", {
+        folderId: match[2],
+      });
       return match[2];
     }
     return "root";
@@ -53,6 +55,7 @@ export const DriveProvider = ({ children }) => {
 
   // Initialize from URL if available, otherwise root
   const [currentFolderId, setCurrentFolderId] = useState(getInitialFolderId);
+  const [currentFolder, setCurrentFolder] = useState(null); // Full folder object
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -119,7 +122,7 @@ export const DriveProvider = ({ children }) => {
       setLoading(false);
       setLoadingMore(false);
     },
-    [driveType]
+    [driveType],
   );
 
   const updateDriveType = useCallback(
@@ -135,7 +138,7 @@ export const DriveProvider = ({ children }) => {
 
       resetState();
     },
-    [resetState]
+    [resetState],
   );
 
   const addFiles = useCallback((newFiles) => {
@@ -156,18 +159,19 @@ export const DriveProvider = ({ children }) => {
 
   const updateFile = useCallback((fileId, updatedData) => {
     setFiles((prev) =>
-      prev.map((f) => (f._id === fileId ? { ...f, ...updatedData } : f))
+      prev.map((f) => (f._id === fileId ? { ...f, ...updatedData } : f)),
     );
   }, []);
 
   const updateFolder = useCallback((folderId, updatedData) => {
     setFolders((prev) =>
-      prev.map((f) => (f._id === folderId ? { ...f, ...updatedData } : f))
+      prev.map((f) => (f._id === folderId ? { ...f, ...updatedData } : f)),
     );
   }, []);
 
   const value = {
     currentFolderId,
+    currentFolder,
     folders,
     files,
     loading,
@@ -176,7 +180,9 @@ export const DriveProvider = ({ children }) => {
     hasMore,
     driveType,
     reloadTrigger,
+    setReloadTrigger,
     setFolders,
+    setCurrentFolder,
     setFiles,
     setLoading,
     setLoadingMore,

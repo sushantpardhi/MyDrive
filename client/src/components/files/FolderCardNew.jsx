@@ -15,10 +15,14 @@ import {
   Download,
   Info,
   X,
+  Search,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { formatDate, getTrashRemainingDays } from "../../utils/formatters";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import SearchHighlight from "../common/SearchHighlight";
+import { toast } from "react-toastify";
 
 const FolderCardNew = ({
   folder,
@@ -32,6 +36,7 @@ const FolderCardNew = ({
   onMove,
   onDownload,
   onProperties,
+  onLock,
   viewType = "grid",
   type = "drive",
   searchQuery = "",
@@ -55,6 +60,20 @@ const FolderCardNew = ({
   const selected = isSelected(folder._id);
   const selectedCount = getSelectedCount();
   const hasMultipleSelections = selectedCount > 1;
+
+  // Split folder name for better truncation (folders rarely have extensions, but handle it)
+  const splitName = (name) => {
+    if (!name) return { base: "", ext: "" };
+    const lastDotIndex = name.lastIndexOf(".");
+    // If no dot, or dot is first char (hidden folder), treat whole name as base
+    if (lastDotIndex <= 0) return { base: name, ext: "" };
+    return {
+      base: name.substring(0, lastDotIndex),
+      ext: name.substring(lastDotIndex),
+    };
+  };
+
+  const { base: folderBase, ext: folderExt } = splitName(folder.name);
 
   // Close menu on outside click and escape key
   useEffect(() => {
@@ -185,37 +204,68 @@ const FolderCardNew = ({
 
     return (
       <>
+        {/* Lock/Unlock */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onLock) {
+              onLock(folder);
+              setMenuOpen(false);
+            }
+          }}
+          className={styles.menuItem}
+        >
+          {folder.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
+          <span>{folder.isLocked ? "Unlock" : "Lock"}</span>
+        </button>
+
         <button
           onClick={() => {
+            if (folder.isLocked) {
+              toast.error("Unlock item to rename");
+              return;
+            }
             onRename?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
+          className={`${styles.menuItem} ${folder.isLocked ? styles.disabled : ""}`}
         >
           <Edit3 size={16} />
           <span>Rename</span>
         </button>
+
         <button
           onClick={() => {
+            if (folder.isLocked) {
+              toast.error("Unlock item to copy");
+              return;
+            }
             onCopy?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
+          className={`${styles.menuItem} ${folder.isLocked ? styles.disabled : ""}`}
         >
           <Copy size={16} />
           <span>Copy</span>
         </button>
+
         <button
           onClick={() => {
+            if (folder.isLocked) {
+              toast.error("Unlock item to move");
+              return;
+            }
             onMove?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
+          className={`${styles.menuItem} ${folder.isLocked ? styles.disabled : ""}`}
         >
           <Move size={16} />
           <span>Move</span>
         </button>
+
         <div className={styles.menuDivider} />
+
         <button
           onClick={() => {
             onDownload?.();
@@ -226,6 +276,7 @@ const FolderCardNew = ({
           <Download size={16} />
           <span>Download</span>
         </button>
+
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -247,13 +298,19 @@ const FolderCardNew = ({
           <Info size={16} />
           <span>Properties</span>
         </button>
+
         <div className={styles.menuDivider} />
+
         <button
           onClick={() => {
+            if (folder.isLocked) {
+              toast.error("Unlock item to delete");
+              return;
+            }
             onDelete();
             setMenuOpen(false);
           }}
-          className={styles.menuItemDanger}
+          className={`${styles.menuItemDanger} ${folder.isLocked ? styles.disabled : ""}`}
         >
           <Trash2 size={16} />
           <span>Move to Trash</span>
@@ -287,15 +344,33 @@ const FolderCardNew = ({
       {/* Main Content */}
       <div className={styles.content} onClick={handleCardClick}>
         <div className={styles.icon}>
-          <Folder size={viewType === "grid" ? 28 : 20} />
+          <div className={styles.folderIconWrapper}>
+            <Folder size={viewType === "grid" ? 28 : 20} />
+            {folder.isLocked && (
+              <div className={styles.lockIconOverlay} title="Locked">
+                <Lock size={12} />
+              </div>
+            )}
+          </div>
         </div>
         <div className={styles.info}>
           <div className={styles.name} title={folder.name}>
-            <SearchHighlight
-              text={folder.name}
-              searchTerm={searchQuery}
-              searchMeta={folder._searchMeta}
-            />
+            <div className={styles.folderNameRow}>
+              {searchQuery ? (
+                <SearchHighlight
+                  text={folder.name}
+                  searchTerm={searchQuery}
+                  searchMeta={folder._searchMeta}
+                />
+              ) : (
+                <>
+                  <span className={styles.nameBase}>{folderBase}</span>
+                  {folderExt && (
+                    <span className={styles.nameExt}>{folderExt}</span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           <div className={styles.meta}>
             <span className={styles.date}>

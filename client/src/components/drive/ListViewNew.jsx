@@ -24,6 +24,8 @@ const ListViewNew = ({
   onFileCopy,
   onFileMove,
   onFileProperties,
+  onFileLock,
+  onFolderLock,
   onToggleSelection,
   onSelectAll,
   type,
@@ -90,6 +92,7 @@ const ListViewNew = ({
                   onMove={() => onFolderMove(folder)}
                   onDownload={() => onFolderDownload(folder._id, folder.name)}
                   onProperties={() => onFolderProperties(folder)}
+                  onLock={() => onFolderLock(folder)}
                   selected={selectedItems.has(folder._id)}
                   onSelect={() => onToggleSelection(folder._id)}
                   viewType="list"
@@ -156,6 +159,7 @@ const ListViewNew = ({
                   onCopy={() => onFileCopy(file)}
                   onMove={() => onFileMove(file)}
                   onProperties={() => onFileProperties(file)}
+                  onLock={() => onFileLock(file)}
                   selected={selectedItems.has(file._id)}
                   onSelect={() => onToggleSelection(file._id)}
                   viewType="list"

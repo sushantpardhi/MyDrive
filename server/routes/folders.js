@@ -14,6 +14,7 @@ const emailService = require("../utils/emailService");
 const ZipStreamService = require("../utils/zipStreamService");
 const DownloadHelpers = require("../utils/downloadHelpers");
 const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
+const { checkLockStatus } = require("../utils/lockHelpers");
 
 const router = express.Router();
 
@@ -162,8 +163,6 @@ router.get("/:folderId", async (req, res) => {
       query = {
         parent: folderId,
         trash: { $ne: true },
-        // For shared folders, show items that are shared with the user
-        shared: req.user.id,
       };
     } else {
       query = {
@@ -227,6 +226,7 @@ router.get("/:folderId", async (req, res) => {
     }
 
     res.json({
+      folder: folderId ? await Folder.findById(folderId) : null, // Send current folder metadata
       folders,
       files,
       pagination: {
@@ -482,6 +482,27 @@ router.delete("/:id", async (req, res) => {
         .json({ error: "You can only delete items you own" });
     }
 
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
+    }
+
+    // Check for locked descendants (prevention of accidental deletion)
+    const { hasLockedDescendants } = require("../utils/lockHelpers");
+    const containsLockedItems = await hasLockedDescendants(id);
+    if (containsLockedItems) {
+      return res.status(403).json({
+        error: "Cannot delete folder because it contains locked items",
+      });
+    }
+
     if (permanent) {
       // Permanently delete - first delete all files recursively
       await deleteFilesRecursively(id, req.user.id);
@@ -546,6 +567,18 @@ router.put("/:id/rename", async (req, res) => {
         .json({ error: "You can only rename items you own" });
     }
 
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
+    }
+
     // Check if folder with same name exists in the same parent
     const existingFolder = await Folder.findOne({
       name: name.trim(),
@@ -569,6 +602,50 @@ router.put("/:id/rename", async (req, res) => {
   }
 });
 
+// Lock folder
+router.post("/:id/lock", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Folder.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "Folder not found" });
+    }
+
+    if (item.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    item.isLocked = true;
+    await item.save();
+    res.json({ message: "Folder locked", item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unlock folder
+router.post("/:id/unlock", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Folder.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "Folder not found" });
+    }
+
+    if (item.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    item.isLocked = false;
+    await item.save();
+    res.json({ message: "Folder unlocked", item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Copy folder (recursive)
 router.post("/:id/copy", async (req, res) => {
   try {
@@ -586,6 +663,18 @@ router.post("/:id/copy", async (req, res) => {
       sourceFolder.shared.includes(req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(sourceFolder);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== sourceFolder._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
     }
 
     // If parent is specified, check if user has access to target folder
@@ -741,6 +830,18 @@ router.put("/:id/move", async (req, res) => {
     // Check if user is the owner
     if (item.owner.toString() !== req.user.id) {
       return res.status(403).json({ error: "You can only move items you own" });
+    }
+
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
     }
 
     // If moving to a specific folder, validate it exists and user has access
