@@ -55,13 +55,13 @@ jobs:
           export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
           export REACT_APP_SHOW_DEV_BANNER=true
           npm install
-          pm2 stop dev-frontend-3001 || true
           npm run build
 
       - name: Restart frontend
         run: |
           set -e
           cd /home/sushant/app/dev/MyDrive/client
+          pm2 delete dev-frontend-3001 || true
           pm2 start serve --name dev-frontend-3001 -- -s build -l 3001
 
   deploy-image-worker:
