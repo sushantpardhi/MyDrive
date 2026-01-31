@@ -247,6 +247,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     failDownload: transferContext.failDownload,
     cancelDownload: transferContext.cancelDownload,
     resetProgress: transferContext.resetDownloadProgress,
+    registerXhr: transferContext.registerXhr,
+    unregisterXhr: transferContext.unregisterXhr,
+    registerChunkService: transferContext.registerDownloadChunkService,
+    unregisterChunkService: transferContext.unregisterDownloadChunkService,
   };
 
   // Warn user before leaving page during active uploads
