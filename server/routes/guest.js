@@ -52,7 +52,7 @@ router.post("/", async (req, res) => {
 
     // Generate unique guest identifier
     const guestId = uuidv4().slice(0, 8);
-    const guestEmail = `guest_${guestId}@temp.mydrive.local`;
+    const guestEmail = `guest${guestId}@sushantpardhi.in`;
     const guestName = `Guest ${guestId}`;
     const tempPassword = uuidv4(); // Random password, won't be used for login
 

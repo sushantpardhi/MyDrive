@@ -6,11 +6,12 @@ import api from "../../services/api";
 import { formatFileSize } from "../../utils/formatters";
 import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 import logger from "../../utils/logger";
-import { useUIContext } from "../../contexts";
+import { useUIContext, useAuth } from "../../contexts";
 
 const Sidebar = ({ onClose }) => {
   const location = useLocation();
   const { storageRefreshTrigger } = useUIContext();
+  const { user } = useAuth();
 
   const mainMenu = [
     { name: "My Drive", icon: <Home size={18} />, path: "/drive" },
@@ -19,15 +20,8 @@ const Sidebar = ({ onClose }) => {
   ];
 
   const [storage, setStorage] = useState({ used: 0, total: 0 });
-  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Get user info from localStorage
-    const userInfo = localStorage.getItem("user");
-    if (userInfo) {
-      setUser(JSON.parse(userInfo));
-    }
-
     // Fetch storage info from backend
     async function getStorageInfo() {
       try {
@@ -71,8 +65,8 @@ const Sidebar = ({ onClose }) => {
   const usedPercent = isUnlimited
     ? 0
     : storage.total > 0
-    ? ((storage.used / storage.total) * 100).toFixed(1)
-    : 0;
+      ? ((storage.used / storage.total) * 100).toFixed(1)
+      : 0;
 
   // const handleLogout = () => {
   //   api.logout();

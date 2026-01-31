@@ -62,6 +62,12 @@ export const AuthProvider = ({ children }) => {
     logger.logAuth("logout", userId, "User logged out");
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    logger.debug("User state updated", { userId: userData.id });
+  };
+
   const isAuthenticated = () => {
     // Check both React state and localStorage for immediate auth after login
     return !!token || !!localStorage.getItem("token");
@@ -80,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    updateUser,
     isAuthenticated,
     clearUserSettings,
     isAdmin: () => user?.role === "admin",
