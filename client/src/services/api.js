@@ -338,6 +338,11 @@ const api = {
   renameFolder: (folderId, name) =>
     axios.put(`${API_URL}/folders/${folderId}/rename`, { name }),
 
+  // Lock operations
+  lockItem: (type, id) => axios.post(`${API_URL}/${type}/${id}/lock`),
+
+  unlockItem: (type, id) => axios.post(`${API_URL}/${type}/${id}/unlock`),
+
   // Copy operations
   copyFile: (fileId, parent, name) =>
     axios.post(`${API_URL}/files/${fileId}/copy`, { parent, name }),

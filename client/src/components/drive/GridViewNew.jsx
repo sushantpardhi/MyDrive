@@ -24,6 +24,8 @@ const GridViewNew = ({
   onFileCopy,
   onFileMove,
   onFileProperties,
+  onFileLock,
+  onFolderLock,
   onToggleSelection,
   type,
   searchQuery = "",
@@ -60,6 +62,7 @@ const GridViewNew = ({
                 onMove={() => onFolderMove(folder)}
                 onDownload={() => onFolderDownload(folder._id, folder.name)}
                 onProperties={() => onFolderProperties(folder)}
+                onLock={() => onFolderLock(folder)}
                 selected={selectedItems.has(folder._id)}
                 onSelect={(e) => onToggleSelection(folder._id, e)}
                 viewType="grid"
@@ -98,6 +101,7 @@ const GridViewNew = ({
                 onCopy={() => onFileCopy(file)}
                 onMove={() => onFileMove(file)}
                 onProperties={() => onFileProperties(file)}
+                onLock={() => onFileLock(file)}
                 selected={selectedItems.has(file._id)}
                 onSelect={(e) => onToggleSelection(file._id, e)}
                 viewType="grid"

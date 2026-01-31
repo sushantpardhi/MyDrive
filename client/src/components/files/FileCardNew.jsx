@@ -20,6 +20,8 @@ import {
   FileCode,
   Info,
   X,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import {
   formatFileSize as formatSize,
@@ -35,6 +37,7 @@ import api from "../../services/api";
 import logger from "../../utils/logger";
 import useLazyLoad from "../../hooks/useLazyLoad";
 import { getCachedImage, setCachedImage } from "../../utils/imageCache";
+import { toast } from "react-toastify";
 
 const FileCardNew = ({
   file,
@@ -48,6 +51,7 @@ const FileCardNew = ({
   onCopy,
   onMove,
   onProperties,
+  onLock,
   viewType = "grid",
   type = "drive",
   searchQuery = "",
@@ -486,32 +490,65 @@ const FileCardNew = ({
           <Download size={16} />
           <span>Download</span>
         </button>
+        {/* Lock/Unlock */}
         <button
-          onClick={() => {
+          className={styles.menuItem}
+          onClick={(e) => {
+            e.stopPropagation();
+            onLock(safeFile);
+            setMenuOpen(false);
+          }}
+        >
+          {safeFile.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
+          <span>{safeFile.isLocked ? "Unlock" : "Lock"}</span>
+        </button>
+
+        {/* Rename - Disabled if locked */}
+        <button
+          className={`${styles.menuItem} ${safeFile.isLocked ? styles.disabled : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (safeFile.isLocked) {
+              toast.error("Unlock item to rename");
+              return;
+            }
             onRename?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
         >
           <Edit3 size={16} />
           <span>Rename</span>
         </button>
+
+        {/* Copy - Disabled if locked */}
         <button
-          onClick={() => {
+          className={`${styles.menuItem} ${safeFile.isLocked ? styles.disabled : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (safeFile.isLocked) {
+              toast.error("Unlock item to copy");
+              return;
+            }
             onCopy?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
         >
           <Copy size={16} />
           <span>Copy</span>
         </button>
+
+        {/* Move - Disabled if locked */}
         <button
-          onClick={() => {
+          className={`${styles.menuItem} ${safeFile.isLocked ? styles.disabled : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (safeFile.isLocked) {
+              toast.error("Unlock item to move");
+              return;
+            }
             onMove?.();
             setMenuOpen(false);
           }}
-          className={styles.menuItem}
         >
           <Move size={16} />
           <span>Move</span>
@@ -539,10 +576,14 @@ const FileCardNew = ({
         </button>
         <button
           onClick={() => {
+            if (safeFile.isLocked) {
+              toast.error("Unlock item to delete");
+              return;
+            }
             onDelete();
             setMenuOpen(false);
           }}
-          className={styles.menuItemDanger}
+          className={`${styles.menuItemDanger} ${safeFile.isLocked ? styles.disabled : ""}`}
         >
           <Trash2 size={16} />
           <span>Move to Trash</span>
@@ -575,14 +616,25 @@ const FileCardNew = ({
 
       {/* Main Content */}
       <div className={styles.content} onClick={handleCardClick}>
-        <div className={styles.icon}>{renderThumbnail()}</div>
+        <div className={styles.icon}>
+          <div className={styles.fileIconWrapper}>
+            {renderThumbnail()}
+            {safeFile.isLocked && (
+              <div className={styles.lockIconOverlay} title="Locked">
+                <Lock size={12} />
+              </div>
+            )}
+          </div>
+        </div>
         <div className={styles.info}>
           <div className={styles.name} title={safeFile.name}>
-            <SearchHighlight
-              text={safeFile.name}
-              searchTerm={searchQuery}
-              searchMeta={safeFile._searchMeta}
-            />
+            <div className={styles.fileNameRow}>
+              <SearchHighlight
+                text={safeFile.name}
+                searchTerm={searchQuery}
+                searchMeta={safeFile._searchMeta}
+              />
+            </div>
           </div>
           <div className={styles.meta}>
             <span className={styles.size}>{formatSize(safeFile.size)}</span>

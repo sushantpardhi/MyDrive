@@ -1169,6 +1169,32 @@ export const useFileOperations = (
     [api],
   );
 
+  const toggleLock = useCallback(
+    async (item, itemType) => {
+      try {
+        const type = itemType === "files" ? "files" : "folders";
+        const action = item.isLocked ? "unlock" : "lock";
+
+        if (action === "lock") {
+          await api.lockItem(type, item._id);
+          toast.success("Item locked successfully");
+        } else {
+          await api.unlockItem(type, item._id);
+          toast.success("Item unlocked successfully");
+        }
+
+        return true;
+      } catch (error) {
+        logger.error("Lock toggle failed", { id: item._id, error });
+        toast.error(
+          error.response?.data?.error || "Failed to update lock status",
+        );
+        return false;
+      }
+    },
+    [api],
+  );
+
   return {
     createFolder,
     uploadFiles,
@@ -1187,6 +1213,7 @@ export const useFileOperations = (
     getActiveUploads,
     getActiveDownloads,
     resumeChunkedUpload,
+    toggleLock,
     uploadLoading,
     deleteLoading,
   };

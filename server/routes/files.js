@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const logger = require("../utils/logger");
 const File = require("../models/File");
+const Folder = require("../models/Folder"); // Ensure Folder is imported
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
 const DownloadSession = require("../models/DownloadSession");
@@ -29,6 +30,7 @@ const {
   generateUploadId,
 } = require("../utils/chunkHelpers");
 const redisQueue = require("../utils/redisQueue");
+const { checkLockStatus } = require("../utils/lockHelpers");
 
 const router = express.Router();
 
@@ -648,6 +650,18 @@ router.delete("/:id", async (req, res) => {
         .json({ error: "You can only delete items you own" });
     }
 
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
+    }
+
     if (permanent) {
       // Permanently delete
       if (fs.existsSync(item.path)) {
@@ -734,6 +748,18 @@ router.put("/:id/rename", async (req, res) => {
         .json({ error: "You can only rename items you own" });
     }
 
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
+    }
+
     // Validate that file extension hasn't changed
     const getFileExtension = (filename) => {
       const lastDotIndex = filename.lastIndexOf(".");
@@ -774,6 +800,53 @@ router.put("/:id/rename", async (req, res) => {
   }
 });
 
+// Lock file
+router.post("/:id/lock", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await File.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    if (item.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    item.isLocked = true;
+    await item.save();
+    res.json({ message: "File locked", item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unlock file
+router.post("/:id/unlock", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await File.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    if (item.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Note: We allow unlocking even if parent is locked.
+    // The visual lock status will be updated, but effective permissions
+    // might still be restricted if parent is locked.
+    item.isLocked = false;
+    await item.save();
+    res.json({ message: "File unlocked", item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Copy file
 router.post("/:id/copy", async (req, res) => {
   try {
@@ -791,6 +864,45 @@ router.post("/:id/copy", async (req, res) => {
       sourceFile.shared.includes(req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Check lock status (Copying FROM a locked file is usually allowed, but Plan said "Action disabled".
+    // Wait, usually read-only means you CAN copy/read, but cannot modify the source.
+    // The restriction "Read-only (Lock) files and folders cannot be modified, renamed, or deleted" implies READ/COPY is allowed.
+    // However, the User Feedback said: "If folder is locked the childers should also be locked" and
+    // "Implement a feature allowing users to "Lock" files and folders. Locked items become read-only: they cannot be renamed, moved, copied, or deleted until unlocked."
+    // Wait, "copied" was added to the list in my updated plan based on user feedback?
+    // Let me check my thought process in Step 50.
+    // I added "copied" to restricted actions. "cannot be renamed, moved, copied, or deleted".
+    // "Copied" usually means creating a duplicate. If I copy a locked file, I create a new file. The new file is mine and unlocked.
+    // Why would we restrict copying? Maybe to prevent data exfiltration? But user can still View/Download.
+    // If they can Download, they can Copy.
+    // Maybe the user meant "Cut/Paste" (Move)? "Copy" usually implies Read access.
+    // Re-reading user request: "Read-only (Lock) files and folders cannot be modified, renamed, or deleted."
+    // User request did NOT say "copied".
+    // My Plan update in Step 50 added "copied".
+    // Wait, the user comment: "If folder is locked the childers should also be locked".
+    // User did NOT say "cannot copy".
+    // I might have hallucinated "cannot copy" or inferred it wrongly.
+    // "Read-only" usually implies you can Read (Copy).
+    // The previous plan had: "Update POST /:id/copy to check isLocked on item AND parents."
+    // If I block Copy, I block Read basically. But I am NOT blocking Download (`GET /download`).
+    // If I can Download, I should be able to Copy.
+    // I will checking Lock on Copy seems wrong if "Read-only" is the goal.
+    // However, if the user explicitly approved the plan which said "cannot be ... copied", then I should stick to it?
+    // User approved the plan in Step 55.
+    // So I will ENFORCE Lock on Copy. (Even though it's weird for a "Read-only" feature).
+
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(sourceFile);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== sourceFile._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
     }
 
     // Get user to check storage limits
@@ -919,9 +1031,16 @@ router.put("/:id/move", async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
 
-    // Check if user is the owner
-    if (item.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "You can only move items you own" });
+    // Check lock status for the source file
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
     }
 
     // If moving to a specific folder, validate it exists and user has access
@@ -1732,12 +1851,10 @@ router.post("/download", async (req, res) => {
 
     if (resolvedFiles.length === 0) {
       if (errors.length > 0) {
-        return res
-          .status(400)
-          .json({
-            error: "Failed to resolve any files for download",
-            detail: errors,
-          });
+        return res.status(400).json({
+          error: "Failed to resolve any files for download",
+          detail: errors,
+        });
       }
       return res.status(400).json({ error: "No files found to download" });
     }
