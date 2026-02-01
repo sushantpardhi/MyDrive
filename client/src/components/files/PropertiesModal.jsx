@@ -203,25 +203,25 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
           renderProperty(
             "Upload Method",
             `Chunked (${metadata.totalChunks} chunks)`,
-            <Info size={16} />
+            <Info size={16} />,
           )}
         {metadata.uploadStats?.uploadDuration &&
           renderProperty(
             "Upload Duration",
             `${(metadata.uploadStats.uploadDuration / 1000).toFixed(2)}s`,
-            <Clock size={16} />
+            <Clock size={16} />,
           )}
         {metadata.uploadStats?.averageSpeed &&
           renderProperty(
             "Average Speed",
             `${formatFileSize(metadata.uploadStats.averageSpeed)}/s`,
-            <HardDrive size={16} />
+            <HardDrive size={16} />,
           )}
         {metadata.uploadStats?.totalRetries > 0 &&
           renderProperty(
             "Retries",
             metadata.uploadStats.totalRetries,
-            <Info size={16} />
+            <Info size={16} />,
           )}
       </>
     );
@@ -273,14 +273,14 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
                   renderProperty(
                     "Type",
                     getFileType(details.name),
-                    <File size={16} />
+                    <File size={16} />,
                   )}
                 {itemType === "file" &&
                   details?.size !== undefined &&
                   renderProperty(
                     "Size",
                     formatFileSize(details.size),
-                    <HardDrive size={16} />
+                    <HardDrive size={16} />,
                   )}
                 {itemType === "folder" && stats && (
                   <>
@@ -289,13 +289,13 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
                       `${stats.fileCount || 0} ${
                         stats.fileCount === 1 ? "item" : "items"
                       }`,
-                      <File size={16} />
+                      <File size={16} />,
                     )}
                     {stats.totalSize > 0 &&
                       renderProperty(
                         "Total Size",
                         formatFileSize(stats.totalSize),
-                        <HardDrive size={16} />
+                        <HardDrive size={16} />,
                       )}
                   </>
                 )}
@@ -303,13 +303,13 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
                   renderProperty(
                     "Created",
                     formatDate(details.createdAt),
-                    <Calendar size={16} />
+                    <Calendar size={16} />,
                   )}
                 {details?.updatedAt &&
                   renderProperty(
                     "Modified",
                     formatDate(details.updatedAt),
-                    <Calendar size={16} />
+                    <Calendar size={16} />,
                   )}
               </div>
             </div>
@@ -359,7 +359,7 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
                   {renderProperty(
                     "Trashed",
                     formatDate(details.trashedAt),
-                    <Calendar size={16} />
+                    <Calendar size={16} />,
                   )}
                 </div>
               </div>

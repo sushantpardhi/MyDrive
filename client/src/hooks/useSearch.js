@@ -6,7 +6,12 @@ import logger from "../utils/logger";
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
 const MAX_HISTORY_ITEMS = 10;
 
-export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
+export const useSearch = (
+  api,
+  loadFolderContents,
+  itemsPerPage = 50,
+  section = "drive",
+) => {
   const { currentFolderId } = useDriveContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -104,7 +109,8 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
           searchQuery,
           1,
           itemsPerPage,
-          searchFilters
+          searchFilters,
+          section,
         );
         logger.debug("Search response received", {
           folderCount: response.data.folders?.length,
@@ -137,7 +143,7 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage]);
+  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage, section]);
 
   // Clear search without triggering a reload (used when navigating to folders)
   const clearSearchForNavigation = () => {
@@ -185,7 +191,8 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         searchQuery,
         nextPage,
         itemsPerPage,
-        searchFilters
+        searchFilters,
+        section,
       );
 
       // Filter out duplicates when appending search results
@@ -193,13 +200,13 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         folders: [
           ...prev.folders,
           ...(response.data.folders || []).filter(
-            (f) => !prev.folders.some((existing) => existing._id === f._id)
+            (f) => !prev.folders.some((existing) => existing._id === f._id),
           ),
         ],
         files: [
           ...prev.files,
           ...(response.data.files || []).filter(
-            (f) => !prev.files.some((existing) => existing._id === f._id)
+            (f) => !prev.files.some((existing) => existing._id === f._id),
           ),
         ],
       }));
