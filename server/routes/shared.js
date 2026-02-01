@@ -147,8 +147,12 @@ router.get("/search", async (req, res) => {
     if (dateStart) searchParams.dateRange.start = dateStart;
     if (dateEnd) searchParams.dateRange.end = dateEnd;
 
-    // Check if file type filters are applied
+    // Check if any filters are applied (file type, size, or date)
+    // Folders should only appear when no filters are active
     const hasFileTypeFilter = searchParams.fileTypes.length > 0;
+    const hasSizeFilter = sizeMin || sizeMax;
+    const hasDateFilter = dateStart || dateEnd;
+    const hasAnyFilter = hasFileTypeFilter || hasSizeFilter || hasDateFilter;
 
     // Build query for files and folders
     let fileSearchQuery;
@@ -171,9 +175,10 @@ router.get("/search", async (req, res) => {
     }
     // For trash, the buildSearchQuery already sets trash: true
 
-    // Only build folder query if no file type filters are applied
+    // Only build folder query if no filters are applied
+    // Folders should only appear in unfiltered results
     let folderSearchQuery = null;
-    if (!hasFileTypeFilter) {
+    if (!hasAnyFilter) {
       folderSearchQuery = {
         trash: section === "trash",
       };

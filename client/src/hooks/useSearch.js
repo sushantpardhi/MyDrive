@@ -4,6 +4,7 @@ import { useDriveContext } from "../contexts/DriveContext";
 import logger from "../utils/logger";
 
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
+const SEARCH_FILTERS_KEY = "myDriveSearchFilters";
 const MAX_HISTORY_ITEMS = 10;
 
 export const useSearch = (
@@ -21,14 +22,31 @@ export const useSearch = (
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [searchFilters, setSearchFilters] = useState({
-    fileTypes: [],
-    sizeMin: "",
-    sizeMax: "",
-    dateStart: "",
-    dateEnd: "",
-    sortBy: "createdAt",
-    sortOrder: "desc",
+  const [searchFilters, setSearchFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SEARCH_FILTERS_KEY);
+      return saved
+        ? JSON.parse(saved)
+        : {
+            fileTypes: [],
+            sizeMin: "",
+            sizeMax: "",
+            dateStart: "",
+            dateEnd: "",
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          };
+    } catch {
+      return {
+        fileTypes: [],
+        sizeMin: "",
+        sizeMax: "",
+        dateStart: "",
+        dateEnd: "",
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      };
+    }
   });
   const [searchHistory, setSearchHistory] = useState(() => {
     try {
@@ -171,7 +189,7 @@ export const useSearch = (
   };
 
   const clearFilters = () => {
-    setSearchFilters({
+    const defaultFilters = {
       fileTypes: [],
       sizeMin: "",
       sizeMax: "",
@@ -179,8 +197,18 @@ export const useSearch = (
       dateEnd: "",
       sortBy: "createdAt",
       sortOrder: "desc",
-    });
+    };
+    setSearchFilters(defaultFilters);
   };
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEARCH_FILTERS_KEY, JSON.stringify(searchFilters));
+    } catch (error) {
+      logger.error("Failed to save search filters to localStorage", error);
+    }
+  }, [searchFilters]);
 
   const loadMoreSearchResults = async () => {
     if (!hasMore || isSearching) return;
