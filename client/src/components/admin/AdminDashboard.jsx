@@ -129,6 +129,7 @@ const AdminDashboard = () => {
   const [showCustomizer, setShowCustomizer] = useState(false);
 
   const [layouts, setLayouts] = useState({ lg: [] });
+  const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
 
   // Get visible widgets from preferences or use defaults
   const visibleWidgets = useMemo(() => {
@@ -182,7 +183,7 @@ const AdminDashboard = () => {
 
       // Update state if different
       if (JSON.stringify(newLayout) !== JSON.stringify(currentLayout)) {
-        setLayouts({ lg: newLayout });
+        setLayouts((prev) => ({ ...prev, lg: newLayout }));
       }
     } else {
       // No saved layout, generate default for all visible widgets
@@ -199,23 +200,30 @@ const AdminDashboard = () => {
         };
       });
       if (JSON.stringify(generatedLayout) !== JSON.stringify(layouts.lg)) {
-        setLayouts({ lg: generatedLayout });
+        setLayouts((prev) => ({ ...prev, lg: generatedLayout }));
       }
     }
   }, [dashboardPreferences, visibleWidgets]); // Removed layouts.lg dependency to avoid loops
 
-  const onLayoutChange = (currentLayout) => {
-    // Only save if meaningful changes (debouncing could be added here)
-    // We update the local state immediately
-    setLayouts({ lg: currentLayout });
+  const onLayoutChange = (currentLayout, allLayouts) => {
+    // Update local state with ALL layouts to preserve state across breakpoints
+    setLayouts(allLayouts);
   };
 
-  const handleLayoutSave = async (newLayout) => {
-    // Filter layout items to only include current visible widgets to avoid saving ghosts
-    // But we actually want to persist position of EVERYTHING even if hidden?
-    // No, usually we only care about what's visible. But if we hide and show, we might lose position.
-    // For now, let's just save the current layout configuration.
-    const simplifiedLayout = newLayout.map(({ i, x, y, w, h }) => ({
+  const handleLayoutSave = async (layoutToSave) => {
+    // Only save to DB if we are on the main desktop breakpoint (lg)
+    // This prevents mobile layouts (1 column) from overwriting the desktop configuration
+    if (currentBreakpoint !== "lg") {
+      return;
+    }
+
+    // layoutToSave comes from onDragStop/onResizeStop which passes the current layout array.
+    // If not passed (e.g. manual call), use layouts.lg
+    const targetLayout = Array.isArray(layoutToSave)
+      ? layoutToSave
+      : layouts.lg;
+
+    const simplifiedLayout = targetLayout.map(({ i, x, y, w, h }) => ({
       i,
       x,
       y,
@@ -590,10 +598,8 @@ const AdminDashboard = () => {
         cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
         rowHeight={100}
         draggableHandle=".drag-handle"
-        onLayoutChange={(layout) => {
-          onLayoutChange(layout);
-          // Auto-save on drag stop
-        }}
+        onBreakpointChange={setCurrentBreakpoint}
+        onLayoutChange={onLayoutChange}
         onDragStop={handleLayoutSave}
         onResizeStop={handleLayoutSave}
         resizeHandle={<ResizeHandle />}
