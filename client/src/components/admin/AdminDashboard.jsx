@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts";
 import { formatFileSize } from "../../utils/formatters";
 import logger from "../../utils/logger";
 import styles from "./AdminDashboard.module.css";
+import LoadingSpinner from "../common/LoadingSpinner";
 import DashboardCustomizer, {
   DEFAULT_VISIBLE_WIDGETS,
 } from "./DashboardCustomizer";
@@ -130,6 +131,7 @@ const AdminDashboard = () => {
 
   const [layouts, setLayouts] = useState({ lg: [] });
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
+  const [prefsLoading, setPrefsLoading] = useState(true);
 
   // Get visible widgets from preferences or use defaults
   const visibleWidgets = useMemo(() => {
@@ -252,8 +254,18 @@ const AdminDashboard = () => {
       return;
     }
 
-    loadStats();
-    fetchDashboardPreferences();
+    const initDashboard = async () => {
+      setPrefsLoading(true);
+      try {
+        await Promise.all([loadStats(), fetchDashboardPreferences()]);
+      } catch (error) {
+        logger.error("Error initializing dashboard", { error });
+      } finally {
+        setPrefsLoading(false);
+      }
+    };
+
+    initDashboard();
   }, [user]);
 
   const loadStats = async () => {
@@ -591,149 +603,158 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Grid - Replaced with ResponsiveGridLayout */}
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={layouts}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
-        rowHeight={100}
-        draggableHandle=".drag-handle"
-        onBreakpointChange={setCurrentBreakpoint}
-        onLayoutChange={onLayoutChange}
-        onDragStop={handleLayoutSave}
-        onResizeStop={handleLayoutSave}
-        resizeHandle={<ResizeHandle />}
-      >
-        {/* Storage Capacity Gauge */}
-        {isWidgetVisible("storageCapacity") && (
-          <div key="storageCapacity" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <StorageCapacityGauge storageStats={storageStats} />
-          </div>
-        )}
-
-        {/* User Distribution */}
-        {isWidgetVisible("userDistribution") && (
-          <div key="userDistribution" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <UserDistributionChart userStats={userStats} />
-          </div>
-        )}
-
-        {/* Top File Types */}
-        {isWidgetVisible("topFileTypes") && (
-          <div key="topFileTypes" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <TopFileTypesChart
-              fileTypes={fileTypes}
-              getFileTypeLabel={getFileTypeLabel}
-            />
-          </div>
-        )}
-
-        {/* Storage Trend (30 Days) */}
-        {isWidgetVisible("storageTrend") && (
-          <div key="storageTrend" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <StorageTrendChart storageTrendData={storageTrendData} />
-          </div>
-        )}
-
-        {/* Top Storage Users */}
-        {isWidgetVisible("topStorageUsers") && (
-          <div key="topStorageUsers" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <TopStorageUsersChart storageByUserData={storageByUserData} />
-          </div>
-        )}
-
-        {/* File Size Distribution */}
-        {isWidgetVisible("fileSizeDistribution") && (
-          <div key="fileSizeDistribution" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <FileSizeDistributionChart
-              fileSizeDistribution={fileSizeDistribution}
-            />
-          </div>
-        )}
-
-        {/* Activity Timeline */}
-        {isWidgetVisible("activityTimeline") && (
-          <div key="activityTimeline" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <ActivityTimelineChart
-              activityTimelineData={activityTimelineData}
-            />
-          </div>
-        )}
-
-        {/* Storage by File Type */}
-        {isWidgetVisible("storageByFileType") && (
-          <div key="storageByFileType" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <StorageByFileTypeChart
-              storageByFileTypeData={storageByFileTypeData}
-            />
-          </div>
-        )}
-
-        {/* User Growth Trend (30 Days) */}
-        {isWidgetVisible("userGrowthTrend") && systemStats?.userGrowthTrend && (
-          <div key="userGrowthTrend" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <UserGrowthTrendChart
-              userGrowthData={systemStats.userGrowthTrend}
-            />
-          </div>
-        )}
-
-        {/* Upload Patterns by Hour */}
-        {isWidgetVisible("uploadPatternsByHour") &&
-          systemStats?.uploadPatternsByHour && (
-            <div key="uploadPatternsByHour" className={styles.gridItem}>
+      {prefsLoading || (loading && !systemStats) ? (
+        <div className={styles.loadingContainer}>
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
+          rowHeight={100}
+          draggableHandle=".drag-handle"
+          onBreakpointChange={setCurrentBreakpoint}
+          onLayoutChange={onLayoutChange}
+          onDragStop={handleLayoutSave}
+          onResizeStop={handleLayoutSave}
+          resizeHandle={<ResizeHandle />}
+        >
+          {/* Storage Capacity Gauge */}
+          {isWidgetVisible("storageCapacity") && (
+            <div key="storageCapacity" className={styles.gridItem}>
               <div className={`${styles.dragHandle} drag-handle`}>::</div>
-              <UploadPatternsByHourChart
-                uploadPatternData={systemStats.uploadPatternsByHour}
+              <StorageCapacityGauge storageStats={storageStats} />
+            </div>
+          )}
+
+          {/* User Distribution */}
+          {isWidgetVisible("userDistribution") && (
+            <div key="userDistribution" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <UserDistributionChart userStats={userStats} />
+            </div>
+          )}
+
+          {/* Top File Types */}
+          {isWidgetVisible("topFileTypes") && (
+            <div key="topFileTypes" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <TopFileTypesChart
+                fileTypes={fileTypes}
+                getFileTypeLabel={getFileTypeLabel}
               />
             </div>
           )}
 
-        {/* Storage Usage by Role */}
-        {isWidgetVisible("storageByRole") && systemStats?.storageByRole && (
-          <div key="storageByRole" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <StorageByRoleChart storageByRoleData={systemStats.storageByRole} />
-          </div>
-        )}
-
-        {/* Trash Statistics */}
-        {isWidgetVisible("trashStatistics") && (
-          <div key="trashStatistics" className={styles.gridItem}>
-            <div className={`${styles.dragHandle} drag-handle`}>::</div>
-            <TrashStatisticsChart
-              fileStats={fileStats}
-              storageStats={storageStats}
-            />
-          </div>
-        )}
-
-        {/* Average File Size by Type */}
-        {isWidgetVisible("avgFileSizeByType") &&
-          systemStats?.avgFileSizeByType && (
-            <div key="avgFileSizeByType" className={styles.gridItem}>
+          {/* Storage Trend (30 Days) */}
+          {isWidgetVisible("storageTrend") && (
+            <div key="storageTrend" className={styles.gridItem}>
               <div className={`${styles.dragHandle} drag-handle`}>::</div>
-              <AverageFileSizeByTypeChart
-                averageFileSizeData={systemStats.avgFileSizeByType.map(
-                  (item) => ({
-                    type: getFileTypeLabel(item._id),
-                    avgSize: item.avgSize,
-                    count: item.count,
-                  }),
-                )}
+              <StorageTrendChart storageTrendData={storageTrendData} />
+            </div>
+          )}
+
+          {/* Top Storage Users */}
+          {isWidgetVisible("topStorageUsers") && (
+            <div key="topStorageUsers" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <TopStorageUsersChart storageByUserData={storageByUserData} />
+            </div>
+          )}
+
+          {/* File Size Distribution */}
+          {isWidgetVisible("fileSizeDistribution") && (
+            <div key="fileSizeDistribution" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <FileSizeDistributionChart
+                fileSizeDistribution={fileSizeDistribution}
               />
             </div>
           )}
-      </ResponsiveGridLayout>
+
+          {/* Activity Timeline */}
+          {isWidgetVisible("activityTimeline") && (
+            <div key="activityTimeline" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <ActivityTimelineChart
+                activityTimelineData={activityTimelineData}
+              />
+            </div>
+          )}
+
+          {/* Storage by File Type */}
+          {isWidgetVisible("storageByFileType") && (
+            <div key="storageByFileType" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <StorageByFileTypeChart
+                storageByFileTypeData={storageByFileTypeData}
+              />
+            </div>
+          )}
+
+          {/* User Growth Trend (30 Days) */}
+          {isWidgetVisible("userGrowthTrend") &&
+            systemStats?.userGrowthTrend && (
+              <div key="userGrowthTrend" className={styles.gridItem}>
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                <UserGrowthTrendChart
+                  userGrowthData={systemStats.userGrowthTrend}
+                />
+              </div>
+            )}
+
+          {/* Upload Patterns by Hour */}
+          {isWidgetVisible("uploadPatternsByHour") &&
+            systemStats?.uploadPatternsByHour && (
+              <div key="uploadPatternsByHour" className={styles.gridItem}>
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                <UploadPatternsByHourChart
+                  uploadPatternData={systemStats.uploadPatternsByHour}
+                />
+              </div>
+            )}
+
+          {/* Storage Usage by Role */}
+          {isWidgetVisible("storageByRole") && systemStats?.storageByRole && (
+            <div key="storageByRole" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <StorageByRoleChart
+                storageByRoleData={systemStats.storageByRole}
+              />
+            </div>
+          )}
+
+          {/* Trash Statistics */}
+          {isWidgetVisible("trashStatistics") && (
+            <div key="trashStatistics" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <TrashStatisticsChart
+                fileStats={fileStats}
+                storageStats={storageStats}
+              />
+            </div>
+          )}
+
+          {/* Average File Size by Type */}
+          {isWidgetVisible("avgFileSizeByType") &&
+            systemStats?.avgFileSizeByType && (
+              <div key="avgFileSizeByType" className={styles.gridItem}>
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                <AverageFileSizeByTypeChart
+                  averageFileSizeData={systemStats.avgFileSizeByType.map(
+                    (item) => ({
+                      type: getFileTypeLabel(item._id),
+                      avgSize: item.avgSize,
+                      count: item.count,
+                    }),
+                  )}
+                />
+              </div>
+            )}
+        </ResponsiveGridLayout>
+      )}
 
       {/* Empty State */}
       {visibleWidgets.length === 0 && (
