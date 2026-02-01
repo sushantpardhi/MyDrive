@@ -161,45 +161,21 @@ const FileManagement = () => {
     }
   }, [files]);
 
-  // Get unique file types from current files
-  const availableFileTypes = useMemo(() => {
-    if (!files || files.length === 0) return [];
-
-    const typesSet = new Set();
-    files.forEach((file) => {
-      if (file.mimeType) {
-        const type = file.mimeType.toLowerCase();
-        // Categorize by main type
-        if (type.startsWith("image/")) typesSet.add("image");
-        else if (type.startsWith("video/")) typesSet.add("video");
-        else if (type.startsWith("audio/")) typesSet.add("audio");
-        else if (type.includes("pdf")) typesSet.add("application/pdf");
-        else if (type.startsWith("text/")) typesSet.add("text");
-        else if (
-          type.includes("word") ||
-          type.includes("document") ||
-          type.includes(".doc")
-        )
-          typesSet.add("application/msword");
-        else if (
-          type.includes("sheet") ||
-          type.includes("excel") ||
-          type.includes(".xls")
-        )
-          typesSet.add("application/vnd.ms-excel");
-        else if (
-          type.includes("presentation") ||
-          type.includes("powerpoint") ||
-          type.includes(".ppt")
-        )
-          typesSet.add("application/vnd.ms-powerpoint");
-        else if (type.includes("zip") || type.includes("rar"))
-          typesSet.add("application/zip");
-      }
-    });
-
-    return Array.from(typesSet).sort();
-  }, [files]);
+  // Static file types for filter dropdown
+  const availableFileTypes = [
+    { value: "image", label: "Images" },
+    { value: "video", label: "Videos" },
+    { value: "audio", label: "Audio" },
+    { value: "application/pdf", label: "PDFs" },
+    { value: "text", label: "Text" },
+    { value: "application/msword", label: "Word Documents" },
+    { value: "application/vnd.ms-excel", label: "Excel Spreadsheets" },
+    {
+      value: "application/vnd.ms-powerpoint",
+      label: "PowerPoint Presentations",
+    },
+    { value: "application/zip", label: "Archives" },
+  ];
 
   // Calculate statistics
   const statistics = useMemo(() => {
@@ -244,7 +220,7 @@ const FileManagement = () => {
             formatFileSize(file.size || 0),
             getReadableFileType(file.mimeType),
             formatDate(file.uploadedAt || file.createdAt),
-          ].join(",")
+          ].join(","),
         ),
       ].join("\n");
 
@@ -435,24 +411,11 @@ const FileManagement = () => {
               }}
             >
               <option value="">All Types</option>
-              {availableFileTypes.map((type) => {
-                const typeLabels = {
-                  image: "Images",
-                  video: "Videos",
-                  audio: "Audio",
-                  "application/pdf": "PDFs",
-                  text: "Text",
-                  "application/msword": "Word Documents",
-                  "application/vnd.ms-excel": "Excel Spreadsheets",
-                  "application/vnd.ms-powerpoint": "PowerPoint Presentations",
-                  "application/zip": "Archives",
-                };
-                return (
-                  <option key={type} value={type}>
-                    {typeLabels[type] || type}
-                  </option>
-                );
-              })}
+              {availableFileTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -550,7 +513,7 @@ const FileManagement = () => {
                                   {
                                     hour: "2-digit",
                                     minute: "2-digit",
-                                  }
+                                  },
                                 )}
                               </div>
                             )}

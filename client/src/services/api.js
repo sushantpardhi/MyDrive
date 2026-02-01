@@ -502,6 +502,12 @@ const api = {
     // Activity and reports
     getActivity: (params) => axios.get(`${API_URL}/admin/activity`, { params }),
     getStorageReport: () => axios.get(`${API_URL}/admin/storage-report`),
+
+    // Dashboard preferences
+    getDashboardPreferences: () =>
+      axios.get(`${API_URL}/admin/dashboard/preferences`),
+    saveDashboardPreferences: (preferences) =>
+      axios.put(`${API_URL}/admin/dashboard/preferences`, preferences),
   },
 };
 

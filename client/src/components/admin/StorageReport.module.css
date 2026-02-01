@@ -4,6 +4,7 @@
   margin: 0;
   background: var(--bg-primary);
   min-height: 100vh;
+  overflow-y: auto;
 }
 
 .loading,
@@ -132,6 +133,39 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.025em;
+}
+
+/* Controls and Filters */
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.filterSelect {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  outline: none;
 }
 
 /* Chart Card */
@@ -267,6 +301,11 @@
   color: #ef6c00;
 }
 
+.roleuser {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 /* Storage Values */
 .storageValue {
   font-weight: 600;
@@ -302,7 +341,9 @@
 
 .storageBarFill {
   height: 100%;
-  transition: width 0.3s, background-color 0.3s;
+  transition:
+    width 0.3s,
+    background-color 0.3s;
   border-radius: 4px;
 }
 

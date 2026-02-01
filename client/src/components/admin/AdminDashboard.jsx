@@ -1,11 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Files, HardDrive, Activity, ArrowUpRight } from "lucide-react";
+import {
+  Users,
+  Files,
+  HardDrive,
+  Activity,
+  ArrowUpRight,
+  Settings,
+} from "lucide-react";
 import { useAdmin } from "../../contexts";
 import { useAuth } from "../../contexts";
 import { formatFileSize } from "../../utils/formatters";
 import logger from "../../utils/logger";
 import styles from "./AdminDashboard.module.css";
+import DashboardCustomizer, {
+  DEFAULT_VISIBLE_WIDGETS,
+} from "./DashboardCustomizer";
 
 // Import all chart components
 import {
@@ -27,8 +37,24 @@ import {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { systemStats, loading, fetchSystemStats } = useAdmin();
+  const {
+    systemStats,
+    loading,
+    fetchSystemStats,
+    dashboardPreferences,
+    fetchDashboardPreferences,
+    saveDashboardPreferences,
+  } = useAdmin();
   const [refreshing, setRefreshing] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+
+  // Get visible widgets from preferences or use defaults
+  const visibleWidgets = useMemo(() => {
+    return dashboardPreferences?.visibleWidgets || DEFAULT_VISIBLE_WIDGETS;
+  }, [dashboardPreferences]);
+
+  // Helper to check if a widget is visible
+  const isWidgetVisible = (widgetId) => visibleWidgets.includes(widgetId);
 
   useEffect(() => {
     logger.info("AdminDashboard mounted", { userId: user?.id });
@@ -43,6 +69,7 @@ const AdminDashboard = () => {
     }
 
     loadStats();
+    fetchDashboardPreferences();
   }, [user]);
 
   const loadStats = async () => {
@@ -89,7 +116,7 @@ const AdminDashboard = () => {
     // Check for Office document types
     if (
       mimeType.startsWith(
-        "application/vnd.openxmlformats-officedocument.spreadsheetml"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml",
       )
     ) {
       return "XLSX";
@@ -100,7 +127,7 @@ const AdminDashboard = () => {
       return "XLS";
     } else if (
       mimeType.startsWith(
-        "application/vnd.openxmlformats-officedocument.wordprocessingml"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml",
       )
     ) {
       return "DOCX";
@@ -111,7 +138,7 @@ const AdminDashboard = () => {
       return "DOC";
     } else if (
       mimeType.startsWith(
-        "application/vnd.openxmlformats-officedocument.presentationml"
+        "application/vnd.openxmlformats-officedocument.presentationml",
       )
     ) {
       return "PPTX";
@@ -280,20 +307,37 @@ const AdminDashboard = () => {
 
   return (
     <div className={styles.container}>
+      {/* Dashboard Customizer Modal */}
+      <DashboardCustomizer
+        isOpen={showCustomizer}
+        onClose={() => setShowCustomizer(false)}
+        currentPreferences={dashboardPreferences}
+        onSave={saveDashboardPreferences}
+      />
+
       {/* Minimal Header */}
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Dashboard</h1>
           <p className={styles.subtitle}>System Overview</p>
         </div>
-        <button
-          className={styles.refreshButton}
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <Activity size={18} />
-          {refreshing ? "Refreshing" : "Refresh"}
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.customizeButton}
+            onClick={() => setShowCustomizer(true)}
+          >
+            <Settings size={18} />
+            Customize
+          </button>
+          <button
+            className={styles.refreshButton}
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <Activity size={18} />
+            {refreshing ? "Refreshing" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {/* Stats Overview - Minimal Cards */}
@@ -365,66 +409,99 @@ const AdminDashboard = () => {
       {/* Charts Grid */}
       <div className={styles.chartsGrid}>
         {/* Storage Capacity Gauge */}
-        <StorageCapacityGauge storageStats={storageStats} />
+        {isWidgetVisible("storageCapacity") && (
+          <StorageCapacityGauge storageStats={storageStats} />
+        )}
 
         {/* User Distribution */}
-        <UserDistributionChart userStats={userStats} />
+        {isWidgetVisible("userDistribution") && (
+          <UserDistributionChart userStats={userStats} />
+        )}
 
         {/* Top File Types */}
-        <TopFileTypesChart
-          fileTypes={fileTypes}
-          getFileTypeLabel={getFileTypeLabel}
-        />
+        {isWidgetVisible("topFileTypes") && (
+          <TopFileTypesChart
+            fileTypes={fileTypes}
+            getFileTypeLabel={getFileTypeLabel}
+          />
+        )}
 
         {/* Storage Trend (30 Days) */}
-        <StorageTrendChart storageTrendData={storageTrendData} />
+        {isWidgetVisible("storageTrend") && (
+          <StorageTrendChart storageTrendData={storageTrendData} />
+        )}
 
         {/* Top Storage Users */}
-        <TopStorageUsersChart storageByUserData={storageByUserData} />
+        {isWidgetVisible("topStorageUsers") && (
+          <TopStorageUsersChart storageByUserData={storageByUserData} />
+        )}
 
         {/* File Size Distribution */}
-        <FileSizeDistributionChart
-          fileSizeDistribution={fileSizeDistribution}
-        />
+        {isWidgetVisible("fileSizeDistribution") && (
+          <FileSizeDistributionChart
+            fileSizeDistribution={fileSizeDistribution}
+          />
+        )}
 
         {/* Activity Timeline */}
-        <ActivityTimelineChart activityTimelineData={activityTimelineData} />
+        {isWidgetVisible("activityTimeline") && (
+          <ActivityTimelineChart activityTimelineData={activityTimelineData} />
+        )}
 
         {/* Storage by File Type */}
-        <StorageByFileTypeChart storageByFileTypeData={storageByFileTypeData} />
+        {isWidgetVisible("storageByFileType") && (
+          <StorageByFileTypeChart
+            storageByFileTypeData={storageByFileTypeData}
+          />
+        )}
 
         {/* User Growth Trend (30 Days) */}
-        {systemStats?.userGrowthTrend && (
+        {isWidgetVisible("userGrowthTrend") && systemStats?.userGrowthTrend && (
           <UserGrowthTrendChart userGrowthData={systemStats.userGrowthTrend} />
         )}
 
         {/* Upload Patterns by Hour */}
-        {systemStats?.uploadPatternsByHour && (
-          <UploadPatternsByHourChart
-            uploadPatternData={systemStats.uploadPatternsByHour}
-          />
-        )}
+        {isWidgetVisible("uploadPatternsByHour") &&
+          systemStats?.uploadPatternsByHour && (
+            <UploadPatternsByHourChart
+              uploadPatternData={systemStats.uploadPatternsByHour}
+            />
+          )}
 
         {/* Storage Usage by Role */}
-        {systemStats?.storageByRole && (
+        {isWidgetVisible("storageByRole") && systemStats?.storageByRole && (
           <StorageByRoleChart storageByRoleData={systemStats.storageByRole} />
         )}
 
         {/* Trash Statistics */}
-        <TrashStatisticsChart
-          fileStats={fileStats}
-          storageStats={storageStats}
-        />
+        {isWidgetVisible("trashStatistics") && (
+          <TrashStatisticsChart
+            fileStats={fileStats}
+            storageStats={storageStats}
+          />
+        )}
 
         {/* Average File Size by Type */}
-        {systemStats?.avgFileSizeByType && (
-          <AverageFileSizeByTypeChart
-            averageFileSizeData={systemStats.avgFileSizeByType.map((item) => ({
-              type: getFileTypeLabel(item._id),
-              avgSize: item.avgSize,
-              count: item.count,
-            }))}
-          />
+        {isWidgetVisible("avgFileSizeByType") &&
+          systemStats?.avgFileSizeByType && (
+            <AverageFileSizeByTypeChart
+              averageFileSizeData={systemStats.avgFileSizeByType.map(
+                (item) => ({
+                  type: getFileTypeLabel(item._id),
+                  avgSize: item.avgSize,
+                  count: item.count,
+                }),
+              )}
+            />
+          )}
+
+        {/* Empty State */}
+        {visibleWidgets.length === 0 && (
+          <div className={styles.emptyState}>
+            <Settings size={48} />
+            <h3>No Widgets Selected</h3>
+            <p>Click "Customize" to add widgets to your dashboard.</p>
+          </div>
         )}
       </div>
     </div>

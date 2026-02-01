@@ -5,6 +5,7 @@
   margin: 0;
   background: var(--bg-primary);
   min-height: 100vh;
+  overflow-y: auto;
 }
 
 /* Tablet and up */

@@ -28,6 +28,12 @@ const UserSchema = new mongoose.Schema({
   isTemporaryGuest: { type: Boolean, default: false },
   guestSessionId: { type: mongoose.Schema.Types.ObjectId, ref: "GuestSession" },
 
+  // Admin dashboard preferences
+  dashboardPreferences: {
+    visibleWidgets: { type: [String], default: null }, // null means show all (default)
+    widgetOrder: { type: [String], default: null }, // null means default order
+  },
+
   settings: {
     emailNotifications: { type: Boolean, default: true },
     language: { type: String, default: "en" },

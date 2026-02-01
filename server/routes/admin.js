@@ -165,7 +165,7 @@ router.get("/stats", async (req, res) => {
         name: sizeRanges[index] || "Other",
         count: bucket.count,
         totalSize: bucket.totalSize,
-      })
+      }),
     );
 
     // Get activity timeline (last 14 days)
@@ -538,7 +538,7 @@ router.put("/users/:userId/role", async (req, res) => {
     const { userId } = req.params;
     const { role } = req.body;
 
-    if (!["admin", "family", "guest"].includes(role)) {
+    if (!["admin", "family", "guest", "user"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" });
     }
 
@@ -560,9 +560,23 @@ router.put("/users/:userId/role", async (req, res) => {
       });
     }
 
+    // Prevent assigning guest role manually
+    if (role === "guest") {
+      return res.status(400).json({
+        error: "Cannot manually assign Guest role",
+      });
+    }
+
     const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    // Prevent changing role of a guest user
+    if (user.role === "guest") {
+      return res.status(400).json({
+        error: "Cannot change role of a Guest user",
+      });
     }
 
     const oldRole = user.role;
@@ -898,6 +912,94 @@ router.get("/storage-report", async (req, res) => {
       stack: error.stack,
     });
     res.status(500).json({ error: "Failed to fetch storage report" });
+  }
+});
+
+/**
+ * GET /api/admin/dashboard/preferences
+ * Get admin's dashboard preferences (visible widgets and order)
+ */
+router.get("/dashboard/preferences", async (req, res) => {
+  try {
+    logger.info("Admin fetching dashboard preferences", {
+      adminId: req.user.id,
+    });
+
+    const user = await User.findById(req.user.id).select(
+      "dashboardPreferences",
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return preferences or defaults
+    const preferences = {
+      visibleWidgets: user.dashboardPreferences?.visibleWidgets || null,
+      widgetOrder: user.dashboardPreferences?.widgetOrder || null,
+    };
+
+    res.json(preferences);
+  } catch (error) {
+    logger.error("Error fetching dashboard preferences", {
+      adminId: req.user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to fetch dashboard preferences" });
+  }
+});
+
+/**
+ * PUT /api/admin/dashboard/preferences
+ * Save admin's dashboard preferences (visible widgets and order)
+ */
+router.put("/dashboard/preferences", async (req, res) => {
+  try {
+    const { visibleWidgets, widgetOrder } = req.body;
+
+    logger.info("Admin saving dashboard preferences", {
+      adminId: req.user.id,
+      visibleWidgetsCount: visibleWidgets?.length,
+      widgetOrderCount: widgetOrder?.length,
+    });
+
+    // Validate input
+    if (visibleWidgets && !Array.isArray(visibleWidgets)) {
+      return res.status(400).json({ error: "visibleWidgets must be an array" });
+    }
+    if (widgetOrder && !Array.isArray(widgetOrder)) {
+      return res.status(400).json({ error: "widgetOrder must be an array" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update preferences
+    user.dashboardPreferences = {
+      visibleWidgets: visibleWidgets || null,
+      widgetOrder: widgetOrder || null,
+    };
+
+    await user.save();
+
+    logger.info("Dashboard preferences saved successfully", {
+      adminId: req.user.id,
+      visibleWidgets: user.dashboardPreferences.visibleWidgets,
+    });
+
+    res.json({
+      message: "Dashboard preferences saved successfully",
+      preferences: user.dashboardPreferences,
+    });
+  } catch (error) {
+    logger.error("Error saving dashboard preferences", {
+      adminId: req.user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to save dashboard preferences" });
   }
 });
 
