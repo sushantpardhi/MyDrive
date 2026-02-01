@@ -44,7 +44,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
       case "pie":
       case "donut":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={storageByUserData}
@@ -80,7 +80,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -174,7 +174,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={storageByUserData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

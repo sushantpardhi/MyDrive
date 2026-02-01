@@ -23,7 +23,7 @@ const StorageTrendChart = ({ storageTrendData }) => {
     switch (graphType) {
       case "area":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={storageTrendData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -61,7 +61,7 @@ const StorageTrendChart = ({ storageTrendData }) => {
 
       case "bar":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={storageTrendData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -95,7 +95,7 @@ const StorageTrendChart = ({ storageTrendData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -148,7 +148,7 @@ const StorageTrendChart = ({ storageTrendData }) => {
       case "line":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={storageTrendData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

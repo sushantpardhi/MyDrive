@@ -27,7 +27,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
     switch (graphType) {
       case "line":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={averageFileSizeData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -66,7 +66,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
 
       case "area":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={averageFileSizeData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -107,7 +107,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -160,7 +160,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={averageFileSizeData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

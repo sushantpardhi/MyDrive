@@ -138,7 +138,7 @@ const DashboardCustomizer = ({
     try {
       await onSave({
         visibleWidgets: selectedWidgets,
-        widgetOrder: null, // Can be extended for drag-drop ordering
+        widgetOrder: currentPreferences?.widgetOrder || null, // Preserve existing layout
       });
       toast.success("Dashboard preferences saved");
       onClose();

@@ -35,7 +35,7 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
     switch (graphType) {
       case "bar":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -66,7 +66,7 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -149,7 +149,7 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
       case "donut":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}

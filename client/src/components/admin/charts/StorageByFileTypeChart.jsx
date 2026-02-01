@@ -45,7 +45,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
       case "pie":
       case "donut":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={storageByFileTypeData}
@@ -81,7 +81,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -175,7 +175,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={storageByFileTypeData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

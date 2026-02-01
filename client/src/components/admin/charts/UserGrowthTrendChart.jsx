@@ -27,7 +27,7 @@ const UserGrowthTrendChart = ({ userGrowthData }) => {
     switch (graphType) {
       case "area":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={userGrowthData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -81,7 +81,7 @@ const UserGrowthTrendChart = ({ userGrowthData }) => {
 
       case "bar":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={userGrowthData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -113,7 +113,7 @@ const UserGrowthTrendChart = ({ userGrowthData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -190,7 +190,7 @@ const UserGrowthTrendChart = ({ userGrowthData }) => {
       case "line":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={userGrowthData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

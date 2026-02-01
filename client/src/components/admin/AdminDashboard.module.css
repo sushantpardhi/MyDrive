@@ -295,19 +295,107 @@
 
 /* Tablet and up */
 @media (min-width: 769px) {
-  .chartsGrid {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 1.25rem;
-  }
+  /* We don't strictly need grid templates here as react-grid-layout handles it, 
+     but we might want to keep some spacing/margins if strictly necessary. 
+     For now, we let the library handle positioning. */
 }
 
 /* Desktop */
 @media (min-width: 1025px) {
-  .chartsGrid {
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
+  /* Same here */
+}
+
+.gridItem {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.gridItem:hover {
+  border-color: var(
+    --border-color
+  ); /* Maintain border, maybe slightly darker? */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 10; /* Bring to front on hover/drag */
+}
+
+.dragHandle {
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 20;
+  border-radius: 4px;
+}
+
+.gridItem:hover .dragHandle {
+  opacity: 1;
+}
+
+.dragHandle:hover {
+  background-color: var(--bg-item-hover);
+  color: var(--text-secondary);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* Ensure charts fit within the grid item height */
+.gridItem > div:not(.dragHandle):not(.resizeHandle) {
+  height: 100%;
+  width: 100%;
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Resize Handle */
+.resizeHandle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.gridItem:hover .resizeHandle {
+  opacity: 1;
+}
+
+.resizeHandle:hover {
+  color: var(--primary);
+  background-color: var(--bg-item-hover);
+  border-top-left-radius: 8px;
+}
+.gridItem :global(.recharts-wrapper) {
+  margin: 0 auto;
 }
 
 .chartCard {

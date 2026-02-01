@@ -31,7 +31,7 @@ const UserSchema = new mongoose.Schema({
   // Admin dashboard preferences
   dashboardPreferences: {
     visibleWidgets: { type: [String], default: null }, // null means show all (default)
-    widgetOrder: { type: [String], default: null }, // null means default order
+    widgetOrder: { type: [mongoose.Schema.Types.Mixed], default: null }, // Stores layout objects {i, x, y, w, h}
   },
 
   settings: {

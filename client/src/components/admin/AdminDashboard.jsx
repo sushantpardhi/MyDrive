@@ -16,6 +16,86 @@ import styles from "./AdminDashboard.module.css";
 import DashboardCustomizer, {
   DEFAULT_VISIBLE_WIDGETS,
 } from "./DashboardCustomizer";
+import { Responsive } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+
+// Custom WidthProvider implementation since it's missing from the package exports
+const withWidth = (Component) => {
+  return (props) => {
+    const [width, setWidth] = React.useState(1200);
+    const elementRef = React.useRef(null);
+
+    React.useEffect(() => {
+      const resizeObserver = new ResizeObserver((entries) => {
+        if (entries[0]) {
+          setWidth(entries[0].contentRect.width);
+        }
+      });
+
+      if (elementRef.current) {
+        resizeObserver.observe(elementRef.current);
+        // Set initial width
+        setWidth(elementRef.current.offsetWidth);
+      }
+
+      return () => resizeObserver.disconnect();
+    }, []);
+
+    return (
+      <div ref={elementRef} style={{ width: "100%" }}>
+        <Component {...props} width={width} />
+      </div>
+    );
+  };
+};
+
+// Custom Resize Handle
+const ResizeHandle = React.forwardRef(({ handleAxis, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={`${styles.resizeHandle} react-resizable-handle react-resizable-handle-${handleAxis}`}
+      {...props}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path
+          d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          opacity="0"
+        />
+        <polyline points="21 15 21 21 15 21" />
+      </svg>
+    </div>
+  );
+});
+
+const ResponsiveGridLayout = withWidth(Responsive);
+
+// Widget Configuration with default sizes
+const WIDGET_CONFIG = {
+  storageCapacity: { w: 2, h: 2, minW: 1, minH: 2 },
+  userDistribution: { w: 2, h: 2, minW: 1, minH: 2 },
+  topFileTypes: { w: 2, h: 3, minW: 2, minH: 3 },
+  storageTrend: { w: 4, h: 3, minW: 2, minH: 2 },
+  topStorageUsers: { w: 2, h: 3, minW: 2, minH: 3 },
+  fileSizeDistribution: { w: 2, h: 3, minW: 2, minH: 2 },
+  activityTimeline: { w: 4, h: 3, minW: 2, minH: 2 },
+  storageByFileType: { w: 2, h: 3, minW: 2, minH: 3 },
+  userGrowthTrend: { w: 4, h: 3, minW: 2, minH: 2 },
+  uploadPatternsByHour: { w: 4, h: 3, minW: 2, minH: 3 },
+  storageByRole: { w: 2, h: 2, minW: 1, minH: 2 },
+  trashStatistics: { w: 2, h: 2, minW: 1, minH: 2 },
+  avgFileSizeByType: { w: 2, h: 3, minW: 2, minH: 3 },
+};
 
 // Import all chart components
 import {
@@ -48,10 +128,106 @@ const AdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
 
+  const [layouts, setLayouts] = useState({ lg: [] });
+
   // Get visible widgets from preferences or use defaults
   const visibleWidgets = useMemo(() => {
     return dashboardPreferences?.visibleWidgets || DEFAULT_VISIBLE_WIDGETS;
   }, [dashboardPreferences]);
+
+  // Generate initial layout based on visible widgets
+  useEffect(() => {
+    // Current layout from state or default
+    const currentLayout = layouts.lg || [];
+
+    // Check if we have a saved layout in preferences
+    const savedLayout = dashboardPreferences?.widgetOrder;
+
+    if (savedLayout && savedLayout.length > 0) {
+      // We have a saved layout.
+      // But we need to make sure it matches visibleWidgets.
+
+      // 1. Filter out widgets that are no longer visible
+      let newLayout = savedLayout.filter((item) =>
+        visibleWidgets.includes(item.i),
+      );
+
+      // 2. Add widgets that are visible but not in the saved layout
+      const missingWidgets = visibleWidgets.filter(
+        (widgetId) => !newLayout.find((item) => item.i === widgetId),
+      );
+
+      if (missingWidgets.length > 0) {
+        // Find the bottom of the current layout to append new items
+        let maxY = 0;
+        newLayout.forEach((item) => {
+          if (item.y + item.h > maxY) maxY = item.y + item.h;
+        });
+
+        const addedItems = missingWidgets.map((widgetId, index) => {
+          const config = WIDGET_CONFIG[widgetId] || { w: 2, h: 2 };
+          return {
+            i: widgetId,
+            x: (index * 2) % 4,
+            y: maxY + Math.floor(index / 2) * 2, // Append at bottom
+            w: config.w,
+            h: config.h,
+            minW: config.minW || 2,
+            minH: config.minH || 2,
+          };
+        });
+
+        newLayout = [...newLayout, ...addedItems];
+      }
+
+      // Update state if different
+      if (JSON.stringify(newLayout) !== JSON.stringify(currentLayout)) {
+        setLayouts({ lg: newLayout });
+      }
+    } else {
+      // No saved layout, generate default for all visible widgets
+      const generatedLayout = visibleWidgets.map((widgetId, index) => {
+        const config = WIDGET_CONFIG[widgetId] || { w: 2, h: 2 };
+        return {
+          i: widgetId,
+          x: (index * 2) % 4,
+          y: Math.floor(index / 2) * 2,
+          w: config.w,
+          h: config.h,
+          minW: config.minW || 2,
+          minH: config.minH || 2,
+        };
+      });
+      if (JSON.stringify(generatedLayout) !== JSON.stringify(layouts.lg)) {
+        setLayouts({ lg: generatedLayout });
+      }
+    }
+  }, [dashboardPreferences, visibleWidgets]); // Removed layouts.lg dependency to avoid loops
+
+  const onLayoutChange = (currentLayout) => {
+    // Only save if meaningful changes (debouncing could be added here)
+    // We update the local state immediately
+    setLayouts({ lg: currentLayout });
+  };
+
+  const handleLayoutSave = async (newLayout) => {
+    // Filter layout items to only include current visible widgets to avoid saving ghosts
+    // But we actually want to persist position of EVERYTHING even if hidden?
+    // No, usually we only care about what's visible. But if we hide and show, we might lose position.
+    // For now, let's just save the current layout configuration.
+    const simplifiedLayout = newLayout.map(({ i, x, y, w, h }) => ({
+      i,
+      x,
+      y,
+      w,
+      h,
+    }));
+
+    await saveDashboardPreferences({
+      visibleWidgets,
+      widgetOrder: simplifiedLayout,
+    });
+  };
 
   // Helper to check if a widget is visible
   const isWidgetVisible = (widgetId) => visibleWidgets.includes(widgetId);
@@ -406,104 +582,161 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className={styles.chartsGrid}>
+      {/* Charts Grid - Replaced with ResponsiveGridLayout */}
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={layouts}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
+        rowHeight={100}
+        draggableHandle=".drag-handle"
+        onLayoutChange={(layout) => {
+          onLayoutChange(layout);
+          // Auto-save on drag stop
+        }}
+        onDragStop={handleLayoutSave}
+        onResizeStop={handleLayoutSave}
+        resizeHandle={<ResizeHandle />}
+      >
         {/* Storage Capacity Gauge */}
         {isWidgetVisible("storageCapacity") && (
-          <StorageCapacityGauge storageStats={storageStats} />
+          <div key="storageCapacity" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <StorageCapacityGauge storageStats={storageStats} />
+          </div>
         )}
 
         {/* User Distribution */}
         {isWidgetVisible("userDistribution") && (
-          <UserDistributionChart userStats={userStats} />
+          <div key="userDistribution" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <UserDistributionChart userStats={userStats} />
+          </div>
         )}
 
         {/* Top File Types */}
         {isWidgetVisible("topFileTypes") && (
-          <TopFileTypesChart
-            fileTypes={fileTypes}
-            getFileTypeLabel={getFileTypeLabel}
-          />
+          <div key="topFileTypes" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <TopFileTypesChart
+              fileTypes={fileTypes}
+              getFileTypeLabel={getFileTypeLabel}
+            />
+          </div>
         )}
 
         {/* Storage Trend (30 Days) */}
         {isWidgetVisible("storageTrend") && (
-          <StorageTrendChart storageTrendData={storageTrendData} />
+          <div key="storageTrend" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <StorageTrendChart storageTrendData={storageTrendData} />
+          </div>
         )}
 
         {/* Top Storage Users */}
         {isWidgetVisible("topStorageUsers") && (
-          <TopStorageUsersChart storageByUserData={storageByUserData} />
+          <div key="topStorageUsers" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <TopStorageUsersChart storageByUserData={storageByUserData} />
+          </div>
         )}
 
         {/* File Size Distribution */}
         {isWidgetVisible("fileSizeDistribution") && (
-          <FileSizeDistributionChart
-            fileSizeDistribution={fileSizeDistribution}
-          />
+          <div key="fileSizeDistribution" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <FileSizeDistributionChart
+              fileSizeDistribution={fileSizeDistribution}
+            />
+          </div>
         )}
 
         {/* Activity Timeline */}
         {isWidgetVisible("activityTimeline") && (
-          <ActivityTimelineChart activityTimelineData={activityTimelineData} />
+          <div key="activityTimeline" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <ActivityTimelineChart
+              activityTimelineData={activityTimelineData}
+            />
+          </div>
         )}
 
         {/* Storage by File Type */}
         {isWidgetVisible("storageByFileType") && (
-          <StorageByFileTypeChart
-            storageByFileTypeData={storageByFileTypeData}
-          />
+          <div key="storageByFileType" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <StorageByFileTypeChart
+              storageByFileTypeData={storageByFileTypeData}
+            />
+          </div>
         )}
 
         {/* User Growth Trend (30 Days) */}
         {isWidgetVisible("userGrowthTrend") && systemStats?.userGrowthTrend && (
-          <UserGrowthTrendChart userGrowthData={systemStats.userGrowthTrend} />
+          <div key="userGrowthTrend" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <UserGrowthTrendChart
+              userGrowthData={systemStats.userGrowthTrend}
+            />
+          </div>
         )}
 
         {/* Upload Patterns by Hour */}
         {isWidgetVisible("uploadPatternsByHour") &&
           systemStats?.uploadPatternsByHour && (
-            <UploadPatternsByHourChart
-              uploadPatternData={systemStats.uploadPatternsByHour}
-            />
+            <div key="uploadPatternsByHour" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <UploadPatternsByHourChart
+                uploadPatternData={systemStats.uploadPatternsByHour}
+              />
+            </div>
           )}
 
         {/* Storage Usage by Role */}
         {isWidgetVisible("storageByRole") && systemStats?.storageByRole && (
-          <StorageByRoleChart storageByRoleData={systemStats.storageByRole} />
+          <div key="storageByRole" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <StorageByRoleChart storageByRoleData={systemStats.storageByRole} />
+          </div>
         )}
 
         {/* Trash Statistics */}
         {isWidgetVisible("trashStatistics") && (
-          <TrashStatisticsChart
-            fileStats={fileStats}
-            storageStats={storageStats}
-          />
+          <div key="trashStatistics" className={styles.gridItem}>
+            <div className={`${styles.dragHandle} drag-handle`}>::</div>
+            <TrashStatisticsChart
+              fileStats={fileStats}
+              storageStats={storageStats}
+            />
+          </div>
         )}
 
         {/* Average File Size by Type */}
         {isWidgetVisible("avgFileSizeByType") &&
           systemStats?.avgFileSizeByType && (
-            <AverageFileSizeByTypeChart
-              averageFileSizeData={systemStats.avgFileSizeByType.map(
-                (item) => ({
-                  type: getFileTypeLabel(item._id),
-                  avgSize: item.avgSize,
-                  count: item.count,
-                }),
-              )}
-            />
+            <div key="avgFileSizeByType" className={styles.gridItem}>
+              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              <AverageFileSizeByTypeChart
+                averageFileSizeData={systemStats.avgFileSizeByType.map(
+                  (item) => ({
+                    type: getFileTypeLabel(item._id),
+                    avgSize: item.avgSize,
+                    count: item.count,
+                  }),
+                )}
+              />
+            </div>
           )}
+      </ResponsiveGridLayout>
 
-        {/* Empty State */}
-        {visibleWidgets.length === 0 && (
-          <div className={styles.emptyState}>
-            <Settings size={48} />
-            <h3>No Widgets Selected</h3>
-            <p>Click "Customize" to add widgets to your dashboard.</p>
-          </div>
-        )}
-      </div>
+      {/* Empty State */}
+      {visibleWidgets.length === 0 && (
+        <div className={styles.emptyState}>
+          <Settings size={48} />
+          <h3>No Widgets Selected</h3>
+          <p>Click "Customize" to add widgets to your dashboard.</p>
+        </div>
+      )}
     </div>
   );
 };

@@ -26,7 +26,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
     switch (graphType) {
       case "line":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={uploadPatternData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -66,7 +66,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
 
       case "area":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={uploadPatternData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -108,7 +108,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -161,7 +161,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={uploadPatternData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis

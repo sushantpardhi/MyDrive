@@ -28,7 +28,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
     switch (graphType) {
       case "line":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={activityTimelineData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -71,7 +71,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
 
       case "bar":
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={activityTimelineData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
@@ -112,7 +112,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
         return (
           <div
             className={styles.tableContainer}
-            style={{ height: 280, overflowY: "auto" }}
+            style={{ height: "100%", overflowY: "auto" }}
           >
             <table
               style={{
@@ -181,7 +181,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
         // but the original was Composed. I'll stick to Composed for default/area as it looks nice,
         // effectively representing "Area" for the main metric.
         return (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={activityTimelineData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
