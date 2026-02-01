@@ -36,6 +36,7 @@ import { GuestProvider } from "./contexts/GuestContext";
 import DevelopmentBanner from "./components/common/DevelopmentBanner.jsx";
 import GuestBanner from "./components/guest/GuestBanner.jsx";
 import GuestConvertModal from "./components/guest/GuestConvertModal.jsx";
+import GuestLimitationsModal from "./components/guest/GuestLimitationsModal.jsx";
 import styles from "./App.module.css";
 
 // Protected Route Component
@@ -253,6 +254,7 @@ const App = () => {
                               <GuestProvider>
                                 <GuestBanner />
                                 <GuestConvertModal />
+                                <GuestLimitationsModal />
                                 <AppLayout />
                               </GuestProvider>
                             </AdminProvider>
