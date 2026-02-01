@@ -28,10 +28,27 @@ export const GuestProvider = ({ children }) => {
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [warningTriggered, setWarningTriggered] = useState(false);
+  const [showLimitationsModal, setShowLimitationsModal] = useState(false);
   const countdownRef = useRef(null);
   const statusCheckRef = useRef(null);
 
   const isTemporaryGuest = user?.isTemporaryGuest === true;
+
+  // Show limitations modal once per session when guest user logs in
+  useEffect(() => {
+    if (isTemporaryGuest) {
+      // Check if modal has been shown this session
+      const hasSeenModal = sessionStorage.getItem("guestLimitationsShown");
+      if (!hasSeenModal) {
+        // Delay showing the modal slightly to allow UI to settle
+        const timer = setTimeout(() => {
+          setShowLimitationsModal(true);
+          sessionStorage.setItem("guestLimitationsShown", "true");
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isTemporaryGuest]);
 
   // Cleanup guest session and logout
   const cleanupGuestSession = useCallback(() => {
@@ -313,6 +330,8 @@ export const GuestProvider = ({ children }) => {
     setShowConvertModal,
     showExpiryWarning,
     setShowExpiryWarning,
+    showLimitationsModal,
+    setShowLimitationsModal,
     extendSession,
     convertToAccount,
     sessionExpired,

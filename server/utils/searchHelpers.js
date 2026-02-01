@@ -58,7 +58,7 @@ function buildSearchQuery({
   // Combine with name search if both exist
   if (fileTypes && fileTypes.length > 0) {
     const typePatterns = fileTypes.map(
-      (type) => new RegExp(`\\.${escapeRegex(type)}$`, "i")
+      (type) => new RegExp(`\\.${escapeRegex(type)}$`, "i"),
     );
 
     // If there's already a name search, combine with AND logic
@@ -147,7 +147,7 @@ function buildFuzzyQuery(query) {
 function buildSortOptions(
   sortBy = "createdAt",
   sortOrder = "desc",
-  hasTextSearch = false
+  hasTextSearch = false,
 ) {
   const sort = {};
 
@@ -202,7 +202,7 @@ function calculateRelevance(searchTerm, resultName) {
   const searchWords = term.split(/\s+/);
   const nameWords = name.split(/\s+/);
   const matchedWords = searchWords.filter((word) =>
-    nameWords.some((nameWord) => nameWord.includes(word))
+    nameWords.some((nameWord) => nameWord.includes(word)),
   );
 
   return Math.round((matchedWords.length / searchWords.length) * 60);

@@ -4,9 +4,15 @@ import { useDriveContext } from "../contexts/DriveContext";
 import logger from "../utils/logger";
 
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
+const SEARCH_FILTERS_KEY = "myDriveSearchFilters";
 const MAX_HISTORY_ITEMS = 10;
 
-export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
+export const useSearch = (
+  api,
+  loadFolderContents,
+  itemsPerPage = 50,
+  section = "drive",
+) => {
   const { currentFolderId } = useDriveContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -16,14 +22,31 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [searchFilters, setSearchFilters] = useState({
-    fileTypes: [],
-    sizeMin: "",
-    sizeMax: "",
-    dateStart: "",
-    dateEnd: "",
-    sortBy: "createdAt",
-    sortOrder: "desc",
+  const [searchFilters, setSearchFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SEARCH_FILTERS_KEY);
+      return saved
+        ? JSON.parse(saved)
+        : {
+            fileTypes: [],
+            sizeMin: "",
+            sizeMax: "",
+            dateStart: "",
+            dateEnd: "",
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          };
+    } catch {
+      return {
+        fileTypes: [],
+        sizeMin: "",
+        sizeMax: "",
+        dateStart: "",
+        dateEnd: "",
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      };
+    }
   });
   const [searchHistory, setSearchHistory] = useState(() => {
     try {
@@ -104,7 +127,8 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
           searchQuery,
           1,
           itemsPerPage,
-          searchFilters
+          searchFilters,
+          section,
         );
         logger.debug("Search response received", {
           folderCount: response.data.folders?.length,
@@ -137,7 +161,7 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage]);
+  }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage, section]);
 
   // Clear search without triggering a reload (used when navigating to folders)
   const clearSearchForNavigation = () => {
@@ -165,7 +189,7 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
   };
 
   const clearFilters = () => {
-    setSearchFilters({
+    const defaultFilters = {
       fileTypes: [],
       sizeMin: "",
       sizeMax: "",
@@ -173,8 +197,18 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
       dateEnd: "",
       sortBy: "createdAt",
       sortOrder: "desc",
-    });
+    };
+    setSearchFilters(defaultFilters);
   };
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEARCH_FILTERS_KEY, JSON.stringify(searchFilters));
+    } catch (error) {
+      logger.error("Failed to save search filters to localStorage", error);
+    }
+  }, [searchFilters]);
 
   const loadMoreSearchResults = async () => {
     if (!hasMore || isSearching) return;
@@ -185,7 +219,8 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         searchQuery,
         nextPage,
         itemsPerPage,
-        searchFilters
+        searchFilters,
+        section,
       );
 
       // Filter out duplicates when appending search results
@@ -193,13 +228,13 @@ export const useSearch = (api, loadFolderContents, itemsPerPage = 50) => {
         folders: [
           ...prev.folders,
           ...(response.data.folders || []).filter(
-            (f) => !prev.folders.some((existing) => existing._id === f._id)
+            (f) => !prev.folders.some((existing) => existing._id === f._id),
           ),
         ],
         files: [
           ...prev.files,
           ...(response.data.files || []).filter(
-            (f) => !prev.files.some((existing) => existing._id === f._id)
+            (f) => !prev.files.some((existing) => existing._id === f._id),
           ),
         ],
       }));

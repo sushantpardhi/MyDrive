@@ -296,7 +296,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
     hasActiveFilters,
     searchHistory,
     clearSearchForNavigation,
-  } = useSearch(api, loadFolderContents, itemsPerPage);
+  } = useSearch(api, loadFolderContents, itemsPerPage, type);
 
   const {
     bulkDelete,

@@ -282,7 +282,7 @@ const api = {
   emptyTrash: () => axios.delete(`${API_URL}/trash/empty`),
 
   // Search with advanced filters
-  search: (query, page = 1, limit = 50, filters = {}) => {
+  search: (query, page = 1, limit = 50, filters = {}, section = "drive") => {
     const params = { page, limit };
 
     // Only add query if it's not empty
@@ -315,8 +315,11 @@ const api = {
     if (filters.folderId) {
       params.folderId = filters.folderId;
     }
+    if (section) {
+      params.section = section;
+    }
 
-    const searchUrl = `${API_URL}/search`;
+    const searchUrl = `${API_URL}/shared/search`;
 
     return axios
       .get(searchUrl, {

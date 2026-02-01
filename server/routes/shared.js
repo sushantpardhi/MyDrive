@@ -117,6 +117,7 @@ router.get("/search", async (req, res) => {
       sortBy = "createdAt",
       sortOrder = "desc",
       folderId,
+      section = "drive", // drive, shared, or trash
     } = req.query;
 
     const page = parseInt(req.query.page) || 1;
@@ -137,7 +138,7 @@ router.get("/search", async (req, res) => {
       fileTypes: fileTypes ? fileTypes.split(",") : [],
       sizeRange: {},
       dateRange: {},
-      trash: false,
+      trash: section === "trash",
       folderId: folderId && folderId !== "root" ? folderId : null,
     };
 
@@ -145,6 +146,13 @@ router.get("/search", async (req, res) => {
     if (sizeMax) searchParams.sizeRange.max = parseInt(sizeMax);
     if (dateStart) searchParams.dateRange.start = dateStart;
     if (dateEnd) searchParams.dateRange.end = dateEnd;
+
+    // Check if any filters are applied (file type, size, or date)
+    // Folders should only appear when no filters are active
+    const hasFileTypeFilter = searchParams.fileTypes.length > 0;
+    const hasSizeFilter = sizeMin || sizeMax;
+    const hasDateFilter = dateStart || dateEnd;
+    const hasAnyFilter = hasFileTypeFilter || hasSizeFilter || hasDateFilter;
 
     // Build query for files and folders
     let fileSearchQuery;
@@ -156,34 +164,56 @@ router.get("/search", async (req, res) => {
         .json({ error: "Invalid search query: " + error.message });
     }
 
-    const folderSearchQuery = {
-      owner: req.user.id,
-      trash: false,
-    };
-
-    // Add partial word search for folders
-    try {
-      if (query && query.trim()) {
-        const words = query.trim().split(/\s+/);
-        if (words.length === 1) {
-          const escapedWord = words[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          folderSearchQuery.name = new RegExp(escapedWord, "i");
-        } else {
-          folderSearchQuery.$or = words.map((word) => {
-            const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            return { name: new RegExp(escapedWord, "i") };
-          });
-        }
-      }
-    } catch (error) {
-      return res
-        .status(400)
-        .json({ error: "Invalid search query: " + error.message });
+    // Apply section-specific filters for files
+    if (section === "shared") {
+      // For shared section, only show files shared with user
+      fileSearchQuery.shared = req.user.id;
+      delete fileSearchQuery.owner; // Remove owner filter
+    } else if (section === "drive") {
+      // For drive section, only show owned files (not shared)
+      fileSearchQuery.owner = req.user.id;
     }
+    // For trash, the buildSearchQuery already sets trash: true
 
-    // Add folder filter if specified
-    if (folderId && folderId !== "root") {
-      folderSearchQuery.parent = folderId;
+    // Only build folder query if no filters are applied
+    // Folders should only appear in unfiltered results
+    let folderSearchQuery = null;
+    if (!hasAnyFilter) {
+      folderSearchQuery = {
+        trash: section === "trash",
+      };
+
+      // Apply section-specific filters for folders
+      if (section === "shared") {
+        folderSearchQuery.shared = req.user.id;
+      } else if (section === "drive") {
+        folderSearchQuery.owner = req.user.id;
+      }
+
+      // Add partial word search for folders
+      try {
+        if (query && query.trim()) {
+          const words = query.trim().split(/\s+/);
+          if (words.length === 1) {
+            const escapedWord = words[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            folderSearchQuery.name = new RegExp(escapedWord, "i");
+          } else {
+            folderSearchQuery.$or = words.map((word) => {
+              const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              return { name: new RegExp(escapedWord, "i") };
+            });
+          }
+        }
+      } catch (error) {
+        return res
+          .status(400)
+          .json({ error: "Invalid search query: " + error.message });
+      }
+
+      // Add folder filter if specified
+      if (folderId && folderId !== "root") {
+        folderSearchQuery.parent = folderId;
+      }
     }
 
     // Build sort options
@@ -192,14 +222,19 @@ router.get("/search", async (req, res) => {
 
     // Get total counts
     const totalFiles = await File.countDocuments(fileSearchQuery);
-    const totalFolders = await Folder.countDocuments(folderSearchQuery);
+    const totalFolders = folderSearchQuery
+      ? await Folder.countDocuments(folderSearchQuery)
+      : 0;
 
     // Get paginated data
-    let folders = await Folder.find(folderSearchQuery)
-      .populate("owner", "name email")
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limit);
+    let folders = [];
+    if (folderSearchQuery) {
+      folders = await Folder.find(folderSearchQuery)
+        .populate("owner", "name email")
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit);
+    }
 
     const filesLimit = Math.max(0, limit - folders.length);
     const filesSkip =
@@ -213,7 +248,9 @@ router.get("/search", async (req, res) => {
 
     // Add search highlights and relevance scores
     if (query && query.trim()) {
-      folders = addSearchHighlights(folders, query);
+      if (folders.length > 0) {
+        folders = addSearchHighlights(folders, query);
+      }
       files = addSearchHighlights(files, query);
     }
 
@@ -235,6 +272,7 @@ router.get("/search", async (req, res) => {
         dateRange: searchParams.dateRange,
         sortBy,
         sortOrder,
+        section,
       },
     });
   } catch (error) {
