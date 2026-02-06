@@ -243,7 +243,7 @@ const StorageReport = () => {
                   <tbody>
                     {filteredUsers.map((user) => (
                       <tr key={user._id}>
-                        <td>
+                        <td data-label="User">
                           <div className={styles.userCell}>
                             <div
                               className={styles.userAvatar}
@@ -261,7 +261,7 @@ const StorageReport = () => {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Role">
                           <span
                             className={`${styles.roleBadge} ${
                               styles[`role${user.role}`]
@@ -270,19 +270,19 @@ const StorageReport = () => {
                             {user.role}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Storage Used">
                           <span className={styles.storageValue}>
                             {formatFileSize(user.storageUsed)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Storage Limit">
                           <span className={styles.storageValue}>
                             {user.storageLimit === -1
                               ? "Unlimited"
                               : formatFileSize(user.storageLimit)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Usage">
                           <div className={styles.usageCell}>
                             {user.storageLimit !== -1 && (
                               <>
@@ -310,7 +310,7 @@ const StorageReport = () => {
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Status">
                           {user.storagePercent >= 90 &&
                           user.storageLimit !== -1 ? (
                             <div className={styles.statusWarning}>

@@ -476,9 +476,59 @@
     font-size: 0.9rem;
   }
 
-  .tableContainer {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  /* Table Cards */
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: none;
+    padding: 0.5rem 0;
+    text-align: right;
+  }
+
+  .table td:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 1rem;
+    text-align: left;
+  }
+
+  .userCell {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .usageCell {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .storageBar {
+    width: 100%;
   }
 }
 

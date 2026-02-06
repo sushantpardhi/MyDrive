@@ -471,7 +471,7 @@ const FileManagement = () => {
                     const FileTypeIcon = getFileTypeIcon(file.mimeType);
                     return (
                       <tr key={file._id}>
-                        <td>
+                        <td data-label="File Name">
                           <div className={styles.fileNameWrapper}>
                             <div className={styles.fileIcon}>
                               <FileTypeIcon size={20} />
@@ -481,7 +481,7 @@ const FileManagement = () => {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Owner">
                           <div className={styles.ownerInfo}>
                             <div className={styles.ownerName}>
                               {file.owner?.name || "Unknown User"}
@@ -491,17 +491,17 @@ const FileManagement = () => {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Size">
                           <span className={styles.fileSize}>
                             {formatFileSize(file.size || 0)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Type">
                           <span className={styles.fileTypeBadge}>
                             {getReadableFileType(file.mimeType)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Uploaded">
                           <div className={styles.dateInfo}>
                             <div className={styles.dateMain}>
                               {formatDate(file.uploadedAt || file.createdAt)}
@@ -519,7 +519,10 @@ const FileManagement = () => {
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td
+                          className={styles.actionsColumn}
+                          data-label="Actions"
+                        >
                           <div className={styles.actions}>
                             <button
                               className={`${styles.actionButton} ${styles.deleteButton}`}

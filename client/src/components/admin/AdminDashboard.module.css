@@ -102,7 +102,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 44px;
-  width: 100%;
+  flex: 1;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -595,30 +595,31 @@
   }
 
   .title {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .refreshButton {
-    width: 100%;
+    flex: 1;
+    width: auto;
     justify-content: center;
   }
 
   .statsRow {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .metricCard {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   .metricValue {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .chartsGrid {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1rem;
   }
 
   .chartCenterText {

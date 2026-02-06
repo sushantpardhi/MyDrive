@@ -416,7 +416,7 @@ const UserManagement = () => {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user._id}>
-                      <td>
+                      <td data-label="User">
                         <div className={styles.userCell}>
                           <div
                             className={styles.userAvatar}
@@ -432,7 +432,7 @@ const UserManagement = () => {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Role">
                         <span
                           className={`${styles.roleBadge} ${getRoleBadgeClass(
                             user.role,
@@ -441,7 +441,7 @@ const UserManagement = () => {
                           {user.role}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Storage Used">
                         <div className={styles.storageCell}>
                           <div className={styles.storageValue}>
                             {formatFileSize(user.storageUsed)}
@@ -453,9 +453,11 @@ const UserManagement = () => {
                           )}
                         </div>
                       </td>
-                      <td>{user.fileCount || 0}</td>
-                      <td>{formatDate(user.createdAt)}</td>
-                      <td>
+                      <td data-label="Files">{user.fileCount || 0}</td>
+                      <td data-label="Member Since">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className={styles.actionsColumn} data-label="Actions">
                         <div className={styles.actions}>
                           <button
                             className={styles.actionButton}
