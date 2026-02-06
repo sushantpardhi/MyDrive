@@ -115,6 +115,8 @@ import {
   AverageFileSizeByTypeChart,
 } from "./charts";
 
+import DashboardFilters from "./DashboardFilters";
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -132,6 +134,31 @@ const AdminDashboard = () => {
   const [layouts, setLayouts] = useState({ lg: [] });
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
   const [prefsLoading, setPrefsLoading] = useState(true);
+
+  // Initialize filters from localStorage or default to last 30 days
+  const [filters, setFilters] = useState(() => {
+    const savedFilters = localStorage.getItem("adminDashboardFilters");
+    if (savedFilters) {
+      return JSON.parse(savedFilters);
+    }
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return {
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      role: "all",
+    };
+  });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("adminDashboardFilters", JSON.stringify(filters));
+  }, [filters]);
+
+  const onFilterChange = (newFilters) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
 
   // Get visible widgets from preferences or use defaults
   const visibleWidgets = useMemo(() => {
@@ -266,11 +293,11 @@ const AdminDashboard = () => {
     };
 
     initDashboard();
-  }, [user]);
+  }, [user, filters]); // Reload when filters change
 
   const loadStats = async () => {
     try {
-      await fetchSystemStats();
+      await fetchSystemStats(filters);
     } catch (error) {
       logger.error("Failed to load system stats", { error: error.message });
     }
@@ -535,6 +562,9 @@ const AdminDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Filters */}
+      <DashboardFilters filters={filters} onFilterChange={onFilterChange} />
 
       {/* Stats Overview - Minimal Cards */}
       <div className={styles.statsRow}>

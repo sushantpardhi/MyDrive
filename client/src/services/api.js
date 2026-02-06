@@ -486,7 +486,7 @@ const api = {
   // Admin operations
   admin: {
     // System statistics
-    getSystemStats: () => axios.get(`${API_URL}/admin/stats`),
+    getSystemStats: (params) => axios.get(`${API_URL}/admin/stats`, { params }),
 
     // User management
     getUsers: (params) => axios.get(`${API_URL}/admin/users`, { params }),

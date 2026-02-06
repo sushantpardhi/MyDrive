@@ -32,13 +32,13 @@ export const AdminProvider = ({ children }) => {
   /**
    * Fetch system statistics
    */
-  const fetchSystemStats = useCallback(async () => {
+  const fetchSystemStats = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
-      logger.info("Fetching system statistics");
+      logger.info("Fetching system statistics", params);
 
-      const response = await api.admin.getSystemStats();
+      const response = await api.admin.getSystemStats(params);
       setSystemStats(response.data);
 
       logger.info("System statistics fetched successfully", {
