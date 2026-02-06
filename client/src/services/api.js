@@ -486,7 +486,7 @@ const api = {
   // Admin operations
   admin: {
     // System statistics
-    getSystemStats: () => axios.get(`${API_URL}/admin/stats`),
+    getSystemStats: (params) => axios.get(`${API_URL}/admin/stats`, { params }),
 
     // User management
     getUsers: (params) => axios.get(`${API_URL}/admin/users`, { params }),
@@ -502,6 +502,12 @@ const api = {
     // Activity and reports
     getActivity: (params) => axios.get(`${API_URL}/admin/activity`, { params }),
     getStorageReport: () => axios.get(`${API_URL}/admin/storage-report`),
+
+    // Dashboard preferences
+    getDashboardPreferences: () =>
+      axios.get(`${API_URL}/admin/dashboard/preferences`),
+    saveDashboardPreferences: (preferences) =>
+      axios.put(`${API_URL}/admin/dashboard/preferences`, preferences),
   },
 };
 

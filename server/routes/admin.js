@@ -18,11 +18,51 @@ router.use(requireRole("admin"));
  */
 router.get("/stats", async (req, res) => {
   try {
-    logger.info("Admin fetching system stats", { adminId: req.user.id });
+    const { startDate, endDate, role } = req.query;
 
-    // Get user statistics
-    const totalUsers = await User.countDocuments();
+    logger.info("Admin fetching system stats", {
+      adminId: req.user.id,
+      filters: { startDate, endDate, role },
+    });
+
+    // Helper to build date query
+    const getDateQuery = (field = "createdAt") => {
+      const query = { trash: false };
+
+      if (startDate || endDate) {
+        query[field] = {};
+        if (startDate) query[field].$gte = new Date(startDate);
+        if (endDate) query[field].$lte = new Date(endDate);
+      }
+      return query;
+    };
+
+    // Helper to build date query extended (for things that might not have trash field or different structure)
+    const getDateRangeQuery = (field = "createdAt") => {
+      const query = {};
+      if (startDate || endDate) {
+        query[field] = {};
+        if (startDate) query[field].$gte = new Date(startDate);
+        if (endDate) query[field].$lte = new Date(endDate);
+      }
+      return query;
+    };
+
+    // 1. User Statistics
+    // Base user query
+    const userQuery = {};
+    if (startDate || endDate) {
+      userQuery.createdAt = {};
+      if (startDate) userQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) userQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    // Total users (filtered by date if provided)
+    const totalUsers = await User.countDocuments(userQuery);
+
+    // Users by role (filtered by date if provided)
     const usersByRole = await User.aggregate([
+      { $match: userQuery },
       {
         $group: {
           _id: "$role",
@@ -31,14 +71,53 @@ router.get("/stats", async (req, res) => {
       },
     ]);
 
-    // Get file statistics
-    const totalFiles = await File.countDocuments({ trash: false });
-    const totalFilesInTrash = await File.countDocuments({ trash: true });
-    const totalFolders = await Folder.countDocuments({ trash: false });
+    // New users this week (or in range if range provided)
+    let newUsersCount;
+    if (startDate || endDate) {
+      // If range is provided, "new users" is just the total in that range
+      newUsersCount = totalUsers;
+    } else {
+      // Default behavior: last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      newUsersCount = await User.countDocuments({
+        createdAt: { $gte: sevenDaysAgo },
+      });
+    }
 
-    // Get storage statistics
+    // 2. File Statistics
+    // Base file query with date filters
+    const fileQuery = getDateQuery("createdAt");
+
+    // Apply role filter if selected (requires looking up users first)
+    if (role && role !== "all") {
+      const usersWithRole = await User.find({ role }).select("_id");
+      const userIds = usersWithRole.map((u) => u._id);
+      fileQuery.owner = { $in: userIds };
+    }
+
+    const totalFiles = await File.countDocuments(fileQuery);
+
+    // Trash count (uses specific trash query)
+    const trashQuery = { trash: true };
+    if (startDate || endDate) {
+      trashQuery.createdAt = {}; // Use deletedAt if available, but for now createdAt
+      if (startDate) trashQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) trashQuery.createdAt.$lte = new Date(endDate);
+    }
+    const totalFilesInTrash = await File.countDocuments(trashQuery);
+
+    // Folders count
+    const folderQuery = getDateQuery("createdAt");
+    if (role && role !== "all") {
+      // Re-use owner logic if needed, but for now assume consistency with fileQuery
+      if (fileQuery.owner) folderQuery.owner = fileQuery.owner;
+    }
+    const totalFolders = await Folder.countDocuments(folderQuery);
+
+    // 3. Storage Statistics
     const storageStats = await File.aggregate([
-      { $match: { trash: false } },
+      { $match: fileQuery },
       {
         $group: {
           _id: null,
@@ -50,8 +129,19 @@ router.get("/stats", async (req, res) => {
       },
     ]);
 
-    // Get user storage statistics
+    // 4. User Storage Statistics
+    // This is aggregate of current state, hard to filter by date unless we track history.
+    // We will filter by role though.
+    const userStorageQuery = {};
+    if (role && role !== "all") {
+      userStorageQuery.role = role;
+    }
+    // Note: user storage stats usually reflect current usage, not historical.
+    // Date filter on user creation could apply, but might be confusing.
+    // We'll apply role filter only here.
+
     const userStorageStats = await User.aggregate([
+      { $match: userStorageQuery },
       {
         $group: {
           _id: null,
@@ -62,16 +152,9 @@ router.get("/stats", async (req, res) => {
       },
     ]);
 
-    // Get recent users (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const newUsersThisWeek = await User.countDocuments({
-      createdAt: { $gte: sevenDaysAgo },
-    });
-
-    // Get file type distribution
+    // 5. File Type Distribution
     const fileTypeDistribution = await File.aggregate([
-      { $match: { trash: false } },
+      { $match: fileQuery },
       {
         $group: {
           _id: "$type",
@@ -83,22 +166,40 @@ router.get("/stats", async (req, res) => {
       { $limit: 20 },
     ]);
 
-    // Get active upload sessions
+    // 6. Active Upload Sessions (Real-time, no date filter usually)
     const activeUploadSessions = await UploadSession.countDocuments({
       expiresAt: { $gt: new Date() },
     });
 
-    // Get storage trend over time (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // 7. Storage Trend
+    // If date range provided, use it. Else default to 30 days.
+    let trendStart, trendEnd;
+
+    if (startDate) {
+      trendStart = new Date(startDate);
+    } else {
+      trendStart = new Date();
+      trendStart.setDate(trendStart.getDate() - 30);
+    }
+
+    if (endDate) {
+      trendEnd = new Date(endDate);
+    }
+
+    const trendQuery = {
+      trash: false,
+      createdAt: { $gte: trendStart },
+    };
+    if (trendEnd) {
+      trendQuery.createdAt.$lte = trendEnd;
+    }
+    // Apply role filter to trend
+    if (role && role !== "all" && fileQuery.owner) {
+      trendQuery.owner = fileQuery.owner;
+    }
 
     const storageTrend = await File.aggregate([
-      {
-        $match: {
-          trash: false,
-          createdAt: { $gte: thirtyDaysAgo },
-        },
-      },
+      { $match: trendQuery },
       {
         $group: {
           _id: {
@@ -111,14 +212,23 @@ router.get("/stats", async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // Get top storage users (top 5)
-    const topStorageUsers = await User.find()
+    // 8. Top Storage Users
+    // Apply role filter
+    const topUserQuery = {};
+    if (role && role !== "all") {
+      topUserQuery.role = role;
+    }
+
+    const topStorageUsers = await User.find(topUserQuery)
       .select("name email storageUsed")
       .sort({ storageUsed: -1 })
       .limit(5)
       .lean();
 
-    // Get file count for top users
+    // Get file count for top users (respecting date filter for counts?)
+    // Usually "Top Storage Users" implies current usage.
+    // Date filter on file counts might be interesting but inconsistent with "Storage Used" (which is total).
+    // keeping it simple: Total files for these users.
     const topUserIds = topStorageUsers.map((u) => u._id);
     const topUserFileCounts = await File.aggregate([
       { $match: { owner: { $in: topUserIds }, trash: false } },
@@ -135,9 +245,9 @@ router.get("/stats", async (req, res) => {
       fileCount: topUserFileCountMap[user._id.toString()] || 0,
     }));
 
-    // Get file size distribution
+    // 9. File Size Distribution
     const fileSizeDistribution = await File.aggregate([
-      { $match: { trash: false } },
+      { $match: fileQuery },
       {
         $bucket: {
           groupBy: "$size",
@@ -158,26 +268,29 @@ router.get("/stats", async (req, res) => {
       },
     ]);
 
-    // Map bucket boundaries to readable names
     const sizeRanges = ["< 1MB", "1-10MB", "10-50MB", "50-100MB", "> 100MB"];
     const fileSizeDistributionFormatted = fileSizeDistribution.map(
       (bucket, index) => ({
         name: sizeRanges[index] || "Other",
         count: bucket.count,
         totalSize: bucket.totalSize,
-      })
+      }),
     );
 
-    // Get activity timeline (last 14 days)
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // 10. Activity Timeline (Uploads & Registrations)
+    // Use trendStart/trendEnd calculated above
+
+    // File Activity
+    const activityFileQuery = {
+      createdAt: { $gte: trendStart },
+    };
+    if (trendEnd) activityFileQuery.createdAt.$lte = trendEnd;
+    if (role && role !== "all" && fileQuery.owner) {
+      activityFileQuery.owner = fileQuery.owner;
+    }
 
     const fileActivityTimeline = await File.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: fourteenDaysAgo },
-        },
-      },
+      { $match: activityFileQuery },
       {
         $group: {
           _id: {
@@ -189,12 +302,15 @@ router.get("/stats", async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
+    // User Registration Activity
+    const userRegQuery = {
+      createdAt: { $gte: trendStart },
+    };
+    if (trendEnd) userRegQuery.createdAt.$lte = trendEnd;
+    if (role && role !== "all") userRegQuery.role = role;
+
     const userRegistrationTimeline = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: fourteenDaysAgo },
-        },
-      },
+      { $match: userRegQuery },
       {
         $group: {
           _id: {
@@ -206,21 +322,20 @@ router.get("/stats", async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // Merge activity timelines
+    // Merge timelines
     const activityMap = {};
-    fileActivityTimeline.forEach((item) => {
-      activityMap[item._id] = { uploads: item.uploads, registrations: 0 };
-    });
-    userRegistrationTimeline.forEach((item) => {
-      if (activityMap[item._id]) {
-        activityMap[item._id].registrations = item.registrations;
-      } else {
-        activityMap[item._id] = {
-          uploads: 0,
-          registrations: item.registrations,
-        };
-      }
-    });
+    const addToMap = (date, type, count) => {
+      if (!activityMap[date])
+        activityMap[date] = { uploads: 0, registrations: 0 };
+      activityMap[date][type] = count;
+    };
+
+    fileActivityTimeline.forEach((item) =>
+      addToMap(item._id, "uploads", item.uploads),
+    );
+    userRegistrationTimeline.forEach((item) =>
+      addToMap(item._id, "registrations", item.registrations),
+    );
 
     const activityTimeline = Object.keys(activityMap)
       .sort()
@@ -230,13 +345,9 @@ router.get("/stats", async (req, res) => {
         registrations: activityMap[date].registrations,
       }));
 
-    // User growth trend by role (last 30 days)
+    // 11. User Growth Trend
     const userGrowthTrend = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: thirtyDaysAgo },
-        },
-      },
+      { $match: userRegQuery },
       {
         $group: {
           _id: {
@@ -251,25 +362,20 @@ router.get("/stats", async (req, res) => {
       { $sort: { "_id.date": 1 } },
     ]);
 
-    // Transform user growth data into chart format
     const userGrowthMap = {};
     userGrowthTrend.forEach((item) => {
       const date = item._id.date;
-      const role = item._id.role;
+      const r = item._id.role;
       if (!userGrowthMap[date]) {
-        userGrowthMap[date] = { date, admin: 0, family: 0, guest: 0 };
+        userGrowthMap[date] = { date, admin: 0, family: 0, guest: 0, user: 0 };
       }
-      userGrowthMap[date][role] = item.count;
+      userGrowthMap[date][r] = item.count;
     });
     const userGrowthData = Object.values(userGrowthMap);
 
-    // Upload patterns by hour
+    // 12. Upload Patterns by Hour
     const uploadPatternsByHour = await File.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: fourteenDaysAgo },
-        },
-      },
+      { $match: activityFileQuery },
       {
         $group: {
           _id: { $hour: "$createdAt" },
@@ -279,17 +385,27 @@ router.get("/stats", async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // Format with all 24 hours
     const hourlyPatterns = Array.from({ length: 24 }, (_, i) => ({
       hour: `${i.toString().padStart(2, "0")}:00`,
       count: 0,
     }));
     uploadPatternsByHour.forEach((item) => {
-      hourlyPatterns[item._id].count = item.count;
+      if (hourlyPatterns[item._id]) {
+        hourlyPatterns[item._id].count = item.count;
+      }
     });
 
-    // Storage usage by role
+    // 13. Storage Usage by Role
+    // Usually specific to 'current' state, but we can filter which roles to show?
+    // The request asks to "metrics update immediately based on filters".
+    // If filtering by specific role, maybe only show that role?
+    const roleQuery = {};
+    if (role && role !== "all") {
+      roleQuery.role = role;
+    }
+
     const storageByRole = await User.aggregate([
+      { $match: roleQuery },
       {
         $group: {
           _id: "$role",
@@ -306,9 +422,9 @@ router.get("/stats", async (req, res) => {
       users: item.users,
     }));
 
-    // Average file size by type
+    // 14. Avg File Size by Type
     const avgFileSizeByType = await File.aggregate([
-      { $match: { trash: false } },
+      { $match: fileQuery },
       {
         $group: {
           _id: "$type",
@@ -327,7 +443,7 @@ router.get("/stats", async (req, res) => {
           acc[item._id] = item.count;
           return acc;
         }, {}),
-        newThisWeek: newUsersThisWeek,
+        newThisWeek: newUsersCount,
         topStorageUsers: topStorageUsersWithCounts,
       },
       files: {
@@ -359,13 +475,6 @@ router.get("/stats", async (req, res) => {
       adminId: req.user.id,
       totalUsers,
       totalFiles,
-      topStorageUsersCount: topStorageUsersWithCounts.length,
-      fileSizeDistributionRanges: fileSizeDistributionFormatted.length,
-      activityTimelineDays: activityTimeline.length,
-      userGrowthTrendDays: userGrowthData.length,
-      uploadPatternsHours: hourlyPatterns.length,
-      storageByRoleCount: storageByRoleFormatted.length,
-      avgFileSizeTypesCount: avgFileSizeByType.length,
     });
 
     res.json(stats);
@@ -538,7 +647,7 @@ router.put("/users/:userId/role", async (req, res) => {
     const { userId } = req.params;
     const { role } = req.body;
 
-    if (!["admin", "family", "guest"].includes(role)) {
+    if (!["admin", "family", "guest", "user"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" });
     }
 
@@ -560,9 +669,23 @@ router.put("/users/:userId/role", async (req, res) => {
       });
     }
 
+    // Prevent assigning guest role manually
+    if (role === "guest") {
+      return res.status(400).json({
+        error: "Cannot manually assign Guest role",
+      });
+    }
+
     const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    // Prevent changing role of a guest user
+    if (user.role === "guest") {
+      return res.status(400).json({
+        error: "Cannot change role of a Guest user",
+      });
     }
 
     const oldRole = user.role;
@@ -898,6 +1021,94 @@ router.get("/storage-report", async (req, res) => {
       stack: error.stack,
     });
     res.status(500).json({ error: "Failed to fetch storage report" });
+  }
+});
+
+/**
+ * GET /api/admin/dashboard/preferences
+ * Get admin's dashboard preferences (visible widgets and order)
+ */
+router.get("/dashboard/preferences", async (req, res) => {
+  try {
+    logger.info("Admin fetching dashboard preferences", {
+      adminId: req.user.id,
+    });
+
+    const user = await User.findById(req.user.id).select(
+      "dashboardPreferences",
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return preferences or defaults
+    const preferences = {
+      visibleWidgets: user.dashboardPreferences?.visibleWidgets || null,
+      widgetOrder: user.dashboardPreferences?.widgetOrder || null,
+    };
+
+    res.json(preferences);
+  } catch (error) {
+    logger.error("Error fetching dashboard preferences", {
+      adminId: req.user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to fetch dashboard preferences" });
+  }
+});
+
+/**
+ * PUT /api/admin/dashboard/preferences
+ * Save admin's dashboard preferences (visible widgets and order)
+ */
+router.put("/dashboard/preferences", async (req, res) => {
+  try {
+    const { visibleWidgets, widgetOrder } = req.body;
+
+    logger.info("Admin saving dashboard preferences", {
+      adminId: req.user.id,
+      visibleWidgetsCount: visibleWidgets?.length,
+      widgetOrderCount: widgetOrder?.length,
+    });
+
+    // Validate input
+    if (visibleWidgets && !Array.isArray(visibleWidgets)) {
+      return res.status(400).json({ error: "visibleWidgets must be an array" });
+    }
+    if (widgetOrder && !Array.isArray(widgetOrder)) {
+      return res.status(400).json({ error: "widgetOrder must be an array" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update preferences
+    user.dashboardPreferences = {
+      visibleWidgets: visibleWidgets || null,
+      widgetOrder: widgetOrder || null,
+    };
+
+    await user.save();
+
+    logger.info("Dashboard preferences saved successfully", {
+      adminId: req.user.id,
+      visibleWidgets: user.dashboardPreferences.visibleWidgets,
+    });
+
+    res.json({
+      message: "Dashboard preferences saved successfully",
+      preferences: user.dashboardPreferences,
+    });
+  } catch (error) {
+    logger.error("Error saving dashboard preferences", {
+      adminId: req.user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to save dashboard preferences" });
   }
 });
 

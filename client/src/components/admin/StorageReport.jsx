@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HardDrive,
@@ -8,6 +8,7 @@ import {
   Users,
   Database,
   RefreshCw,
+  Filter,
 } from "lucide-react";
 import { useAdmin, useAuth } from "../../contexts";
 import { formatFileSize } from "../../utils/formatters";
@@ -19,6 +20,8 @@ const StorageReport = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { storageReport, loading, fetchStorageReport } = useAdmin();
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     if (currentUser?.role !== "admin") {
@@ -56,10 +59,10 @@ const StorageReport = () => {
 
     const totalStorage = storageReport.users.reduce(
       (sum, user) => sum + (user.storageUsed || 0),
-      0
+      0,
     );
     const usersNearLimit = storageReport.users.filter(
-      (user) => user.storagePercent >= 80 && user.storageLimit !== -1
+      (user) => user.storagePercent >= 80 && user.storageLimit !== -1,
     ).length;
 
     return {
@@ -69,6 +72,28 @@ const StorageReport = () => {
       usersNearLimit,
     };
   }, [storageReport]);
+
+  const filteredUsers = useMemo(() => {
+    if (!storageReport || !storageReport.users) return [];
+
+    return storageReport.users.filter((user) => {
+      // Filter by role
+      if (roleFilter !== "all" && user.role !== roleFilter) return false;
+
+      // Filter by status
+      if (statusFilter !== "all") {
+        if (user.storageLimit === -1) return false; // Unlimited users don't have status
+
+        const percent = user.storagePercent;
+        if (statusFilter === "critical" && percent < 90) return false;
+        if (statusFilter === "warning" && (percent < 75 || percent >= 90))
+          return false;
+        if (statusFilter === "normal" && percent >= 75) return false;
+      }
+
+      return true;
+    });
+  }, [storageReport, roleFilter, statusFilter]);
 
   return (
     <div className={styles.container}>
@@ -95,6 +120,39 @@ const StorageReport = () => {
             <ChevronLeft size={18} />
             Back
           </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={styles.controls}>
+        <div className={styles.filters}>
+          <div className={styles.filterGroup}>
+            <Filter size={16} />
+            <select
+              className={styles.filterSelect}
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="family">Family</option>
+              <option value="user">User</option>
+              <option value="guest">Guest</option>
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
+            <select
+              className={styles.filterSelect}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="normal">Normal</option>
+              <option value="warning">High Usage (75%+)</option>
+              <option value="critical">Almost Full (90%+)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -166,7 +224,7 @@ const StorageReport = () => {
           </div>
 
           {/* User Storage Table */}
-          {storageReport.users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className={styles.empty}>No users found</div>
           ) : (
             <div className={styles.tableWrapper}>
@@ -183,9 +241,9 @@ const StorageReport = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {storageReport.users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user._id}>
-                        <td>
+                        <td data-label="User">
                           <div className={styles.userCell}>
                             <div
                               className={styles.userAvatar}
@@ -203,7 +261,7 @@ const StorageReport = () => {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Role">
                           <span
                             className={`${styles.roleBadge} ${
                               styles[`role${user.role}`]
@@ -212,19 +270,19 @@ const StorageReport = () => {
                             {user.role}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Storage Used">
                           <span className={styles.storageValue}>
                             {formatFileSize(user.storageUsed)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Storage Limit">
                           <span className={styles.storageValue}>
                             {user.storageLimit === -1
                               ? "Unlimited"
                               : formatFileSize(user.storageLimit)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Usage">
                           <div className={styles.usageCell}>
                             {user.storageLimit !== -1 && (
                               <>
@@ -237,10 +295,10 @@ const StorageReport = () => {
                                     style={{
                                       width: `${Math.min(
                                         user.storagePercent,
-                                        100
+                                        100,
                                       )}%`,
                                       backgroundColor: getStorageBarColor(
-                                        user.storagePercent
+                                        user.storagePercent,
                                       ),
                                     }}
                                   />
@@ -252,7 +310,7 @@ const StorageReport = () => {
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Status">
                           {user.storagePercent >= 90 &&
                           user.storageLimit !== -1 ? (
                             <div className={styles.statusWarning}>

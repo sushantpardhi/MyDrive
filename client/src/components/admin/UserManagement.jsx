@@ -75,7 +75,7 @@ const UserManagement = () => {
         guests: 0,
         totalStorage: 0,
         totalFiles: 0,
-      }
+      },
     );
   }, [users]);
 
@@ -92,7 +92,7 @@ const UserManagement = () => {
             formatFileSize(user.storageUsed),
             user.fileCount || 0,
             formatDate(user.createdAt),
-          ].join(",")
+          ].join(","),
         ),
       ].join("\n");
 
@@ -199,6 +199,8 @@ const UserManagement = () => {
         return styles.roleFamily;
       case "guest":
         return styles.roleGuest;
+      case "user":
+        return styles.roleUser;
       default:
         return "";
     }
@@ -357,6 +359,7 @@ const UserManagement = () => {
               <option value="">All Roles</option>
               <option value="admin">Admin</option>
               <option value="family">Family</option>
+              <option value="user">User</option>
               <option value="guest">Guest</option>
             </select>
           </div>
@@ -413,7 +416,7 @@ const UserManagement = () => {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user._id}>
-                      <td>
+                      <td data-label="User">
                         <div className={styles.userCell}>
                           <div
                             className={styles.userAvatar}
@@ -429,16 +432,16 @@ const UserManagement = () => {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Role">
                         <span
                           className={`${styles.roleBadge} ${getRoleBadgeClass(
-                            user.role
+                            user.role,
                           )}`}
                         >
                           {user.role}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Storage Used">
                         <div className={styles.storageCell}>
                           <div className={styles.storageValue}>
                             {formatFileSize(user.storageUsed)}
@@ -450,9 +453,11 @@ const UserManagement = () => {
                           )}
                         </div>
                       </td>
-                      <td>{user.fileCount || 0}</td>
-                      <td>{formatDate(user.createdAt)}</td>
-                      <td>
+                      <td data-label="Files">{user.fileCount || 0}</td>
+                      <td data-label="Member Since">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className={styles.actionsColumn} data-label="Actions">
                         <div className={styles.actions}>
                           <button
                             className={styles.actionButton}
@@ -461,7 +466,17 @@ const UserManagement = () => {
                               setNewRole(user.role);
                               handleRoleChange();
                             }}
-                            title="Change Role"
+                            title={
+                              user.role === "guest"
+                                ? "Guest role cannot be changed"
+                                : "Change Role"
+                            }
+                            disabled={user.role === "guest"}
+                            style={
+                              user.role === "guest"
+                                ? { opacity: 0.5, cursor: "not-allowed" }
+                                : {}
+                            }
                           >
                             <Edit2 size={16} />
                           </button>
@@ -563,14 +578,36 @@ const UserManagement = () => {
                 <input
                   type="radio"
                   name="role"
-                  value="guest"
-                  checked={newRole === "guest"}
+                  value="user"
+                  checked={newRole === "user"}
                   onChange={(e) => setNewRole(e.target.value)}
                 />
                 <div className={styles.roleOptionInfo}>
-                  <div className={styles.roleOptionName}>Guest</div>
+                  <div className={styles.roleOptionName}>User</div>
                   <div className={styles.roleOptionDesc}>
                     Standard user with 5GB storage limit
+                  </div>
+                </div>
+              </label>
+
+              <label
+                className={styles.roleOption}
+                style={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="guest"
+                  checked={newRole === "guest"}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  disabled={true}
+                />
+                <div className={styles.roleOptionInfo}>
+                  <div className={styles.roleOptionName}>
+                    Guest (Automatic only)
+                  </div>
+                  <div className={styles.roleOptionDesc}>
+                    Temporary user with 500MB storage limit
                   </div>
                 </div>
               </label>

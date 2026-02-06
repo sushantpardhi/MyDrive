@@ -10,6 +10,7 @@ export const AdminProvider = ({ children }) => {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState(null);
   const [storageReport, setStorageReport] = useState(null);
+  const [dashboardPreferences, setDashboardPreferences] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,13 +32,13 @@ export const AdminProvider = ({ children }) => {
   /**
    * Fetch system statistics
    */
-  const fetchSystemStats = useCallback(async () => {
+  const fetchSystemStats = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
-      logger.info("Fetching system statistics");
+      logger.info("Fetching system statistics", params);
 
-      const response = await api.admin.getSystemStats();
+      const response = await api.admin.getSystemStats(params);
       setSystemStats(response.data);
 
       logger.info("System statistics fetched successfully", {
@@ -103,7 +104,7 @@ export const AdminProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [usersPagination.page, usersPagination.limit]
+    [usersPagination.page, usersPagination.limit],
   );
 
   /**
@@ -149,8 +150,8 @@ export const AdminProvider = ({ children }) => {
       // Update user in local state
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
-          user._id === userId ? response.data.user : user
-        )
+          user._id === userId ? response.data.user : user,
+        ),
       );
 
       logger.info("User role updated successfully", { userId, role });
@@ -240,7 +241,7 @@ export const AdminProvider = ({ children }) => {
 
         // Log files with null owners for debugging
         const filesWithNullOwner = response.data.files.filter(
-          (file) => !file.owner
+          (file) => !file.owner,
         );
         if (filesWithNullOwner.length > 0) {
           logger.warn("Files with null owner received from API", {
@@ -268,7 +269,7 @@ export const AdminProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [filesPagination.page, filesPagination.limit]
+    [filesPagination.page, filesPagination.limit],
   );
 
   /**
@@ -376,6 +377,60 @@ export const AdminProvider = ({ children }) => {
     }
   }, []);
 
+  /**
+   * Fetch dashboard preferences
+   */
+  const fetchDashboardPreferences = useCallback(async () => {
+    try {
+      logger.info("Fetching dashboard preferences");
+
+      const response = await api.admin.getDashboardPreferences();
+      setDashboardPreferences(response.data);
+
+      logger.info("Dashboard preferences fetched successfully", {
+        visibleWidgets: response.data.visibleWidgets?.length,
+      });
+
+      return response.data;
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.error || "Failed to fetch dashboard preferences";
+      logger.error("Error fetching dashboard preferences", {
+        error: errorMessage,
+        status: err.response?.status,
+      });
+      // Don't set error state for preferences - use defaults
+      return null;
+    }
+  }, []);
+
+  /**
+   * Save dashboard preferences
+   */
+  const saveDashboardPreferences = useCallback(async (preferences) => {
+    try {
+      logger.info("Saving dashboard preferences", {
+        visibleWidgetsCount: preferences.visibleWidgets?.length,
+      });
+
+      const response = await api.admin.saveDashboardPreferences(preferences);
+      setDashboardPreferences(response.data.preferences);
+
+      logger.info("Dashboard preferences saved successfully");
+
+      return response.data;
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.error || "Failed to save dashboard preferences";
+      logger.error("Error saving dashboard preferences", {
+        error: errorMessage,
+        status: err.response?.status,
+      });
+      setError(errorMessage);
+      throw err;
+    }
+  }, []);
+
   const value = {
     // State
     systemStats,
@@ -383,6 +438,7 @@ export const AdminProvider = ({ children }) => {
     files,
     activity,
     storageReport,
+    dashboardPreferences,
     loading,
     error,
     usersPagination,
@@ -398,6 +454,8 @@ export const AdminProvider = ({ children }) => {
     deleteFile,
     fetchActivity,
     fetchStorageReport,
+    fetchDashboardPreferences,
+    saveDashboardPreferences,
   };
 
   return (

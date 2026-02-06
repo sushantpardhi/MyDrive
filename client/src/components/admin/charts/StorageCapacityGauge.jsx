@@ -57,7 +57,7 @@ const StorageCapacityGauge = ({ storageStats, maxCapacity = 107374182400 }) => {
         </div>
       </div>
       <div className={styles.chartContent}>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}

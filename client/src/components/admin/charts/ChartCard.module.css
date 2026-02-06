@@ -1,14 +1,18 @@
 /* Chart Card Styles - Mobile First */
 .chartCard {
   background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.25rem;
-  transition: all 0.3s ease;
+  /* Remove border and padding as the grid item now handles container styles */
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .chartCard:hover {
-  border-color: var(--border-color);
+  /* No hover effect on internal card anymore */
+  border-color: transparent;
 }
 
 .chartHeader {
@@ -16,6 +20,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  flex-shrink: 0; /* Header shouldn't shrink */
 }
 
 .chartTitle {
@@ -26,24 +31,65 @@
 }
 
 .chartContent {
-  min-height: 240px;
+  flex: 1; /* Take remaining space */
+  min-height: 0; /* Important for nested flex scroll/resize */
+  position: relative;
 }
 
 /* Tablet and Desktop */
 @media (min-width: 769px) {
-  .chartCard {
-    padding: 1.75rem;
-  }
+  /* Removed padding overrides as parent grid item handles padding */
 
   .chartHeader {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
   }
 
   .chartTitle {
     font-size: 1rem;
   }
 
-  .chartContent {
-    min-height: 280px;
+  /* Removed min-height override */
+}
+
+/* Graph Type Selector */
+.graphSelector {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.selectorButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.selectorButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+
+.selectorButton.active {
+  background: var(--bg-primary);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode adjustments via CSS variables should handle this, 
+   but specific hover for dark mode if needed: */
+@media (prefers-color-scheme: dark) {
+  .selectorButton:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 }

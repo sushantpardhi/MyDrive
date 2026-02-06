@@ -156,7 +156,7 @@ const ActivityLog = () => {
 
     // Sort by timestamp descending
     return activities.sort(
-      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
     );
   }, [activity]);
 
@@ -170,11 +170,11 @@ const ActivityLog = () => {
   const statistics = useMemo(() => {
     const uploads = allActivities.filter((a) => a.type === "file_upload");
     const registrations = allActivities.filter(
-      (a) => a.type === "user_registration"
+      (a) => a.type === "user_registration",
     );
     const totalSize = uploads.reduce(
       (sum, a) => sum + (a.details?.fileSize || 0),
-      0
+      0,
     );
 
     return {
@@ -316,7 +316,7 @@ const ActivityLog = () => {
                   <tbody>
                     {filteredActivities.map((item, index) => (
                       <tr key={index}>
-                        <td>
+                        <td data-label="Type">
                           <div className={styles.typeCell}>
                             <div className={styles.typeIcon}>
                               {getActivityIcon(item.type)}
@@ -330,7 +330,7 @@ const ActivityLog = () => {
                             </span>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="User">
                           <div className={styles.userCell}>
                             {item.type === "file_upload" && (
                               <>
@@ -354,7 +354,7 @@ const ActivityLog = () => {
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Details">
                           <div className={styles.detailsCell}>
                             {item.type === "file_upload" && (
                               <>
@@ -378,7 +378,7 @@ const ActivityLog = () => {
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Date & Time">
                           <div className={styles.dateCell}>
                             {formatActivityDate(item.timestamp)}
                           </div>
