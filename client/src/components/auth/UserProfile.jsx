@@ -19,6 +19,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
+import { toast } from "react-toastify";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
 import { useTheme, useAuth, useUIContext } from "../../contexts";
@@ -73,7 +74,6 @@ export default function UserProfile() {
   // Tags state
   const [tags, setTags] = useState([]);
   const [newTagName, setNewTagName] = useState("");
-  const [tagError, setTagError] = useState(null);
   const [tagLoading, setTagLoading] = useState(false);
 
   // Password change state
@@ -155,16 +155,16 @@ export default function UserProfile() {
     e.preventDefault();
     if (!newTagName.trim()) return;
 
-    setTagError(null);
     setTagLoading(true);
 
     try {
       const res = await api.createTag(newTagName.trim());
       setTags((prev) => [...prev, res.data]);
       setNewTagName("");
+      toast.success(`Tag "${res.data.name}" created successfully`);
       logger.info("Tag created successfully", { tagName: res.data.name });
     } catch (err) {
-      setTagError(err.response?.data?.error || "Failed to create tag");
+      toast.error(err.response?.data?.error || "Failed to create tag");
       logger.error("Error creating tag", { error: err.message });
     } finally {
       setTagLoading(false);
@@ -175,9 +175,10 @@ export default function UserProfile() {
     try {
       await api.deleteTag(tagId);
       setTags((prev) => prev.filter((tag) => tag._id !== tagId));
+      toast.success("Tag deleted successfully");
       logger.info("Tag deleted successfully", { tagId });
     } catch (err) {
-      setTagError(err.response?.data?.error || "Failed to delete tag");
+      toast.error(err.response?.data?.error || "Failed to delete tag");
       logger.error("Error deleting tag", { error: err.message });
     }
   }
@@ -730,18 +731,12 @@ export default function UserProfile() {
               <p className={styles.sectionDescription}>
                 Create tags to organize your files and folders.
               </p>
-              {tagError && (
-                <div className={styles.errorMessage}>{tagError}</div>
-              )}
               <form onSubmit={handleCreateTag} className={styles.tagForm}>
                 <div className={styles.tagInputRow}>
                   <input
                     type="text"
                     value={newTagName}
-                    onChange={(e) => {
-                      setNewTagName(e.target.value);
-                      setTagError(null);
-                    }}
+                    onChange={(e) => setNewTagName(e.target.value)}
                     placeholder="Enter tag name"
                     className={styles.tagInput}
                     maxLength={50}
