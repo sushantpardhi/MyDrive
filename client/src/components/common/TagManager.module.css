@@ -128,23 +128,23 @@
 
 .dropdownInline {
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
+  margin-bottom: 4px;
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  animation: fadeIn 0.15s ease-out;
+  animation: slideUp 0.15s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-2px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
