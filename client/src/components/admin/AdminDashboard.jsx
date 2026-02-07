@@ -7,6 +7,8 @@ import {
   Activity,
   ArrowUpRight,
   Settings,
+  Layout,
+  Check,
 } from "lucide-react";
 import { useAdmin } from "../../contexts";
 import { useAuth } from "../../contexts";
@@ -130,10 +132,27 @@ const AdminDashboard = () => {
   } = useAdmin();
   const [refreshing, setRefreshing] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [layouts, setLayouts] = useState({ lg: [] });
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
   const [prefsLoading, setPrefsLoading] = useState(true);
+
+  // Memoize layouts to apply static property when not editing
+  const activeLayouts = useMemo(() => {
+    const processedLayouts = {};
+    Object.keys(layouts).forEach((breakpoint) => {
+      if (layouts[breakpoint]) {
+        processedLayouts[breakpoint] = layouts[breakpoint].map((item) => ({
+          ...item,
+          static: !isEditing, // Lock item when not editing
+          isDraggable: isEditing,
+          isResizable: isEditing,
+        }));
+      }
+    });
+    return processedLayouts;
+  }, [layouts, isEditing]);
 
   // Initialize filters from localStorage or default to last 30 days
   const [filters, setFilters] = useState(() => {
@@ -546,6 +565,14 @@ const AdminDashboard = () => {
         </div>
         <div className={styles.headerActions}>
           <button
+            className={`${styles.actionBtn} ${isEditing ? styles.activeBtn : ""}`}
+            onClick={() => setIsEditing(!isEditing)}
+            title={isEditing ? "Save Layout" : "Edit Layout"}
+          >
+            {isEditing ? <Check size={18} /> : <Layout size={18} />}
+            {isEditing ? "Done" : "Arrange"}
+          </button>
+          <button
             className={styles.customizeButton}
             onClick={() => setShowCustomizer(true)}
           >
@@ -640,10 +667,12 @@ const AdminDashboard = () => {
       ) : (
         <ResponsiveGridLayout
           className="layout"
-          layouts={layouts}
+          layouts={activeLayouts}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
           rowHeight={100}
+          isDraggable={isEditing}
+          isResizable={isEditing}
           draggableHandle=".drag-handle"
           onBreakpointChange={setCurrentBreakpoint}
           onLayoutChange={onLayoutChange}
@@ -654,7 +683,9 @@ const AdminDashboard = () => {
           {/* Storage Capacity Gauge */}
           {isWidgetVisible("storageCapacity") && (
             <div key="storageCapacity" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <StorageCapacityGauge storageStats={storageStats} />
             </div>
           )}
@@ -662,7 +693,9 @@ const AdminDashboard = () => {
           {/* User Distribution */}
           {isWidgetVisible("userDistribution") && (
             <div key="userDistribution" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <UserDistributionChart userStats={userStats} />
             </div>
           )}
@@ -670,7 +703,9 @@ const AdminDashboard = () => {
           {/* Top File Types */}
           {isWidgetVisible("topFileTypes") && (
             <div key="topFileTypes" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <TopFileTypesChart
                 fileTypes={fileTypes}
                 getFileTypeLabel={getFileTypeLabel}
@@ -681,7 +716,9 @@ const AdminDashboard = () => {
           {/* Storage Trend (30 Days) */}
           {isWidgetVisible("storageTrend") && (
             <div key="storageTrend" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <StorageTrendChart storageTrendData={storageTrendData} />
             </div>
           )}
@@ -689,7 +726,9 @@ const AdminDashboard = () => {
           {/* Top Storage Users */}
           {isWidgetVisible("topStorageUsers") && (
             <div key="topStorageUsers" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <TopStorageUsersChart storageByUserData={storageByUserData} />
             </div>
           )}
@@ -697,7 +736,9 @@ const AdminDashboard = () => {
           {/* File Size Distribution */}
           {isWidgetVisible("fileSizeDistribution") && (
             <div key="fileSizeDistribution" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <FileSizeDistributionChart
                 fileSizeDistribution={fileSizeDistribution}
               />
@@ -707,7 +748,9 @@ const AdminDashboard = () => {
           {/* Activity Timeline */}
           {isWidgetVisible("activityTimeline") && (
             <div key="activityTimeline" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <ActivityTimelineChart
                 activityTimelineData={activityTimelineData}
               />
@@ -717,7 +760,9 @@ const AdminDashboard = () => {
           {/* Storage by File Type */}
           {isWidgetVisible("storageByFileType") && (
             <div key="storageByFileType" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <StorageByFileTypeChart
                 storageByFileTypeData={storageByFileTypeData}
               />
@@ -728,7 +773,9 @@ const AdminDashboard = () => {
           {isWidgetVisible("userGrowthTrend") &&
             systemStats?.userGrowthTrend && (
               <div key="userGrowthTrend" className={styles.gridItem}>
-                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                {isEditing && (
+                  <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                )}
                 <UserGrowthTrendChart
                   userGrowthData={systemStats.userGrowthTrend}
                 />
@@ -739,7 +786,9 @@ const AdminDashboard = () => {
           {isWidgetVisible("uploadPatternsByHour") &&
             systemStats?.uploadPatternsByHour && (
               <div key="uploadPatternsByHour" className={styles.gridItem}>
-                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                {isEditing && (
+                  <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                )}
                 <UploadPatternsByHourChart
                   uploadPatternData={systemStats.uploadPatternsByHour}
                 />
@@ -749,7 +798,9 @@ const AdminDashboard = () => {
           {/* Storage Usage by Role */}
           {isWidgetVisible("storageByRole") && systemStats?.storageByRole && (
             <div key="storageByRole" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <StorageByRoleChart
                 storageByRoleData={systemStats.storageByRole}
               />
@@ -759,7 +810,9 @@ const AdminDashboard = () => {
           {/* Trash Statistics */}
           {isWidgetVisible("trashStatistics") && (
             <div key="trashStatistics" className={styles.gridItem}>
-              <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              {isEditing && (
+                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+              )}
               <TrashStatisticsChart
                 fileStats={fileStats}
                 storageStats={storageStats}
@@ -771,7 +824,9 @@ const AdminDashboard = () => {
           {isWidgetVisible("avgFileSizeByType") &&
             systemStats?.avgFileSizeByType && (
               <div key="avgFileSizeByType" className={styles.gridItem}>
-                <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                {isEditing && (
+                  <div className={`${styles.dragHandle} drag-handle`}>::</div>
+                )}
                 <AverageFileSizeByTypeChart
                   averageFileSizeData={systemStats.avgFileSizeByType.map(
                     (item) => ({
