@@ -100,6 +100,11 @@ const api = {
   getActivityLog: (limit = 10) =>
     axios.get(`${API_URL}/users/activity`, { params: { limit } }),
 
+  // Tag management
+  getTags: () => axios.get(`${API_URL}/users/tags`),
+  createTag: (name) => axios.post(`${API_URL}/users/tags`, { name }),
+  deleteTag: (tagId) => axios.delete(`${API_URL}/users/tags/${tagId}`),
+
   // Storage statistics
   getStorageStats: () => axios.get(`${API_URL}/users/storage`),
 

@@ -7,7 +7,6 @@ const ROLE_STORAGE_LIMITS = {
   family: -1, // Unlimited (represented as -1)
   user: 5 * 1024 * 1024 * 1024, // 5GB for registered users
   guest: 500 * 1024 * 1024, // 500MB for temporary guests
-  temporaryGuest: 500 * 1024 * 1024, // 500MB for temporary guests (legacy)
 };
 
 const UserSchema = new mongoose.Schema({
@@ -43,6 +42,14 @@ const UserSchema = new mongoose.Schema({
     viewMode: { type: String, default: "list" },
     itemsPerPage: { type: Number, default: 25 },
   },
+
+  // User-created tags for organizing files and folders
+  tags: [
+    {
+      name: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 // Pre-save hook to set storage limit based on role

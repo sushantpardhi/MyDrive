@@ -15,6 +15,9 @@ import {
   EyeOff,
   Check,
   Menu,
+  Tag,
+  X,
+  Plus,
 } from "lucide-react";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
@@ -67,6 +70,12 @@ export default function UserProfile() {
   const [accountStats, setAccountStats] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
 
+  // Tags state
+  const [tags, setTags] = useState([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [tagError, setTagError] = useState(null);
+  const [tagLoading, setTagLoading] = useState(false);
+
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -97,10 +106,11 @@ export default function UserProfile() {
         logger.info("Fetching user profile data");
 
         // Fetch all data in parallel
-        const [profileRes, storageRes, statsRes] = await Promise.all([
+        const [profileRes, storageRes, statsRes, tagsRes] = await Promise.all([
           api.getUserProfile(),
           api.getStorageStats(),
           api.getAccountStats(),
+          api.getTags(),
         ]);
 
         const profileData = {
@@ -115,6 +125,7 @@ export default function UserProfile() {
         setForm(profileData);
         setStorageStats(storageRes.data);
         setAccountStats(statsRes.data);
+        setTags(tagsRes.data || []);
 
         // Sync theme from user settings
         if (profileData.settings.theme) {
@@ -138,6 +149,38 @@ export default function UserProfile() {
     }
     fetchProfile();
   }, []);
+
+  // Tag management handlers
+  async function handleCreateTag(e) {
+    e.preventDefault();
+    if (!newTagName.trim()) return;
+
+    setTagError(null);
+    setTagLoading(true);
+
+    try {
+      const res = await api.createTag(newTagName.trim());
+      setTags((prev) => [...prev, res.data]);
+      setNewTagName("");
+      logger.info("Tag created successfully", { tagName: res.data.name });
+    } catch (err) {
+      setTagError(err.response?.data?.error || "Failed to create tag");
+      logger.error("Error creating tag", { error: err.message });
+    } finally {
+      setTagLoading(false);
+    }
+  }
+
+  async function handleDeleteTag(tagId) {
+    try {
+      await api.deleteTag(tagId);
+      setTags((prev) => prev.filter((tag) => tag._id !== tagId));
+      logger.info("Tag deleted successfully", { tagId });
+    } catch (err) {
+      setTagError(err.response?.data?.error || "Failed to delete tag");
+      logger.error("Error deleting tag", { error: err.message });
+    }
+  }
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -676,6 +719,62 @@ export default function UserProfile() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Tags Section */}
+            <div className={styles.sectionCard}>
+              <h3>
+                <Tag size={16} />
+                Manage Tags
+              </h3>
+              <p className={styles.sectionDescription}>
+                Create tags to organize your files and folders.
+              </p>
+              {tagError && (
+                <div className={styles.errorMessage}>{tagError}</div>
+              )}
+              <form onSubmit={handleCreateTag} className={styles.tagForm}>
+                <div className={styles.tagInputRow}>
+                  <input
+                    type="text"
+                    value={newTagName}
+                    onChange={(e) => {
+                      setNewTagName(e.target.value);
+                      setTagError(null);
+                    }}
+                    placeholder="Enter tag name"
+                    className={styles.tagInput}
+                    maxLength={50}
+                  />
+                  <button
+                    type="submit"
+                    className={styles.addTagBtn}
+                    disabled={tagLoading || !newTagName.trim()}
+                  >
+                    <Plus size={16} />
+                    Add Tag
+                  </button>
+                </div>
+              </form>
+              {tags.length > 0 ? (
+                <div className={styles.tagsList}>
+                  {tags.map((tag) => (
+                    <div key={tag._id} className={styles.tagPill}>
+                      <span className={styles.tagName}>{tag.name}</span>
+                      <button
+                        type="button"
+                        className={styles.deleteTagBtn}
+                        onClick={() => handleDeleteTag(tag._id)}
+                        aria-label={`Delete tag ${tag.name}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.noTags}>No tags created yet.</p>
+              )}
             </div>
 
             {/* Password Change Section */}
