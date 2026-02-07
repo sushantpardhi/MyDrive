@@ -346,6 +346,13 @@ const api = {
   renameFolder: (folderId, name) =>
     axios.put(`${API_URL}/folders/${folderId}/rename`, { name }),
 
+  // Tag operations
+  updateFileTags: (fileId, tags) =>
+    axios.put(`${API_URL}/files/${fileId}/tags`, { tags }),
+
+  updateFolderTags: (folderId, tags) =>
+    axios.put(`${API_URL}/folders/${folderId}/tags`, { tags }),
+
   // Lock operations
   lockItem: (type, id) => axios.post(`${API_URL}/${type}/${id}/lock`),
 

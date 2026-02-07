@@ -800,6 +800,48 @@ router.put("/:id/rename", async (req, res) => {
   }
 });
 
+// Update file tags
+router.put("/:id/tags", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tags } = req.body;
+
+    if (!Array.isArray(tags)) {
+      return res.status(400).json({ error: "Tags must be an array" });
+    }
+
+    const item = await File.findById(id);
+    if (!item) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Check if user is the owner
+    if (item.owner.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ error: "You can only update tags for items you own" });
+    }
+
+    // Check lock status
+    const { isLocked, lockedItem } = await checkLockStatus(item);
+    if (isLocked) {
+      return res.status(403).json({
+        error: `Item is locked${
+          lockedItem._id.toString() !== item._id.toString()
+            ? ` (inherited from ${lockedItem.name})`
+            : ""
+        }`,
+      });
+    }
+
+    item.tags = tags;
+    await item.save();
+    res.json({ message: "Tags updated successfully", item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Lock file
 router.post("/:id/lock", async (req, res) => {
   try {
