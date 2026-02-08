@@ -118,6 +118,7 @@ router.get("/search", async (req, res) => {
       sortOrder = "desc",
       folderId,
       section = "drive", // drive, shared, or trash
+      tags,
     } = req.query;
 
     const page = parseInt(req.query.page) || 1;
@@ -140,6 +141,7 @@ router.get("/search", async (req, res) => {
       dateRange: {},
       trash: section === "trash",
       folderId: folderId && folderId !== "root" ? folderId : null,
+      tags: tags ? tags.split(",") : [],
     };
 
     if (sizeMin) searchParams.sizeRange.min = parseInt(sizeMin);
@@ -150,9 +152,11 @@ router.get("/search", async (req, res) => {
     // Check if any filters are applied (file type, size, or date)
     // Folders should only appear when no filters are active
     const hasFileTypeFilter = searchParams.fileTypes.length > 0;
+    const hasTagFilter = searchParams.tags.length > 0;
     const hasSizeFilter = sizeMin || sizeMax;
     const hasDateFilter = dateStart || dateEnd;
-    const hasAnyFilter = hasFileTypeFilter || hasSizeFilter || hasDateFilter;
+    const hasAnyFilter =
+      hasFileTypeFilter || hasSizeFilter || hasDateFilter || hasTagFilter;
 
     // Build query for files and folders
     let fileSearchQuery;
@@ -268,6 +272,7 @@ router.get("/search", async (req, res) => {
       },
       filters: {
         fileTypes: searchParams.fileTypes,
+        tags: searchParams.tags,
         sizeRange: searchParams.sizeRange,
         dateRange: searchParams.dateRange,
         sortBy,

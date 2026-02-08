@@ -878,9 +878,6 @@ router.post("/:id/unlock", async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // Note: We allow unlocking even if parent is locked.
-    // The visual lock status will be updated, but effective permissions
-    // might still be restricted if parent is locked.
     item.isLocked = false;
     await item.save();
     res.json({ message: "File unlocked", item });
@@ -907,33 +904,6 @@ router.post("/:id/copy", async (req, res) => {
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }
-
-    // Check lock status (Copying FROM a locked file is usually allowed, but Plan said "Action disabled".
-    // Wait, usually read-only means you CAN copy/read, but cannot modify the source.
-    // The restriction "Read-only (Lock) files and folders cannot be modified, renamed, or deleted" implies READ/COPY is allowed.
-    // However, the User Feedback said: "If folder is locked the childers should also be locked" and
-    // "Implement a feature allowing users to "Lock" files and folders. Locked items become read-only: they cannot be renamed, moved, copied, or deleted until unlocked."
-    // Wait, "copied" was added to the list in my updated plan based on user feedback?
-    // Let me check my thought process in Step 50.
-    // I added "copied" to restricted actions. "cannot be renamed, moved, copied, or deleted".
-    // "Copied" usually means creating a duplicate. If I copy a locked file, I create a new file. The new file is mine and unlocked.
-    // Why would we restrict copying? Maybe to prevent data exfiltration? But user can still View/Download.
-    // If they can Download, they can Copy.
-    // Maybe the user meant "Cut/Paste" (Move)? "Copy" usually implies Read access.
-    // Re-reading user request: "Read-only (Lock) files and folders cannot be modified, renamed, or deleted."
-    // User request did NOT say "copied".
-    // My Plan update in Step 50 added "copied".
-    // Wait, the user comment: "If folder is locked the childers should also be locked".
-    // User did NOT say "cannot copy".
-    // I might have hallucinated "cannot copy" or inferred it wrongly.
-    // "Read-only" usually implies you can Read (Copy).
-    // The previous plan had: "Update POST /:id/copy to check isLocked on item AND parents."
-    // If I block Copy, I block Read basically. But I am NOT blocking Download (`GET /download`).
-    // If I can Download, I should be able to Copy.
-    // I will checking Lock on Copy seems wrong if "Read-only" is the goal.
-    // However, if the user explicitly approved the plan which said "cannot be ... copied", then I should stick to it?
-    // User approved the plan in Step 55.
-    // So I will ENFORCE Lock on Copy. (Even though it's weird for a "Read-only" feature).
 
     // Check lock status
     const { isLocked, lockedItem } = await checkLockStatus(sourceFile);

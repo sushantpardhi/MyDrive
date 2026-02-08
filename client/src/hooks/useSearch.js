@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { useDriveContext } from "../contexts/DriveContext";
+import { useSearchContext } from "../contexts/SearchContext";
 import logger from "../utils/logger";
 
 const SEARCH_HISTORY_KEY = "myDriveSearchHistory";
-const SEARCH_FILTERS_KEY = "myDriveSearchFilters";
 const MAX_HISTORY_ITEMS = 10;
 
 export const useSearch = (
@@ -14,7 +14,15 @@ export const useSearch = (
   section = "drive",
 ) => {
   const { currentFolderId } = useDriveContext();
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchFilters,
+    updateFilters,
+    clearFilters,
+    setSearchFilters,
+  } = useSearchContext();
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState({
     folders: [],
@@ -22,32 +30,7 @@ export const useSearch = (
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [searchFilters, setSearchFilters] = useState(() => {
-    try {
-      const saved = localStorage.getItem(SEARCH_FILTERS_KEY);
-      return saved
-        ? JSON.parse(saved)
-        : {
-            fileTypes: [],
-            sizeMin: "",
-            sizeMax: "",
-            dateStart: "",
-            dateEnd: "",
-            sortBy: "createdAt",
-            sortOrder: "desc",
-          };
-    } catch {
-      return {
-        fileTypes: [],
-        sizeMin: "",
-        sizeMax: "",
-        dateStart: "",
-        dateEnd: "",
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      };
-    }
-  });
+
   const [searchHistory, setSearchHistory] = useState(() => {
     try {
       const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
@@ -56,8 +39,9 @@ export const useSearch = (
       return [];
     }
   });
+
   const searchTimeoutRef = useRef(null);
-  const previousFolderIdRef = useRef(currentFolderId); // Track folder changes to avoid reloading on navigation
+  const previousFolderIdRef = useRef(currentFolderId);
 
   // Save search to history
   const saveToHistory = (query) => {
@@ -78,37 +62,29 @@ export const useSearch = (
     localStorage.removeItem(SEARCH_HISTORY_KEY);
   };
 
-  // Debounced search with auto-search
+  // Debounced search
   useEffect(() => {
-    // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Check if folder changed - if so, just reset search state without reloading
-    // The folder loading is handled by DriveView's loading effect
     const folderChanged = previousFolderIdRef.current !== currentFolderId;
     if (folderChanged) {
       previousFolderIdRef.current = currentFolderId;
-      // Just reset search state when navigating to a new folder
       setIsSearching(false);
       setCurrentPage(1);
       setSearchResults({ folders: [], files: [] });
-      // Don't call loadFolderContents here - DriveView handles that
       return;
     }
 
-    // Check if we have any active filters
     const hasFilters =
       searchFilters.fileTypes.length > 0 ||
+      (searchFilters.tags && searchFilters.tags.length > 0) ||
       searchFilters.sizeMin !== "" ||
       searchFilters.sizeMax !== "" ||
       searchFilters.dateStart !== "" ||
       searchFilters.dateEnd !== "";
 
-    // If no search query and no filters, just reset search state
-    // Don't reload folder contents - DriveView handles folder loading
-    // This effect should only handle search-related operations
     if (!searchQuery.trim() && !hasFilters) {
       setIsSearching(false);
       setCurrentPage(1);
@@ -116,10 +92,8 @@ export const useSearch = (
       return;
     }
 
-    // Set searching state immediately for UI feedback
     setIsSearching(true);
 
-    // Debounce search by 500ms
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         logger.info("Starting search", { searchQuery, searchFilters });
@@ -142,7 +116,6 @@ export const useSearch = (
         setCurrentPage(1);
         setIsSearching(false);
 
-        // Save to history on successful search (only if there's a query)
         if (searchQuery.trim()) {
           saveToHistory(searchQuery);
         }
@@ -155,7 +128,6 @@ export const useSearch = (
       }
     }, 500);
 
-    // Cleanup timeout on unmount or query change
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -163,7 +135,6 @@ export const useSearch = (
     };
   }, [searchQuery, searchFilters, currentFolderId, api, itemsPerPage, section]);
 
-  // Clear search without triggering a reload (used when navigating to folders)
   const clearSearchForNavigation = () => {
     setSearchQuery("");
     setIsSearching(false);
@@ -172,43 +143,14 @@ export const useSearch = (
     setSearchResults({ folders: [], files: [] });
   };
 
-  // Clear search and reload folder contents (used when user explicitly clears search)
   const clearSearch = () => {
     setSearchQuery("");
     setIsSearching(false);
     setCurrentPage(1);
     setHasMore(true);
     setSearchResults({ folders: [], files: [] });
-    // Reload folder contents to show normal view after clearing search
     loadFolderContents(currentFolderId, 1, false);
   };
-
-  const updateFilters = (newFilters) => {
-    setSearchFilters(newFilters);
-    setCurrentPage(1);
-  };
-
-  const clearFilters = () => {
-    const defaultFilters = {
-      fileTypes: [],
-      sizeMin: "",
-      sizeMax: "",
-      dateStart: "",
-      dateEnd: "",
-      sortBy: "createdAt",
-      sortOrder: "desc",
-    };
-    setSearchFilters(defaultFilters);
-  };
-
-  // Save filters to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(SEARCH_FILTERS_KEY, JSON.stringify(searchFilters));
-    } catch (error) {
-      logger.error("Failed to save search filters to localStorage", error);
-    }
-  }, [searchFilters]);
 
   const loadMoreSearchResults = async () => {
     if (!hasMore || isSearching) return;
@@ -223,7 +165,6 @@ export const useSearch = (
         section,
       );
 
-      // Filter out duplicates when appending search results
       setSearchResults((prev) => ({
         folders: [
           ...prev.folders,
@@ -250,6 +191,7 @@ export const useSearch = (
   const hasActiveFilters = () => {
     return (
       searchFilters.fileTypes.length > 0 ||
+      (searchFilters.tags && searchFilters.tags.length > 0) ||
       searchFilters.sizeMin !== "" ||
       searchFilters.sizeMax !== "" ||
       searchFilters.dateStart !== "" ||

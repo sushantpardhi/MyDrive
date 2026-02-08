@@ -10,7 +10,8 @@
   font-weight: 500;
   padding: 4px 10px;
   border-radius: 6px;
-  transition: background-color var(--transition-normal),
+  transition:
+    background-color var(--transition-normal),
     color var(--transition-normal);
 }
 .profileLink:hover {
@@ -37,59 +38,91 @@
 .sidebar {
   width: 280px;
   height: 100vh;
-  background: var(--bg-primary); 
+  background: var(--bg-primary);
   border-right: 1px solid var(--border-color);
-  padding: 24px 16px;
-  padding-top: 60px;
+  /* Padding moved to sidebarContent for better control */
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  /* Allow close button to hang outside */
+  overflow: visible;
   backdrop-filter: blur(10px);
 }
 
+.sidebarContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 16px;
+  padding-top: 24px; /* Reduced from 60px since button is moved */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Tablet and up */
 @media (min-width: 769px) {
   .sidebar {
     width: 260px;
-    padding: 20px;
-    padding-top: 20px;
     gap: 20px;
+    padding: 20px;
+    overflow-y: auto; /* Reset to normal behavior */
+    overflow: hidden; /* Or auto, just not visible */
+  }
+
+  .sidebarContent {
+    padding: 0;
+    overflow: visible; /* Let parent handle */
+    display: contents; /*Flatten hierarchy if checking layout, or just keep as div */
+  }
+
+  .sidebarContent {
+    padding: 0;
+    gap: 20px;
+    overflow: visible;
   }
 }
 
-/* Mobile-first: Close button (visible on mobile) */
+/* Mobile-first: Close button (visible on mobile) - styled as part of sidebar edge */
 .closeButton {
   display: flex;
   align-items: center;
   justify-content: center;
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 44px;
-  height: 44px;
-  background: transparent;
-  border: none;
+  top: 24px;
+  right: -1px; /* Align with the sidebar border */
+  transform: translateX(100%); /* Push outside */
+  width: 20px;
+  height: 40px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-left: none; /* Seamless with sidebar */
   color: var(--text-tertiary);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 8px;
-  transition: background-color var(--transition-normal),
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  transition:
+    background-color var(--transition-normal),
     color var(--transition-normal);
-  z-index: 10;
+  z-index: 100;
+  /* No box-shadow to keep it seamless */
+}
+
+.closeIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .closeButton:hover {
-  background: var(--hover-overlay);
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
 .closeButton:active {
-  transform: scale(0.9);
+  opacity: 0.8;
 }
 
 /* Tablet and up: Hide close button */
@@ -108,7 +141,8 @@
   background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid var(--card-border);
-  transition: background-color var(--transition-normal),
+  transition:
+    background-color var(--transition-normal),
     border-color var(--transition-normal);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
@@ -179,10 +213,10 @@
   gap: 8px;
 }
 
-/* Main navigation section should expand to fill space */
+/* Main navigation section */
 .mainSection {
-  flex: 1;
-  min-height: 0; /* Prevent flex item from growing based on content */
+  flex-shrink: 0;
+  min-height: auto;
 }
 
 /* Admin section styling */
@@ -266,7 +300,7 @@
 
 /* Subtle glow effect for active item */
 .active::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -355,4 +389,3 @@
     min-height: auto;
   }
 }
-

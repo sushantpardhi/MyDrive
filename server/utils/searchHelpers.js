@@ -33,6 +33,7 @@ function buildSearchQuery({
   dateRange = {},
   trash = false,
   folderId = null,
+  tags = [],
 }) {
   const searchQuery = {
     owner: userId,
@@ -105,6 +106,11 @@ function buildSearchQuery({
   // Folder filter (search within specific folder)
   if (folderId) {
     searchQuery.parent = folderId;
+  }
+
+  // Tag filter
+  if (tags && tags.length > 0) {
+    searchQuery.tags = { $in: tags };
   }
 
   return searchQuery;

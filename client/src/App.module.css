@@ -27,10 +27,12 @@
   z-index: 1000;
   transform: translateX(-100%);
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* Hide close button when sidebar is closed */
 }
 
 .sidebar.open {
   transform: translateX(0);
+  overflow: visible; /* Allow close button to hang outside when open */
 }
 
 .main {

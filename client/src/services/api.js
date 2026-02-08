@@ -320,6 +320,12 @@ const api = {
     if (filters.folderId) {
       params.folderId = filters.folderId;
     }
+    if (filters.folderId) {
+      params.folderId = filters.folderId;
+    }
+    if (filters.tags && filters.tags.length > 0) {
+      params.tags = filters.tags.join(",");
+    }
     if (section) {
       params.section = section;
     }

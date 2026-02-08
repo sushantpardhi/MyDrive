@@ -319,6 +319,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   // Check if filters are active (needed before useEffect below)
   const hasFiltersActive =
     searchFilters.fileTypes.length > 0 ||
+    (searchFilters.tags && searchFilters.tags.length > 0) ||
     searchFilters.sizeMin !== "" ||
     searchFilters.sizeMax !== "" ||
     searchFilters.dateStart !== "" ||

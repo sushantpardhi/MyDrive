@@ -1,5 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Share2, Trash2, HardDrive, X, Shield } from "lucide-react";
+import {
+  Home,
+  Share2,
+  Trash2,
+  HardDrive,
+  X,
+  Shield,
+  ChevronLeft,
+} from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
@@ -7,11 +15,15 @@ import { formatFileSize } from "../../utils/formatters";
 import { getUserInitials, getAvatarColor } from "../../utils/helpers";
 import logger from "../../utils/logger";
 import { useUIContext, useAuth } from "../../contexts";
+import SidebarTags from "./SidebarTags";
+import { useSearchContext } from "../../contexts/SearchContext";
 
 const Sidebar = ({ onClose }) => {
   const location = useLocation();
   const { storageRefreshTrigger } = useUIContext();
   const { user } = useAuth();
+
+  const { clearFilters, searchFilters } = useSearchContext();
 
   const mainMenu = [
     { name: "My Drive", icon: <Home size={18} />, path: "/drive" },
@@ -68,11 +80,6 @@ const Sidebar = ({ onClose }) => {
       ? ((storage.used / storage.total) * 100).toFixed(1)
       : 0;
 
-  // const handleLogout = () => {
-  //   api.logout();
-  //   navigate("/login");
-  // };
-
   return (
     <aside className={styles.sidebar}>
       <button
@@ -80,102 +87,122 @@ const Sidebar = ({ onClose }) => {
         onClick={onClose}
         aria-label="Close menu"
       >
-        <X size={24} />
+        <div className={styles.closeIconWrapper}>
+          <ChevronLeft size={20} />
+        </div>
       </button>
 
-      <Link to="/profile" className={styles.userSectionLink} onClick={onClose}>
-        {user ? (
-          <div className={styles.userSection}>
-            <div
-              className={styles.userAvatar}
-              style={{ backgroundColor: getAvatarColor(user.name) }}
-            >
-              {getUserInitials(user.name)}
-            </div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{user.name}</div>
-              <div className={styles.userEmail}>{user.email}</div>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.userSection}>
-            <div className={styles.userAvatar}>?</div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>Loading...</div>
-              <div className={styles.userEmail}>Loading...</div>
-            </div>
-          </div>
-        )}
-      </Link>
-
-      <div className={`${styles.section} ${styles.mainSection}`}>
-        <h2 className={styles.sectionTitle}>My Drive</h2>
-        <ul className={styles.menu}>
-          {mainMenu.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <li key={item.name}>
-                <Link
-                  to={item.path}
-                  className={`${styles.link} ${isActive ? styles.active : ""}`}
-                  onClick={onClose}
-                >
-                  {item.icon}
-                  <span>{item.name}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {/* Admin Section - Only visible to admin users */}
-      {user && user.role === "admin" && (
-        <div className={`${styles.section} ${styles.adminSection}`}>
-          <h2 className={styles.sectionTitle}>Admin</h2>
-          <ul className={styles.menu}>
-            <li>
-              <Link
-                to="/admin"
-                className={`${styles.link} ${
-                  location.pathname.startsWith("/admin") ? styles.active : ""
-                }`}
-                onClick={onClose}
+      <div className={styles.sidebarContent}>
+        <Link
+          to="/profile"
+          className={styles.userSectionLink}
+          onClick={onClose}
+        >
+          {user ? (
+            <div className={styles.userSection}>
+              <div
+                className={styles.userAvatar}
+                style={{ backgroundColor: getAvatarColor(user.name) }}
               >
-                <Shield size={18} />
-                <span>Dashboard</span>
-              </Link>
-            </li>
+                {getUserInitials(user.name)}
+              </div>
+              <div className={styles.userInfo}>
+                <div className={styles.userName}>{user.name}</div>
+                <div className={styles.userEmail}>{user.email}</div>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.userSection}>
+              <div className={styles.userAvatar}>?</div>
+              <div className={styles.userInfo}>
+                <div className={styles.userName}>Loading...</div>
+                <div className={styles.userEmail}>Loading...</div>
+              </div>
+            </div>
+          )}
+        </Link>
+
+        <div className={`${styles.section} ${styles.mainSection}`}>
+          <h2 className={styles.sectionTitle}>My Drive</h2>
+          <ul className={styles.menu}>
+            {mainMenu.map((item) => {
+              let isActive = location.pathname === item.path;
+
+              if (item.path === "/drive" && isActive) {
+                // Check if any tag is selected
+                if (searchFilters.tags && searchFilters.tags.length > 0) {
+                  isActive = false;
+                }
+              }
+
+              return (
+                <li key={item.name}>
+                  <Link
+                    to={item.path}
+                    className={`${styles.link} ${isActive ? styles.active : ""}`}
+                    onClick={() => {
+                      onClose();
+                      clearFilters();
+                    }}
+                  >
+                    {item.icon}
+                    <span>{item.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
-      )}
 
-      <div className={`${styles.section} ${styles.storageSection}`}>
-        <h4 className={styles.sectionTitle}>Storage</h4>
-        <div className={styles.storageInfo}>
-          <HardDrive size={18} />
-          <span>
-            {isUnlimited ? (
-              <>{formatFileSize(storage.used)} used (Unlimited)</>
-            ) : (
-              <>
-                {formatFileSize(storage.used)} of{" "}
-                {formatFileSize(storage.total)} used
-              </>
-            )}
-          </span>
-        </div>
-        {!isUnlimited && (
-          <div className={styles.storageBar}>
-            <div
-              className={styles.storageUsed}
-              style={{ width: `${usedPercent}%` }}
-            ></div>
+        {/* Tags Section */}
+        {user && <SidebarTags onClose={onClose} />}
+
+        {/* Admin Section - Only visible to admin users */}
+        {user && user.role === "admin" && (
+          <div className={`${styles.section} ${styles.adminSection}`}>
+            <h2 className={styles.sectionTitle}>Admin</h2>
+            <ul className={styles.menu}>
+              <li>
+                <Link
+                  to="/admin"
+                  className={`${styles.link} ${
+                    location.pathname.startsWith("/admin") ? styles.active : ""
+                  }`}
+                  onClick={onClose}
+                >
+                  <Shield size={18} />
+                  <span>Dashboard</span>
+                </Link>
+              </li>
+            </ul>
           </div>
         )}
-      </div>
 
-      {/* Move logout to profile/settings section */}
+        <div className={`${styles.section} ${styles.storageSection}`}>
+          <h4 className={styles.sectionTitle}>Storage</h4>
+          <div className={styles.storageInfo}>
+            <HardDrive size={18} />
+            <span>
+              {isUnlimited ? (
+                <>{formatFileSize(storage.used)} used (Unlimited)</>
+              ) : (
+                <>
+                  {formatFileSize(storage.used)} of{" "}
+                  {formatFileSize(storage.total)} used
+                </>
+              )}
+            </span>
+          </div>
+          {!isUnlimited && (
+            <div className={styles.storageBar}>
+              <div
+                className={styles.storageUsed}
+                style={{ width: `${usedPercent}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+      </div>
     </aside>
   );
 };
