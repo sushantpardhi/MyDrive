@@ -150,16 +150,13 @@ router.get("/search", async (req, res) => {
     if (dateEnd) searchParams.dateRange.end = dateEnd;
 
     // Check if any filters are applied (file type, size, or date)
-    // Folders should appear when no filters are active OR when ONLY tags filter is active
+    // Folders should only appear when no filters are active
     const hasFileTypeFilter = searchParams.fileTypes.length > 0;
     const hasTagFilter = searchParams.tags.length > 0;
     const hasSizeFilter = sizeMin || sizeMax;
     const hasDateFilter = dateStart || dateEnd;
-    // Filters that should exclude folders (file-type specific filters)
-    const hasNonTagFilters =
-      hasFileTypeFilter || hasSizeFilter || hasDateFilter;
-    // Tags-only filter should still show folders
-    const hasTagsOnlyFilter = hasTagFilter && !hasNonTagFilters;
+    const hasAnyFilter =
+      hasFileTypeFilter || hasSizeFilter || hasDateFilter || hasTagFilter;
 
     // Build query for files and folders
     let fileSearchQuery;
@@ -182,10 +179,10 @@ router.get("/search", async (req, res) => {
     }
     // For trash, the buildSearchQuery already sets trash: true
 
-    // Build folder query if no file-specific filters are applied
-    // Folders should appear in unfiltered results OR when only tags filter is active
+    // Only build folder query if no filters are applied
+    // Folders should only appear in unfiltered results
     let folderSearchQuery = null;
-    if (!hasNonTagFilters) {
+    if (!hasAnyFilter) {
       folderSearchQuery = {
         trash: section === "trash",
       };
@@ -220,11 +217,6 @@ router.get("/search", async (req, res) => {
       // Add folder filter if specified
       if (folderId && folderId !== "root") {
         folderSearchQuery.parent = folderId;
-      }
-
-      // Add tags filter for folders - show only directly tagged folders
-      if (hasTagFilter) {
-        folderSearchQuery.tags = { $in: searchParams.tags };
       }
     }
 

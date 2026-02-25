@@ -6,7 +6,6 @@ const fs = require("fs");
 const path = require("path");
 const router = express.Router();
 const logger = require("../utils/logger");
-const { UPLOAD_BASE_PATH } = require("../utils/fileHelpers");
 
 // Empty trash
 router.delete("/empty", async (req, res) => {
@@ -38,7 +37,9 @@ router.delete("/empty", async (req, res) => {
 
       // Delete thumbnail if exists
       const thumbnailPath = path.join(
-        UPLOAD_BASE_PATH,
+        __dirname,
+        "..",
+        "uploads",
         "thumbnails",
         userId,
         `${file._id}-thumb.jpg`,

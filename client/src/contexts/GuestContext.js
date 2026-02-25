@@ -168,7 +168,7 @@ export const GuestProvider = ({ children }) => {
 
       try {
         const response = await api.convertGuestToUser(name, email, password);
-        const { user: newUser } = response.data;
+        const { token, user: newUser } = response.data;
 
         // Clear guest session data
         localStorage.removeItem("guestSession");
@@ -176,7 +176,8 @@ export const GuestProvider = ({ children }) => {
         setTimeRemaining(null);
         setShowConvertModal(false);
 
-        // Update auth with new user data (cookies set by server)
+        // Update auth with new user data
+        localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(newUser));
 
         // Force page reload to reset all contexts

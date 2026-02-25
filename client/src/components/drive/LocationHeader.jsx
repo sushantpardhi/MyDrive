@@ -1,16 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  Share2,
-  Trash2,
-  Grid,
-  List,
-  CheckSquare,
-  ChevronRight,
-  Home,
-  Folder,
-  MoreHorizontal,
-  Tag,
-} from "lucide-react";
+import { Share2, Trash2, Grid, List, CheckSquare, ChevronRight, Home, Folder, MoreHorizontal } from "lucide-react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import styles from "./LocationHeader.module.css";
 
@@ -24,7 +13,6 @@ const LocationHeader = ({
   path,
   navigateTo,
   breadcrumbRef,
-  activeTag,
 }) => {
   const { selectedItems } = useSelectionContext();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -67,8 +55,7 @@ const LocationHeader = ({
 
     if (showDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showDropdown]);
 
@@ -79,20 +66,15 @@ const LocationHeader = ({
   };
 
   const renderBreadcrumbItems = () => {
-    // If a tag filter is active, show tag as root item
-    const displayPath = activeTag
-      ? [{ id: "tag", name: activeTag, isTag: true }, ...path.slice(1)]
-      : path;
-
-    if (!shouldCollapse && displayPath.length <= 4) {
-      return displayPath.map((p, i) => renderBreadcrumbItem(p, i, displayPath));
+    if (!shouldCollapse) {
+      return path.map((p, i) => renderBreadcrumbItem(p, i, false));
     }
 
     // Collapsed view: First item, ellipsis, last 2 items
     const items = [];
-
-    // First item (root or tag)
-    items.push(renderBreadcrumbItem(displayPath[0], 0, displayPath));
+    
+    // First item (root)
+    items.push(renderBreadcrumbItem(path[0], 0, false));
 
     // Ellipsis dropdown
     if (collapsedItems.length > 0) {
@@ -123,24 +105,23 @@ const LocationHeader = ({
             )}
           </div>
           <ChevronRight size={16} className={styles.separator} />
-        </span>,
+        </span>
       );
     }
 
     // Last 2 items
-    const lastItems = displayPath.slice(-2);
+    const lastItems = path.slice(-2);
     lastItems.forEach((p, i) => {
-      const actualIndex = displayPath.length - 2 + i;
-      items.push(renderBreadcrumbItem(p, actualIndex, displayPath));
+      const actualIndex = path.length - 2 + i;
+      items.push(renderBreadcrumbItem(p, actualIndex, false));
     });
 
     return items;
   };
 
-  const renderBreadcrumbItem = (p, i, currentPath) => {
-    // Use Tag icon for tag items, Home for root, Folder for others
-    const Icon = p.isTag ? Tag : i === 0 ? Home : Folder;
-    const isCurrent = i === currentPath.length - 1;
+  const renderBreadcrumbItem = (p, i, isLast = i === path.length - 1) => {
+    const Icon = i === 0 ? Home : Folder;
+    const isCurrent = i === path.length - 1;
 
     return (
       <span
@@ -160,7 +141,9 @@ const LocationHeader = ({
           <Icon size={i === 0 ? 16 : 14} className={styles.breadcrumbIcon} />
           <span className={styles.breadcrumbText}>{p.name}</span>
         </button>
-        {!isCurrent && <ChevronRight size={16} className={styles.separator} />}
+        {!isCurrent && (
+          <ChevronRight size={16} className={styles.separator} />
+        )}
       </span>
     );
   };

@@ -112,8 +112,8 @@ const Register = () => {
         formData.password,
       );
 
-      // Store user info via context (cookies set by server)
-      login(response.data.user);
+      // Store token and user info via context
+      login(response.data.user, response.data.token);
 
       logger.logAuth(
         "register_success",
@@ -149,11 +149,11 @@ const Register = () => {
 
     try {
       const response = await api.resumeGuestSession(existingSession.sessionId);
-      const { user, session } = response.data;
+      const { token, user, session } = response.data;
 
       // Update localStorage with fresh session data
       localStorage.setItem("guestSession", JSON.stringify(session));
-      login(user);
+      login(user, token);
       navigate("/");
     } catch (err) {
       logger.error("Resume guest session failed", { error: err });
@@ -185,9 +185,9 @@ const Register = () => {
       const previousSessionId = existingSession?.sessionId;
       const response = await api.createGuestSession(previousSessionId);
 
-      const { user, session } = response.data;
+      const { token, user, session } = response.data;
       localStorage.setItem("guestSession", JSON.stringify(session));
-      login(user);
+      login(user, token);
       navigate("/");
     } catch (err) {
       logger.error("Guest login failed", { error: err });

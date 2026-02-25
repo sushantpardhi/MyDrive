@@ -1,7 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -56,24 +55,13 @@ const UPLOAD_TIMEOUT = process.env.UPLOAD_TIMEOUT
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
 // Middleware
-// When credentials are enabled, wildcard origin is not allowed.
-// Use a dynamic origin function to reflect the request origin.
-const corsOriginHandler =
-  CORS_ORIGIN === "*"
-    ? function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, same-origin)
-        callback(null, true);
-      }
-    : CORS_ORIGIN;
-
 app.use(
   cors({
-    origin: corsOriginHandler,
+    origin: CORS_ORIGIN,
     credentials: true,
     exposedHeaders: ["X-Total-Size", "X-Total-Files"],
   }),
 );
-app.use(cookieParser());
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 

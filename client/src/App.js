@@ -32,7 +32,6 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import { TransferProvider, useTransfer } from "./contexts/TransferContext";
 import { AdminProvider } from "./contexts/AdminContext";
-import { TagProvider } from "./contexts/TagContext";
 import { GuestProvider } from "./contexts/GuestContext";
 import { SearchProvider } from "./contexts/SearchContext";
 import DevelopmentBanner from "./components/common/DevelopmentBanner.jsx";
@@ -251,20 +250,18 @@ const App = () => {
                     <UIProvider>
                       <TransferProvider>
                         <SearchProvider>
-                          <TagProvider>
-                            <DriveProvider>
-                              <SelectionProvider>
-                                <AdminProvider>
-                                  <GuestProvider>
-                                    <GuestBanner />
-                                    <GuestConvertModal />
-                                    <GuestLimitationsModal />
-                                    <AppLayout />
-                                  </GuestProvider>
-                                </AdminProvider>
-                              </SelectionProvider>
-                            </DriveProvider>
-                          </TagProvider>
+                          <DriveProvider>
+                            <SelectionProvider>
+                              <AdminProvider>
+                                <GuestProvider>
+                                  <GuestBanner />
+                                  <GuestConvertModal />
+                                  <GuestLimitationsModal />
+                                  <AppLayout />
+                                </GuestProvider>
+                              </AdminProvider>
+                            </SelectionProvider>
+                          </DriveProvider>
                         </SearchProvider>
                       </TransferProvider>
                     </UIProvider>

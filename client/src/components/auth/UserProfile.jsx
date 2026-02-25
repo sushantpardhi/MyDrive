@@ -20,10 +20,9 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { createPortal } from "react-dom";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
-import { useTheme, useAuth, useUIContext, useTagContext } from "../../contexts";
+import { useTheme, useAuth, useUIContext } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
 import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
@@ -73,17 +72,15 @@ export default function UserProfile() {
   const [accountStats, setAccountStats] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
 
-  // Tags state (shared via context)
-  const {
-    tags,
-    loading: tagContextLoading,
-    addTag,
-    removeTag,
-  } = useTagContext();
+  // Tags state
+  const [tags, setTags] = useState([]);
   const [newTagName, setNewTagName] = useState("");
   const [tagLoading, setTagLoading] = useState(false);
+<<<<<<< HEAD
   const [tagToDelete, setTagToDelete] = useState(null);
   const [newlyCreatedTag, setNewlyCreatedTag] = useState(null);
+=======
+>>>>>>> parent of 0cf14bb (feat: Implement secure HTTP-only cookie-based authentication with refresh token management, and clear search tags when navigating folders.)
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -115,10 +112,11 @@ export default function UserProfile() {
         logger.info("Fetching user profile data");
 
         // Fetch all data in parallel
-        const [profileRes, storageRes, statsRes] = await Promise.all([
+        const [profileRes, storageRes, statsRes, tagsRes] = await Promise.all([
           api.getUserProfile(),
           api.getStorageStats(),
           api.getAccountStats(),
+          api.getTags(),
         ]);
 
         const profileData = {
@@ -133,6 +131,7 @@ export default function UserProfile() {
         setForm(profileData);
         setStorageStats(storageRes.data);
         setAccountStats(statsRes.data);
+        setTags(tagsRes.data || []);
 
         // Sync theme from user settings
         if (profileData.settings.theme) {
@@ -166,7 +165,7 @@ export default function UserProfile() {
 
     try {
       const res = await api.createTag(newTagName.trim());
-      addTag(res.data);
+      setTags((prev) => [...prev, res.data]);
       setNewTagName("");
       setNewlyCreatedTag(res.data.name);
       toast.success(`Tag "${res.data.name}" created successfully`);
@@ -179,18 +178,15 @@ export default function UserProfile() {
     }
   }
 
-  async function handleConfirmDeleteTag() {
-    if (!tagToDelete) return;
+  async function handleDeleteTag(tagId) {
     try {
-      await api.deleteTag(tagToDelete._id);
-      removeTag(tagToDelete._id);
+      await api.deleteTag(tagId);
+      setTags((prev) => prev.filter((tag) => tag._id !== tagId));
       toast.success("Tag deleted successfully");
-      logger.info("Tag deleted successfully", { tagId: tagToDelete._id });
+      logger.info("Tag deleted successfully", { tagId });
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to delete tag");
       logger.error("Error deleting tag", { error: err.message });
-    } finally {
-      setTagToDelete(null);
     }
   }
 
@@ -819,6 +815,7 @@ export default function UserProfile() {
                       />
                       <button
                         type="button"
+<<<<<<< HEAD
                         className={styles.togglePassword}
                         onClick={() =>
                           setShowPasswords((prev) => ({
@@ -826,6 +823,11 @@ export default function UserProfile() {
                             current: !prev.current,
                           }))
                         }
+=======
+                        className={styles.deleteTagBtn}
+                        onClick={() => handleDeleteTag(tag._id)}
+                        aria-label={`Delete tag ${tag.name}`}
+>>>>>>> parent of 0cf14bb (feat: Implement secure HTTP-only cookie-based authentication with refresh token management, and clear search tags when navigating folders.)
                       >
                         {showPasswords.current ? (
                           <EyeOff size={18} />
@@ -1050,6 +1052,7 @@ export default function UserProfile() {
             document.body,
           )}
       </div>
+<<<<<<< HEAD
 
       {/* Tag Apply Modal */}
       <TagApplyModal
@@ -1058,5 +1061,8 @@ export default function UserProfile() {
         onClose={() => setNewlyCreatedTag(null)}
       />
     </>
+=======
+    </div>
+>>>>>>> parent of 0cf14bb (feat: Implement secure HTTP-only cookie-based authentication with refresh token management, and clear search tags when navigating folders.)
   );
 }

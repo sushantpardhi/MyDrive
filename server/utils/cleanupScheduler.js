@@ -8,7 +8,6 @@ const User = require("../models/User");
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger");
-const { UPLOAD_BASE_PATH } = require("./fileHelpers");
 
 /**
  * Cleanup a single guest session and its data
@@ -44,7 +43,9 @@ const cleanupSingleGuestSession = async (session) => {
 
         // Delete thumbnail if exists
         const thumbnailPath = path.join(
-          UPLOAD_BASE_PATH,
+          __dirname,
+          "..",
+          "uploads",
           "thumbnails",
           user._id.toString(),
           `${file._id}-thumb.jpg`,
@@ -68,14 +69,21 @@ const cleanupSingleGuestSession = async (session) => {
     }
 
     // Delete the user's upload directory if exists
-    const userUploadDir = path.join(UPLOAD_BASE_PATH, user._id.toString());
+    const userUploadDir = path.join(
+      __dirname,
+      "..",
+      "uploads",
+      user._id.toString(),
+    );
     if (fs.existsSync(userUploadDir)) {
       fs.rmSync(userUploadDir, { recursive: true, force: true });
     }
 
     // Delete the user's thumbnail directory if exists
     const userThumbDir = path.join(
-      UPLOAD_BASE_PATH,
+      __dirname,
+      "..",
+      "uploads",
       "thumbnails",
       user._id.toString(),
     );
@@ -228,7 +236,9 @@ const initializeCleanupScheduler = () => {
             // Thumbnails are usually in uploads/thumbnails/userId/fileId-thumb.jpg
             // Need to constructing path carefully relative to app root if possible, or assume known safe path
             const thumbnailPath = path.join(
-              UPLOAD_BASE_PATH,
+              __dirname,
+              "..",
+              "uploads",
               "thumbnails",
               file.owner.toString(),
               `${file._id}-thumb.jpg`,

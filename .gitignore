@@ -98,3 +98,4 @@ Desktop.ini
 *.crt
 api-keys.json
 secrets.json
+DriveData/

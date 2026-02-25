@@ -669,9 +669,10 @@ router.delete("/:id", async (req, res) => {
       }
 
       // Delete cached thumbnail if exists
-      const { UPLOAD_BASE_PATH } = require("../utils/fileHelpers");
       const thumbnailPath = path.join(
-        UPLOAD_BASE_PATH,
+        __dirname,
+        "..",
+        "uploads",
         "thumbnails",
         req.user.id,
         `${id}-thumb.jpg`,

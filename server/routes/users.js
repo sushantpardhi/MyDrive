@@ -8,7 +8,6 @@ const Folder = require("../models/Folder");
 const logger = require("../utils/logger");
 const { formatBytes } = require("../utils/storageHelpers");
 const { requireAdmin } = require("../middleware/roleAuth");
-const { UPLOAD_BASE_PATH } = require("../utils/fileHelpers");
 
 const router = express.Router();
 
@@ -151,31 +150,13 @@ router.delete("/tags/:tagId", async (req, res) => {
     user.tags.splice(tagIndex, 1);
     await user.save();
 
-    // Cascade: remove the deleted tag from all files and folders owned by user
-    const [fileResult, folderResult] = await Promise.all([
-      File.updateMany(
-        { owner: req.user.id, tags: deletedTag.name },
-        { $pull: { tags: deletedTag.name } },
-      ),
-      Folder.updateMany(
-        { owner: req.user.id, tags: deletedTag.name },
-        { $pull: { tags: deletedTag.name } },
-      ),
-    ]);
-
     logger.info("Tag deleted", {
       userId: req.user.id,
       tagId: tagId,
       tagName: deletedTag.name,
-      filesUpdated: fileResult.modifiedCount,
-      foldersUpdated: folderResult.modifiedCount,
     });
 
-    res.json({
-      message: "Tag deleted successfully",
-      filesUpdated: fileResult.modifiedCount,
-      foldersUpdated: folderResult.modifiedCount,
-    });
+    res.json({ message: "Tag deleted successfully" });
   } catch (error) {
     logger.error("Error deleting tag", {
       userId: req.user.id,
@@ -488,7 +469,7 @@ router.delete("/account", async (req, res) => {
     // Delete all user files
     const userFiles = await File.find({ owner: user._id });
     for (const file of userFiles) {
-      const filePath = file.path;
+      const filePath = path.join(__dirname, "../uploads", file.path);
       try {
         await fs.unlink(filePath);
       } catch (err) {
@@ -504,7 +485,11 @@ router.delete("/account", async (req, res) => {
     await Folder.deleteMany({ owner: user._id });
 
     // Delete user's upload directory
-    const userUploadDir = path.join(UPLOAD_BASE_PATH, user._id.toString());
+    const userUploadDir = path.join(
+      __dirname,
+      "../uploads",
+      user._id.toString(),
+    );
     try {
       await fs.rm(userUploadDir, { recursive: true, force: true });
     } catch (err) {

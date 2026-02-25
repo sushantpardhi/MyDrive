@@ -14,46 +14,33 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
-    if (storedUser) {
+    if (storedToken && storedUser) {
       const userData = JSON.parse(storedUser);
+      setToken(storedToken);
       setUser(userData);
-
-      // Validate session by calling /auth/me (cookie-based)
-      api
-        .getCurrentUser()
-        .then((res) => {
-          const freshUser = res.data;
-          setUser(freshUser);
-          localStorage.setItem("user", JSON.stringify(freshUser));
-          logger.info("User session validated from cookie", {
-            userId: freshUser._id || freshUser.id,
-          });
-        })
-        .catch(() => {
-          // Token expired or invalid — clear state
-          setUser(null);
-          localStorage.removeItem("user");
-          logger.debug("Stored session invalid, cleared");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      logger.info("User session restored from localStorage", {
+        userId: userData.id,
+      });
     } else {
       logger.debug("No stored session found");
-      setLoading(false);
     }
+    setLoading(false);
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, userToken) => {
     // Clear previous user's settings before setting new user
     clearUserSettings();
 
     setUser(userData);
+    setToken(userToken);
+    localStorage.setItem("token", userToken);
     localStorage.setItem("user", JSON.stringify(userData));
 
     logger.logAuth("login", userData.id, {
@@ -65,10 +52,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     const userId = user?.id;
 
-    // Call server logout (clears cookies)
+    // Call server logout
     await api.logout();
 
     setUser(null);
+    setToken(null);
     clearUserSettings();
 
     logger.logAuth("logout", userId, "User logged out");
@@ -81,7 +69,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = () => {
-    return !!user;
+    // Check both React state and localStorage for immediate auth after login
+    return !!token || !!localStorage.getItem("token");
   };
 
   const clearUserSettings = () => {
@@ -93,6 +82,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     loading,
     login,
     logout,
