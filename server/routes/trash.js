@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const router = express.Router();
 const logger = require("../utils/logger");
+const redisCache = require("../utils/redisCache");
 
 // Empty trash
 router.delete("/empty", async (req, res) => {
@@ -92,6 +93,9 @@ router.delete("/empty", async (req, res) => {
       deletedFolders: deletedFoldersCount,
       freedSpace,
     });
+
+    // Invalidate user cache on emptying trash
+    redisCache.invalidateUserCache(userId);
 
     res.json({
       message: "Trash emptied successfully",

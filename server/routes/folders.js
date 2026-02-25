@@ -15,6 +15,8 @@ const ZipStreamService = require("../utils/zipStreamService");
 const DownloadHelpers = require("../utils/downloadHelpers");
 const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
 const { checkLockStatus } = require("../utils/lockHelpers");
+const { cacheMiddleware } = require("../middleware/cache");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -106,7 +108,7 @@ router.get("/verify-download/:folderId", async (req, res) => {
 });
 
 // Get folder contents or trash contents
-router.get("/:folderId", async (req, res) => {
+router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
   try {
     const folderId =
       req.params.folderId === "root" ? null : req.params.folderId;
@@ -262,6 +264,9 @@ router.post("/", async (req, res) => {
       duration: Date.now() - startTime,
     });
 
+    // Invalidate user cache on folder creation
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json(folder);
   } catch (error) {
     logger.logError(error, {
@@ -275,72 +280,80 @@ router.post("/", async (req, res) => {
 });
 
 // Get folder details with populated shared users
-router.get("/:folderId/details", async (req, res) => {
-  try {
-    const folder = await Folder.findById(req.params.folderId)
-      .populate("shared", "name email")
-      .populate("owner", "name email");
-    if (!folder) {
-      return res.status(404).json({ error: "Folder not found" });
+router.get(
+  "/:folderId/details",
+  cacheMiddleware({ ttl: 300 }),
+  async (req, res) => {
+    try {
+      const folder = await Folder.findById(req.params.folderId)
+        .populate("shared", "name email")
+        .populate("owner", "name email");
+      if (!folder) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+      res.json(folder);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-    res.json(folder);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  },
+);
 
 // Get folder statistics (file count and total size)
-router.get("/:folderId/stats", async (req, res) => {
-  try {
-    const folderId = req.params.folderId;
-    const folder = await Folder.findById(folderId);
+router.get(
+  "/:folderId/stats",
+  cacheMiddleware({ ttl: 300 }),
+  async (req, res) => {
+    try {
+      const folderId = req.params.folderId;
+      const folder = await Folder.findById(folderId);
 
-    if (!folder) {
-      return res.status(404).json({ error: "Folder not found" });
-    }
-
-    // Check if user has access
-    const hasAccess =
-      folder.owner.toString() === req.user.id ||
-      folder.shared.includes(req.user.id);
-
-    if (!hasAccess) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    // Count files and calculate total size recursively
-    const countRecursive = async (parentId) => {
-      // Get direct files in this folder
-      const files = await File.find({
-        parent: parentId,
-        trash: { $ne: true },
-      });
-
-      let fileCount = files.length;
-      let totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
-
-      // Get subfolders and count their contents
-      const subfolders = await Folder.find({
-        parent: parentId,
-        trash: { $ne: true },
-      });
-
-      for (const subfolder of subfolders) {
-        const subStats = await countRecursive(subfolder._id);
-        fileCount += subStats.fileCount;
-        totalSize += subStats.totalSize;
+      if (!folder) {
+        return res.status(404).json({ error: "Folder not found" });
       }
 
-      return { fileCount, totalSize };
-    };
+      // Check if user has access
+      const hasAccess =
+        folder.owner.toString() === req.user.id ||
+        folder.shared.includes(req.user.id);
 
-    const stats = await countRecursive(folderId);
-    res.json(stats);
-  } catch (error) {
-    logger.logError(error, "Error getting folder stats");
-    res.status(500).json({ error: error.message });
-  }
-});
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Count files and calculate total size recursively
+      const countRecursive = async (parentId) => {
+        // Get direct files in this folder
+        const files = await File.find({
+          parent: parentId,
+          trash: { $ne: true },
+        });
+
+        let fileCount = files.length;
+        let totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+
+        // Get subfolders and count their contents
+        const subfolders = await Folder.find({
+          parent: parentId,
+          trash: { $ne: true },
+        });
+
+        for (const subfolder of subfolders) {
+          const subStats = await countRecursive(subfolder._id);
+          fileCount += subStats.fileCount;
+          totalSize += subStats.totalSize;
+        }
+
+        return { fileCount, totalSize };
+      };
+
+      const stats = await countRecursive(folderId);
+      res.json(stats);
+    } catch (error) {
+      logger.logError(error, "Error getting folder stats");
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 // Share folder - Updated to accept email instead of userId
 router.post(
@@ -413,6 +426,9 @@ router.post(
         folderId: id,
       });
 
+      // Invalidate user cache on share update
+      redisCache.invalidateUserCache(req.user.id);
+
       res.json({
         message: "Folder shared successfully",
         item: await Folder.findById(id).populate("shared", "name email"),
@@ -454,6 +470,9 @@ router.delete("/:id/share/:userId", async (req, res) => {
 
     // Recursively unshare all contents of this folder
     await unshareContentsRecursively(item._id, userId);
+
+    // Invalidate user cache on unshare
+    redisCache.invalidateUserCache(req.user.id);
 
     res.json({
       message: "User removed from shared list",
@@ -513,6 +532,10 @@ router.delete("/:id", async (req, res) => {
       // Move folder and all descendants to trash
       const trashedAt = new Date();
       await markFolderTrashState(id, req.user.id, true, trashedAt);
+
+      // Invalidate user cache on move to trash
+      redisCache.invalidateUserCache(req.user.id);
+
       res.json({ message: "Moved to trash" });
     }
   } catch (error) {
@@ -539,6 +562,10 @@ router.post("/:id/restore", async (req, res) => {
 
     // Restore folder and all descendants
     await markFolderTrashState(id, req.user.id, false, null);
+
+    // Invalidate user cache on folder restore
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Restored successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -596,6 +623,10 @@ router.put("/:id/rename", async (req, res) => {
 
     item.name = name.trim();
     await item.save();
+
+    // Invalidate user cache on folder rename
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder renamed successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -638,6 +669,10 @@ router.put("/:id/tags", async (req, res) => {
 
     item.tags = tags;
     await item.save();
+
+    // Invalidate user cache on tags update
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Tags updated successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });

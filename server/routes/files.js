@@ -31,6 +31,8 @@ const {
 } = require("../utils/chunkHelpers");
 const redisQueue = require("../utils/redisQueue");
 const { checkLockStatus } = require("../utils/lockHelpers");
+const { cacheMiddleware } = require("../middleware/cache");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -99,6 +101,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, {
       $inc: { storageUsed: req.file.size },
     });
+
+    // Invalidate user cache on file upload
+    redisCache.invalidateUserCache(req.user.id);
 
     // Send storage notification if threshold crossed
     handlePostUploadNotification(user, req.file.size).catch((error) => {
@@ -530,19 +535,23 @@ router.get("/low-quality/:fileId", async (req, res) => {
 });
 
 // Get file details with populated shared users
-router.get("/:fileId/details", async (req, res) => {
-  try {
-    const file = await File.findById(req.params.fileId)
-      .populate("shared", "name email")
-      .populate("owner", "name email");
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
+router.get(
+  "/:fileId/details",
+  cacheMiddleware({ ttl: 300 }),
+  async (req, res) => {
+    try {
+      const file = await File.findById(req.params.fileId)
+        .populate("shared", "name email")
+        .populate("owner", "name email");
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      res.json(file);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-    res.json(file);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  },
+);
 
 // Share file - Updated to accept email instead of userId
 router.post(
@@ -590,6 +599,9 @@ router.post(
           });
       }
 
+      // Invalidate user cache on file share
+      redisCache.invalidateUserCache(req.user.id);
+
       res.json({
         message: "File shared successfully",
         item: await File.findById(id).populate("shared", "name email"),
@@ -622,6 +634,9 @@ router.delete("/:id/share/:userId", async (req, res) => {
       (sharedUserId) => sharedUserId.toString() !== userId,
     );
     await item.save();
+
+    // Invalidate user cache on file unshare
+    redisCache.invalidateUserCache(req.user.id);
 
     res.json({
       message: "User removed from shared list",
@@ -687,12 +702,20 @@ router.delete("/:id", async (req, res) => {
       });
 
       await File.findByIdAndDelete(id);
+
+      // Invalidate user cache on file permanent delete
+      redisCache.invalidateUserCache(req.user.id);
+
       res.json({ message: "Permanently deleted" });
     } else {
       // Move to trash
       item.trash = true;
       item.trashedAt = new Date();
       await item.save();
+
+      // Invalidate user cache on move to trash
+      redisCache.invalidateUserCache(req.user.id);
+
       res.json({ message: "Moved to trash" });
     }
   } catch (error) {
@@ -720,6 +743,10 @@ router.post("/:id/restore", async (req, res) => {
     item.trash = false;
     item.trashedAt = null;
     await item.save();
+
+    // Invalidate user cache on file restore
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Restored successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -794,6 +821,10 @@ router.put("/:id/rename", async (req, res) => {
 
     item.name = name.trim();
     await item.save();
+
+    // Invalidate user cache on file rename
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File renamed successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
