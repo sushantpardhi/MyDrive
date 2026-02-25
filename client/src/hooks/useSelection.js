@@ -350,7 +350,6 @@ export const useSelection = (api, folders, files, type) => {
             clearInterval(pollInterval);
 
             // 3. Download the file
-            const token = localStorage.getItem("token");
             const API_BASE =
               process.env.REACT_APP_API_URL || "http://localhost:8080/api";
             // Server route is now mounted at /api/downloads/zip
@@ -358,7 +357,7 @@ export const useSelection = (api, folders, files, type) => {
 
             const xhr = new XMLHttpRequest();
             xhr.open("GET", downloadUrl, true);
-            xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+            xhr.withCredentials = true;
             xhr.responseType = "blob";
             xhr.timeout = 30 * 60 * 1000;
 

@@ -3,28 +3,19 @@ import logger from "../utils/logger";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-// Set up axios interceptor to add auth token to requests
-axios.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+// Ensure cookies are sent with every single request
+axios.defaults.withCredentials = true;
 
 // Response interceptor to handle session expiration
 let isRefreshing = false;
 let failedQueue = [];
 
-function processQueue(error, token = null) {
+function processQueue(error) {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
   failedQueue = [];
@@ -46,8 +37,7 @@ axios.interceptors.response.use(
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+          .then(() => {
             return axios(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -56,16 +46,12 @@ axios.interceptors.response.use(
       isRefreshing = true;
       return api
         .refreshToken()
-        .then((res) => {
-          const { token } = res.data;
-          localStorage.setItem("token", token);
-          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-          processQueue(null, token);
+        .then(() => {
+          processQueue(null);
           return axios(originalRequest);
         })
         .catch((err) => {
-          processQueue(err, null);
-          localStorage.removeItem("token");
+          processQueue(err);
           localStorage.removeItem("user");
           window.location.href = "/login";
           return Promise.reject(err);
@@ -130,7 +116,6 @@ const api = {
     try {
       await axios.post(`${API_URL}/auth/logout`, {});
     } catch (e) {}
-    localStorage.removeItem("token");
     localStorage.removeItem("user");
     // Keep guestSession in localStorage to allow resuming session later
   },

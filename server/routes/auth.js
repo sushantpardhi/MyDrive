@@ -14,19 +14,24 @@ const {
 const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "7d";
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 
 // Logout route (invalidate refresh token)
-router.post("/logout", (req, res) => {
+router.post("/logout", async (req, res) => {
   const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
   if (refreshToken) {
     const { revokeRefreshToken } = require("../utils/refreshTokenHelpers");
-    revokeRefreshToken(refreshToken);
+    await revokeRefreshToken(refreshToken);
   }
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+  });
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
   });
   res.json({ message: "Logged out successfully" });
 });
@@ -38,7 +43,7 @@ router.post("/refresh-token", async (req, res) => {
       return res.status(401).json({ error: "Refresh token missing" });
     }
     const { validateRefreshToken } = require("../utils/refreshTokenHelpers");
-    const payload = validateRefreshToken(refreshToken);
+    const payload = await validateRefreshToken(refreshToken);
     if (!payload) {
       return res
         .status(403)
@@ -55,7 +60,15 @@ router.post("/refresh-token", async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
-    res.json({ token });
+    // Set access token as HTTP-only cookie
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.json({ message: "Token refreshed successfully" });
   } catch (error) {
     logger.logError(error, { operation: "refresh-token", ip: req.ip });
     res.status(500).json({ error: error.message });
@@ -176,13 +189,21 @@ router.post(
         { expiresIn: JWT_EXPIRATION },
       );
       // Generate refresh token
-      const refreshToken = generateRefreshToken(user);
+      const refreshToken = await generateRefreshToken(user);
       // Set refresh token as HTTP-only cookie
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+
+      // Set access token as HTTP-only cookie
+      res.cookie("accessToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
       logger.logPerformance("register", Date.now() - startTime, {
@@ -191,7 +212,6 @@ router.post(
 
       res.status(201).json({
         message: "User registered successfully",
-        token,
         user: {
           id: user._id,
           name: user.name,
@@ -276,13 +296,21 @@ router.post(
         { expiresIn: JWT_EXPIRATION },
       );
       // Generate refresh token
-      const refreshToken = generateRefreshToken(user);
+      const refreshToken = await generateRefreshToken(user);
       // Set refresh token as HTTP-only cookie
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+
+      // Set access token as HTTP-only cookie
+      res.cookie("accessToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
       logger.logAuth("login", user._id, {
@@ -299,7 +327,6 @@ router.post(
 
       res.json({
         message: "Login successful",
-        token,
         user: {
           id: user._id,
           name: user.name,

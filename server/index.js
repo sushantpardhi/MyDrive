@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const compression = require("compression");
+const cookieParser = require("cookie-parser");
 dotenv.config();
 
 // Import logger
@@ -53,17 +54,20 @@ const UPLOAD_TIMEOUT = process.env.UPLOAD_TIMEOUT
   ? parseInt(process.env.UPLOAD_TIMEOUT)
   : 600000; // 10 minutes default
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+const allowedOrigins =
+  CORS_ORIGIN === "*" ? true : CORS_ORIGIN.split(",").map((o) => o.trim());
 
 // Middleware
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: allowedOrigins,
     credentials: true,
     exposedHeaders: ["X-Total-Size", "X-Total-Files"],
   }),
 );
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser());
 
 // Security middleware
 app.use(
