@@ -73,8 +73,8 @@ const Login = () => {
     try {
       const response = await api.login(formData.email, formData.password);
 
-      // Store token and user info via context
-      login(response.data.user, response.data.token);
+      // Store user info via context (cookies set by server)
+      login(response.data.user);
 
       logger.logAuth(
         "login_success",
@@ -112,11 +112,11 @@ const Login = () => {
 
     try {
       const response = await api.resumeGuestSession(existingSession.sessionId);
-      const { token, user, session } = response.data;
+      const { user, session } = response.data;
 
       // Update localStorage with fresh session data
       localStorage.setItem("guestSession", JSON.stringify(session));
-      login(user, token);
+      login(user);
       navigate("/");
     } catch (err) {
       logger.error("Resume guest session failed", { error: err });
@@ -148,9 +148,9 @@ const Login = () => {
       const previousSessionId = existingSession?.sessionId;
       const response = await api.createGuestSession(previousSessionId);
 
-      const { token, user, session } = response.data;
+      const { user, session } = response.data;
       localStorage.setItem("guestSession", JSON.stringify(session));
-      login(user, token);
+      login(user);
       navigate("/");
     } catch (err) {
       logger.error("Guest login failed", { error: err });

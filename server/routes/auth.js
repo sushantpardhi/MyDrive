@@ -9,43 +9,80 @@ const logger = require("../utils/logger");
 const {
   generateRefreshToken,
   revokeAllUserTokens,
+  REFRESH_TOKEN_EXPIRATION_MS,
 } = require("../utils/refreshTokenHelpers");
 
 const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "7d";
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
+
+// Cookie configuration helpers
+// Use secure cookies only when actually serving over HTTPS,
+// not based on NODE_ENV (user may have NODE_ENV=production on localhost HTTP).
+const isSecureCookies = (req) => {
+  return req?.secure || req?.headers?.["x-forwarded-proto"] === "https";
+};
+
+function getAccessTokenCookieOptions(req) {
+  return {
+    httpOnly: true,
+    secure: isSecureCookies(req),
+    sameSite: "lax",
+    maxAge: 15 * 60 * 1000, // 15 minutes
+    path: "/",
+  };
+}
+
+function getRefreshTokenCookieOptions(req) {
+  return {
+    httpOnly: true,
+    secure: isSecureCookies(req),
+    sameSite: "lax",
+    maxAge: REFRESH_TOKEN_EXPIRATION_MS, // 30 days
+    path: "/",
+  };
+}
+
+function clearAuthCookies(res, req) {
+  const clearOpts = {
+    httpOnly: true,
+    secure: isSecureCookies(req),
+    sameSite: "lax",
+    path: "/",
+  };
+  res.clearCookie("accessToken", clearOpts);
+  res.clearCookie("refreshToken", clearOpts);
+}
 
 // Logout route (invalidate refresh token)
-router.post("/logout", (req, res) => {
-  const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+router.post("/logout", async (req, res) => {
+  const refreshToken = req.cookies?.refreshToken;
   if (refreshToken) {
     const { revokeRefreshToken } = require("../utils/refreshTokenHelpers");
-    revokeRefreshToken(refreshToken);
+    await revokeRefreshToken(refreshToken);
   }
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  clearAuthCookies(res, req);
   res.json({ message: "Logged out successfully" });
 });
+
 // Refresh token endpoint
 router.post("/refresh-token", async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+    const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
       return res.status(401).json({ error: "Refresh token missing" });
     }
     const { validateRefreshToken } = require("../utils/refreshTokenHelpers");
-    const payload = validateRefreshToken(refreshToken);
+    const payload = await validateRefreshToken(refreshToken);
     if (!payload) {
+      clearAuthCookies(res, req);
       return res
         .status(403)
         .json({ error: "Invalid or expired refresh token" });
     }
-    // Issue new access token
-    const token = jwt.sign(
+    // Issue new access token and set as cookie
+    const accessToken = jwt.sign(
       {
         id: payload.id,
         email: payload.email,
@@ -55,7 +92,8 @@ router.post("/refresh-token", async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
-    res.json({ token });
+    res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+    res.json({ success: true });
   } catch (error) {
     logger.logError(error, { operation: "refresh-token", ip: req.ip });
     res.status(500).json({ error: error.message });
@@ -170,20 +208,20 @@ router.post(
       });
 
       // Generate JWT access token
-      const token = jwt.sign(
-        { id: user._id, email: user.email, name: user.name },
+      const accessToken = jwt.sign(
+        { id: user._id, email: user.email, name: user.name, role: user.role },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION },
       );
-      // Generate refresh token
-      const refreshToken = generateRefreshToken(user);
-      // Set refresh token as HTTP-only cookie
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      // Generate refresh token and store in Redis
+      const refreshToken = await generateRefreshToken(user);
+      // Set tokens as HTTP-only cookies
+      res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+      res.cookie(
+        "refreshToken",
+        refreshToken,
+        getRefreshTokenCookieOptions(req),
+      );
 
       logger.logPerformance("register", Date.now() - startTime, {
         userId: user._id,
@@ -191,7 +229,6 @@ router.post(
 
       res.status(201).json({
         message: "User registered successfully",
-        token,
         user: {
           id: user._id,
           name: user.name,
@@ -270,20 +307,20 @@ router.post(
       }
 
       // Generate JWT access token
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         { id: user._id, email: user.email, name: user.name, role: user.role },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION },
       );
-      // Generate refresh token
-      const refreshToken = generateRefreshToken(user);
-      // Set refresh token as HTTP-only cookie
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      // Generate refresh token and store in Redis
+      const refreshToken = await generateRefreshToken(user);
+      // Set tokens as HTTP-only cookies
+      res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+      res.cookie(
+        "refreshToken",
+        refreshToken,
+        getRefreshTokenCookieOptions(req),
+      );
 
       logger.logAuth("login", user._id, {
         ip,
@@ -299,7 +336,6 @@ router.post(
 
       res.json({
         message: "Login successful",
-        token,
         user: {
           id: user._id,
           name: user.name,
@@ -449,6 +485,9 @@ router.post(
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
       await user.save();
+
+      // Revoke all existing sessions after password reset
+      await revokeAllUserTokens(user._id);
 
       logger.logAuth("password-reset", user._id, {
         ip,

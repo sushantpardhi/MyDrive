@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Tag, Plus } from "lucide-react";
 import { toast } from "react-toastify";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { useSearchContext } from "../../contexts/SearchContext";
+import { useTagContext } from "../../contexts/TagContext";
 import styles from "./SidebarTags.module.css";
 import logger from "../../utils/logger";
 import { createPortal } from "react-dom";
@@ -65,29 +66,11 @@ const CreateTagModal = ({ isOpen, mechanism, onClose, onCreate }) => {
 };
 
 const SidebarTags = ({ onClose }) => {
-  const [tags, setTags] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
+  const { tags, loading, addTag } = useTagContext();
   const { searchFilters, updateFilters } = useSearchContext();
-
-  useEffect(() => {
-    fetchTags();
-  }, []);
-
-  const fetchTags = async () => {
-    try {
-      setLoading(true);
-      const response = await api.getTags();
-      setTags(response.data || []);
-    } catch (error) {
-      console.error("Failed to fetch tags", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateTag = async (tagName) => {
     try {
@@ -98,7 +81,7 @@ const SidebarTags = ({ onClose }) => {
       }
 
       const response = await api.createTag(tagName);
-      setTags([...tags, response.data]);
+      addTag(response.data);
       setIsModalOpen(false);
       toast.success("Tag created");
     } catch (error) {
@@ -116,13 +99,10 @@ const SidebarTags = ({ onClose }) => {
     } else {
       updateFilters({ tags: [tag.name] });
 
-      // Navigate to drive if not there
-      if (!location.pathname.startsWith("/drive")) {
-        navigate("/drive");
-      }
+      // Always navigate to drive root when selecting a tag
+      // This ensures tagged items are shown from the root level
+      navigate("/drive");
     }
-
-    console.log("Tag clicked:", tag.name);
 
     if (onClose) onClose();
   };

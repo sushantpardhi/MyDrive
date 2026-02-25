@@ -27,12 +27,11 @@ export const downloadFile = async (api, fileId, fileName, progressCallback) => {
       const fileSize = verifyResponse.data.size;
 
       // Now initiate the actual download with progress tracking
-      const token = localStorage.getItem("token");
       const API_URL = process.env.REACT_APP_API_URL;
 
       const xhr = new XMLHttpRequest();
       xhr.open("GET", `${API_URL}/files/download/${fileId}`, true);
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.withCredentials = true;
       xhr.responseType = "blob";
 
       // Register XHR for cancellation if callback provided
@@ -179,12 +178,11 @@ export const downloadMultiple = async (
     try {
       const { onZipping, onProgress, onComplete, onCancel } = progressCallbacks;
 
-      const token = localStorage.getItem("token");
       const API_URL = process.env.REACT_APP_API_URL;
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API_URL}/files/download`, true);
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.withCredentials = true;
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.responseType = "blob";
       xhr.timeout = 30 * 60 * 1000; // 30 minutes

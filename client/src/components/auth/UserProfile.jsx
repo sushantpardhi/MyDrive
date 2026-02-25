@@ -20,9 +20,10 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { createPortal } from "react-dom";
 import api from "../../services/api";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
-import { useTheme, useAuth, useUIContext } from "../../contexts";
+import { useTheme, useAuth, useUIContext, useTagContext } from "../../contexts";
 import LoadingSpinner from "../common/LoadingSpinner";
 import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
@@ -71,10 +72,16 @@ export default function UserProfile() {
   const [accountStats, setAccountStats] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
 
-  // Tags state
-  const [tags, setTags] = useState([]);
+  // Tags state (shared via context)
+  const {
+    tags,
+    loading: tagContextLoading,
+    addTag,
+    removeTag,
+  } = useTagContext();
   const [newTagName, setNewTagName] = useState("");
   const [tagLoading, setTagLoading] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState(null);
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -106,11 +113,10 @@ export default function UserProfile() {
         logger.info("Fetching user profile data");
 
         // Fetch all data in parallel
-        const [profileRes, storageRes, statsRes, tagsRes] = await Promise.all([
+        const [profileRes, storageRes, statsRes] = await Promise.all([
           api.getUserProfile(),
           api.getStorageStats(),
           api.getAccountStats(),
-          api.getTags(),
         ]);
 
         const profileData = {
@@ -125,7 +131,6 @@ export default function UserProfile() {
         setForm(profileData);
         setStorageStats(storageRes.data);
         setAccountStats(statsRes.data);
-        setTags(tagsRes.data || []);
 
         // Sync theme from user settings
         if (profileData.settings.theme) {
@@ -159,7 +164,7 @@ export default function UserProfile() {
 
     try {
       const res = await api.createTag(newTagName.trim());
-      setTags((prev) => [...prev, res.data]);
+      addTag(res.data);
       setNewTagName("");
       toast.success(`Tag "${res.data.name}" created successfully`);
       logger.info("Tag created successfully", { tagName: res.data.name });
@@ -171,15 +176,18 @@ export default function UserProfile() {
     }
   }
 
-  async function handleDeleteTag(tagId) {
+  async function handleConfirmDeleteTag() {
+    if (!tagToDelete) return;
     try {
-      await api.deleteTag(tagId);
-      setTags((prev) => prev.filter((tag) => tag._id !== tagId));
+      await api.deleteTag(tagToDelete._id);
+      removeTag(tagToDelete._id);
       toast.success("Tag deleted successfully");
-      logger.info("Tag deleted successfully", { tagId });
+      logger.info("Tag deleted successfully", { tagId: tagToDelete._id });
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to delete tag");
       logger.error("Error deleting tag", { error: err.message });
+    } finally {
+      setTagToDelete(null);
     }
   }
 
@@ -759,7 +767,7 @@ export default function UserProfile() {
                       <button
                         type="button"
                         className={styles.deleteTagBtn}
-                        onClick={() => handleDeleteTag(tag._id)}
+                        onClick={() => setTagToDelete(tag)}
                         aria-label={`Delete tag ${tag.name}`}
                       >
                         <X size={14} />
@@ -998,6 +1006,42 @@ export default function UserProfile() {
           </div>
         </div>
       </div>
+
+      {/* Tag Delete Confirmation Modal */}
+      {tagToDelete &&
+        createPortal(
+          <div
+            className={styles.tagModalOverlay}
+            onClick={() => setTagToDelete(null)}
+          >
+            <div
+              className={styles.tagModal}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className={styles.tagModalTitle}>Delete Tag</h3>
+              <p className={styles.tagModalText}>
+                Are you sure you want to delete the tag{" "}
+                <strong>"{tagToDelete.name}"</strong>? This will also remove the
+                tag from all tagged files and folders.
+              </p>
+              <div className={styles.tagModalActions}>
+                <button
+                  className={`${styles.tagModalBtn} ${styles.tagModalCancelBtn}`}
+                  onClick={() => setTagToDelete(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`${styles.tagModalBtn} ${styles.tagModalDeleteBtn}`}
+                  onClick={handleConfirmDeleteTag}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

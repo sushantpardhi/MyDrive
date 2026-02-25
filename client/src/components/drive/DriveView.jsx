@@ -1130,6 +1130,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         path={path}
         navigateTo={navigateTo}
         breadcrumbRef={breadcrumbRef}
+        activeTag={
+          searchFilters.tags && searchFilters.tags.length > 0
+            ? searchFilters.tags[0]
+            : null
+        }
       />
 
       {selectedItems.size > 0 && (

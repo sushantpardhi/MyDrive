@@ -2,11 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const { Readable } = require("stream");
 const logger = require("./logger");
+const { UPLOAD_BASE_PATH } = require("./fileHelpers");
 
 /**
  * Storage abstraction layer for file operations
  * Supports both local filesystem and S3-compatible storage
- * 
+ *
  * This design allows easy migration to cloud storage (AWS S3, MinIO, etc.)
  * without changing business logic
  */
@@ -16,7 +17,7 @@ class StorageProvider {
     this.type = config.type || "local"; // 'local' or 's3'
     this.s3Client = config.s3Client || null;
     this.bucket = config.bucket || null;
-    this.localBasePath = config.localBasePath || "uploads";
+    this.localBasePath = config.localBasePath || UPLOAD_BASE_PATH;
   }
 
   /**
@@ -275,7 +276,9 @@ function createStorageProvider(config = {}) {
     });
     */
 
-    logger.warn("S3 storage requested but not implemented, falling back to local");
+    logger.warn(
+      "S3 storage requested but not implemented, falling back to local",
+    );
     return new StorageProvider({ type: "local" });
   } else {
     return new StorageProvider({ type: "local" });

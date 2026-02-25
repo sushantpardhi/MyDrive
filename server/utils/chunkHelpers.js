@@ -3,19 +3,13 @@ const path = require("path");
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("./logger");
+const { UPLOAD_BASE_PATH } = require("./fileHelpers");
 
 /**
  * Create a temporary directory for chunked upload
  */
 const createTempUploadDir = (userId, uploadId) => {
-  const tempDir = path.join(
-    __dirname,
-    "..",
-    "uploads",
-    "temp",
-    userId,
-    uploadId
-  );
+  const tempDir = path.join(UPLOAD_BASE_PATH, "temp", userId, uploadId);
 
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
@@ -50,7 +44,7 @@ const storeChunk = async (tempDir, chunkIndex, chunkBuffer) => {
         logger.debug(
           `Chunk ${chunkIndex} stored - Size: ${
             chunkBuffer.length
-          } bytes - Duration: ${Date.now() - startTime}ms`
+          } bytes - Duration: ${Date.now() - startTime}ms`,
         );
         resolve(chunkPath);
       }
@@ -85,9 +79,9 @@ const verifyChunkIntegrity = async (chunkPath, expectedHash) => {
 const combineChunks = async (tempDir, totalChunks, outputPath) => {
   const startTime = Date.now();
   logger.info(
-    `Starting chunk combination - Total chunks: ${totalChunks} - Output: ${outputPath}`
+    `Starting chunk combination - Total chunks: ${totalChunks} - Output: ${outputPath}`,
   );
-  
+
   return new Promise((resolve, reject) => {
     const writeStream = fs.createWriteStream(outputPath, {
       highWaterMark: 64 * 1024, // 64KB buffer
@@ -100,7 +94,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
         writeStream.end();
         const duration = Date.now() - startTime;
         logger.info(
-          `Chunk combination completed - Total size: ${totalBytesWritten} bytes - Duration: ${duration}ms`
+          `Chunk combination completed - Total size: ${totalBytesWritten} bytes - Duration: ${duration}ms`,
         );
         resolve(outputPath);
         return;
@@ -110,7 +104,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
 
       if (!fs.existsSync(chunkPath)) {
         const error = new Error(
-          `Chunk ${currentChunk} not found at ${chunkPath}`
+          `Chunk ${currentChunk} not found at ${chunkPath}`,
         );
         logger.logError(error, {
           operation: "combineChunks",
@@ -148,7 +142,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
           fs.unlinkSync(chunkPath);
         } catch (cleanupError) {
           logger.debug(
-            `Failed to cleanup chunk ${currentChunk}: ${cleanupError.message}`
+            `Failed to cleanup chunk ${currentChunk}: ${cleanupError.message}`,
           );
         }
 
@@ -160,7 +154,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
             `Chunk combination progress: ${currentChunk}/${totalChunks} (${(
               (currentChunk / totalChunks) *
               100
-            ).toFixed(1)}%)`
+            ).toFixed(1)}%)`,
           );
         }
 
@@ -178,7 +172,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
           additionalInfo: `Failed reading chunk ${currentChunk}`,
         });
         reject(
-          new Error(`Failed to read chunk ${currentChunk}: ${error.message}`)
+          new Error(`Failed to read chunk ${currentChunk}: ${error.message}`),
         );
       });
     };
@@ -236,7 +230,7 @@ const cleanupTempDir = (tempDir) => {
  * Get final file path for user
  */
 const getFinalFilePath = (userId, fileName) => {
-  const userDir = path.join(__dirname, "..", "uploads", userId);
+  const userDir = path.join(UPLOAD_BASE_PATH, userId);
 
   if (!fs.existsSync(userDir)) {
     fs.mkdirSync(userDir, { recursive: true });

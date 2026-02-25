@@ -141,6 +141,10 @@ export const useSearch = (
     setCurrentPage(1);
     setHasMore(true);
     setSearchResults({ folders: [], files: [] });
+    // Also clear tag filter when navigating into a folder
+    if (searchFilters.tags && searchFilters.tags.length > 0) {
+      updateFilters({ tags: [] });
+    }
   };
 
   const clearSearch = () => {

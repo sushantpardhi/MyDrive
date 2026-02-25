@@ -13,7 +13,31 @@ const { cleanupSingleGuestSession } = require("../utils/cleanupScheduler");
 const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "7d";
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
+const { REFRESH_TOKEN_EXPIRATION_MS } = require("../utils/refreshTokenHelpers");
+
+// Cookie configuration helpers (same as auth routes)
+const isSecureCookies = (req) => {
+  return req?.secure || req?.headers?.["x-forwarded-proto"] === "https";
+};
+function getAccessTokenCookieOptions(req) {
+  return {
+    httpOnly: true,
+    secure: isSecureCookies(req),
+    sameSite: "lax",
+    maxAge: 15 * 60 * 1000,
+    path: "/",
+  };
+}
+function getRefreshTokenCookieOptions(req) {
+  return {
+    httpOnly: true,
+    secure: isSecureCookies(req),
+    sameSite: "lax",
+    maxAge: REFRESH_TOKEN_EXPIRATION_MS,
+    path: "/",
+  };
+}
 
 /**
  * Create a new guest session
@@ -77,7 +101,7 @@ router.post("/", async (req, res) => {
     await guestUser.save();
 
     // Generate JWT access token
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       {
         id: guestUser._id,
         email: guestUser.email,
@@ -89,6 +113,13 @@ router.post("/", async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
+
+    // Generate refresh token and store in Redis
+    const refreshToken = await generateRefreshToken(guestUser);
+
+    // Set tokens as HTTP-only cookies
+    res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions(req));
 
     logger.logAuth("guest-session-create", guestUser._id, {
       ip,
@@ -103,7 +134,6 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({
       message: "Guest session created successfully",
-      token,
       user: {
         id: guestUser._id,
         name: guestUser.name,
@@ -179,7 +209,7 @@ router.post("/resume", async (req, res) => {
     }
 
     // Generate new JWT access token
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       {
         id: guestUser._id,
         email: guestUser.email,
@@ -191,6 +221,13 @@ router.post("/resume", async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
+
+    // Generate refresh token and store in Redis
+    const refreshToken = await generateRefreshToken(guestUser);
+
+    // Set tokens as HTTP-only cookies
+    res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions(req));
 
     logger.logAuth("guest-session-resume", guestUser._id, {
       ip,
@@ -205,7 +242,6 @@ router.post("/resume", async (req, res) => {
 
     res.json({
       message: "Guest session resumed successfully",
-      token,
       user: {
         id: guestUser._id,
         name: guestUser.name,
@@ -398,7 +434,7 @@ router.post(
       }
 
       // Generate new JWT access token with updated info
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         {
           id: user._id,
           email: user.email,
@@ -410,16 +446,16 @@ router.post(
         { expiresIn: JWT_EXPIRATION },
       );
 
-      // Generate new refresh token
-      const refreshToken = generateRefreshToken(user);
+      // Generate new refresh token and store in Redis
+      const refreshToken = await generateRefreshToken(user);
 
-      // Set refresh token as HTTP-only cookie
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      // Set tokens as HTTP-only cookies
+      res.cookie("accessToken", accessToken, getAccessTokenCookieOptions(req));
+      res.cookie(
+        "refreshToken",
+        refreshToken,
+        getRefreshTokenCookieOptions(req),
+      );
 
       logger.logAuth("guest-convert", user._id, {
         ip,
@@ -436,7 +472,6 @@ router.post(
       res.json({
         message:
           "Account created successfully! Your files have been preserved.",
-        token,
         user: {
           id: user._id,
           name: user.name,

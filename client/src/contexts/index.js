@@ -7,3 +7,4 @@ export { ThemeProvider, useTheme } from "./ThemeContext";
 export { UserSettingsProvider, useUserSettings } from "./UserSettingsContext";
 export { TransferProvider, useTransfer } from "./TransferContext";
 export { AdminProvider, useAdmin } from "./AdminContext";
+export { TagProvider, useTagContext } from "./TagContext";

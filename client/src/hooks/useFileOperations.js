@@ -465,8 +465,6 @@ export const useFileOperations = (
           `Preparing to download ${totalFiles} file${totalFiles !== 1 ? "s" : ""}...`,
         );
 
-        // Use XMLHttpRequest for progress tracking
-        const token = localStorage.getItem("token");
         const API_URL =
           process.env.REACT_APP_API_URL ||
           `http://${window.location.hostname}:8080/api`;
@@ -478,7 +476,7 @@ export const useFileOperations = (
 
         return new Promise((resolve, reject) => {
           xhr.open("GET", `${API_URL}/folders/download/${folderId}`, true);
-          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.withCredentials = true;
           xhr.responseType = "blob";
 
           let lastLoaded = 0;
@@ -659,12 +657,11 @@ export const useFileOperations = (
               // To download via browser (best for large files without memory issues), we need a way to pass auth.
               // If we use XHR with blob like before:
 
-              const token = localStorage.getItem("token");
               const API_URL =
                 process.env.REACT_APP_API_URL ||
                 `http://${window.location.hostname}:8080/api`;
 
-              // We'll use the specific Zip download endpoint using XHR to support Auth header
+              // We'll use the specific Zip download endpoint using XHR to support auth cookies
               const xhr = new XMLHttpRequest();
               if (downloadProgressHook && downloadProgressHook.registerXhr) {
                 downloadProgressHook.registerXhr(downloadId, xhr);
@@ -675,7 +672,7 @@ export const useFileOperations = (
                 `${API_URL.replace("/api", "")}/downloads/zip/${jobId}`,
                 true,
               );
-              xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+              xhr.withCredentials = true;
               xhr.responseType = "blob";
 
               xhr.onload = () => {
