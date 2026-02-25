@@ -2,11 +2,5 @@
   "compilerOptions": {
     "checkJs": false
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "logs",
-    "**/*.zip"
-  ]
+  "exclude": ["node_modules", "dist", "build", "logs", "**/*.zip"]
 }

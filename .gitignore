@@ -2,7 +2,8 @@
 
 Todo
 extra/
-worker-mac
+worker-mac/
+DriveData/
 
 # ================================
 # DEPENDENCIES
@@ -97,3 +98,4 @@ Desktop.ini
 *.crt
 api-keys.json
 secrets.json
+DriveData/

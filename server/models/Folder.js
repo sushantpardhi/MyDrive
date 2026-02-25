@@ -14,6 +14,7 @@ const FolderSchema = new mongoose.Schema({
   trash: { type: Boolean, default: false },
   trashedAt: { type: Date },
   isLocked: { type: Boolean, default: false },
+  tags: [{ type: String }],
 });
 
 // Text index for full-text search

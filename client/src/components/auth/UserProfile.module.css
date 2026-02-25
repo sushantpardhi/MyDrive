@@ -13,7 +13,6 @@
   position: relative;
 }
 
-
 /* Mobile Header - Only visible on mobile */
 .mobileHeader {
   position: sticky;
@@ -98,7 +97,9 @@
 .profileCard {
   background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.07),
+    0 10px 20px rgba(0, 0, 0, 0.05);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -827,6 +828,209 @@
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Tags Section */
+.sectionDescription {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.tagForm {
+  margin-bottom: 1rem;
+}
+
+.tagInputRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tagInput {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  font-size: 0.9rem;
+  background: var(--input-bg);
+  transition: all var(--transition-normal);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.tagInput:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--accent-bg-light);
+}
+
+.tagInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.addTagBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.addTagBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.addTagBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.tagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tagPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--accent-bg-light);
+  border: 1px solid var(--accent-border);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.tagPill:hover {
+  background: var(--accent-bg-medium);
+  border-color: var(--accent-primary);
+}
+
+.tagName {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleteTagBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.deleteTagBtn:hover {
+  background: var(--error-color);
+  color: #fff;
+}
+
+.noTags {
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Tag Delete Confirmation Modal */
+.tagModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.tagModal {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tagModalTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.tagModalText {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.tagModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.tagModalBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.tagModalCancelBtn {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.tagModalCancelBtn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.tagModalDeleteBtn {
+  background: var(--error-color);
+  color: white;
+}
+
+.tagModalDeleteBtn:hover {
+  background: var(--danger-color-dark);
 }
 
 /* Responsive Design */

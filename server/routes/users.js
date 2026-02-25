@@ -45,6 +45,127 @@ router.put("/profile", async (req, res) => {
   }
 });
 
+// ==========================================
+// Tag Management Routes
+// ==========================================
+
+// Get all user tags
+router.get("/tags", async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("tags");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user.tags || []);
+  } catch (error) {
+    logger.error("Error fetching tags", {
+      userId: req.user.id,
+      error: error.message,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new tag
+router.post("/tags", async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    // Validate tag name is provided
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Tag name is required" });
+    }
+
+    const trimmedName = name.trim();
+
+    // Validate alphanumeric and spaces only
+    const validTagRegex = /^[a-zA-Z0-9 ]+$/;
+    if (!validTagRegex.test(trimmedName)) {
+      return res.status(400).json({
+        error: "Tag name can only contain letters, numbers, and spaces",
+      });
+    }
+
+    // Get user
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check for duplicate tags (case-insensitive)
+    const existingTag = user.tags?.find(
+      (tag) => tag.name.toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (existingTag) {
+      return res
+        .status(400)
+        .json({ error: "A tag with this name already exists" });
+    }
+
+    // Add the new tag
+    const newTag = { name: trimmedName, createdAt: new Date() };
+    user.tags = user.tags || [];
+    user.tags.push(newTag);
+    await user.save();
+
+    // Get the saved tag with its _id
+    const savedTag = user.tags[user.tags.length - 1];
+
+    logger.info("Tag created", {
+      userId: req.user.id,
+      tagName: trimmedName,
+      tagId: savedTag._id,
+    });
+
+    res.status(201).json(savedTag);
+  } catch (error) {
+    logger.error("Error creating tag", {
+      userId: req.user.id,
+      error: error.message,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a tag
+router.delete("/tags/:tagId", async (req, res) => {
+  try {
+    const { tagId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Find the tag
+    const tagIndex = user.tags?.findIndex(
+      (tag) => tag._id.toString() === tagId,
+    );
+    if (tagIndex === -1 || tagIndex === undefined) {
+      return res.status(404).json({ error: "Tag not found" });
+    }
+
+    // Remove the tag
+    const deletedTag = user.tags[tagIndex];
+    user.tags.splice(tagIndex, 1);
+    await user.save();
+
+    logger.info("Tag deleted", {
+      userId: req.user.id,
+      tagId: tagId,
+      tagName: deletedTag.name,
+    });
+
+    res.json({ message: "Tag deleted successfully" });
+  } catch (error) {
+    logger.error("Error deleting tag", {
+      userId: req.user.id,
+      error: error.message,
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get storage statistics
 router.get("/storage", async (req, res) => {
   try {

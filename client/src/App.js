@@ -33,6 +33,8 @@ import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import { TransferProvider, useTransfer } from "./contexts/TransferContext";
 import { AdminProvider } from "./contexts/AdminContext";
 import { GuestProvider } from "./contexts/GuestContext";
+import { SearchProvider } from "./contexts/SearchContext";
+import { TagProvider } from "./contexts/TagContext";
 import DevelopmentBanner from "./components/common/DevelopmentBanner.jsx";
 import GuestBanner from "./components/guest/GuestBanner.jsx";
 import GuestConvertModal from "./components/guest/GuestConvertModal.jsx";
@@ -248,18 +250,22 @@ const App = () => {
                   <ProtectedRoute>
                     <UIProvider>
                       <TransferProvider>
-                        <DriveProvider>
-                          <SelectionProvider>
-                            <AdminProvider>
-                              <GuestProvider>
-                                <GuestBanner />
-                                <GuestConvertModal />
-                                <GuestLimitationsModal />
-                                <AppLayout />
-                              </GuestProvider>
-                            </AdminProvider>
-                          </SelectionProvider>
-                        </DriveProvider>
+                        <SearchProvider>
+                          <TagProvider>
+                            <DriveProvider>
+                              <SelectionProvider>
+                                <AdminProvider>
+                                  <GuestProvider>
+                                    <GuestBanner />
+                                    <GuestConvertModal />
+                                    <GuestLimitationsModal />
+                                    <AppLayout />
+                                  </GuestProvider>
+                                </AdminProvider>
+                              </SelectionProvider>
+                            </DriveProvider>
+                          </TagProvider>
+                        </SearchProvider>
                       </TransferProvider>
                     </UIProvider>
                   </ProtectedRoute>

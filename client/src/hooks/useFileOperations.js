@@ -466,7 +466,6 @@ export const useFileOperations = (
         );
 
         // Use XMLHttpRequest for progress tracking
-        const token = localStorage.getItem("token");
         const API_URL =
           process.env.REACT_APP_API_URL ||
           `http://${window.location.hostname}:8080/api`;
@@ -478,7 +477,7 @@ export const useFileOperations = (
 
         return new Promise((resolve, reject) => {
           xhr.open("GET", `${API_URL}/folders/download/${folderId}`, true);
-          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.withCredentials = true;
           xhr.responseType = "blob";
 
           let lastLoaded = 0;
@@ -658,8 +657,6 @@ export const useFileOperations = (
               // Actually, the existing code used XHR with Bearer token.
               // To download via browser (best for large files without memory issues), we need a way to pass auth.
               // If we use XHR with blob like before:
-
-              const token = localStorage.getItem("token");
               const API_URL =
                 process.env.REACT_APP_API_URL ||
                 `http://${window.location.hostname}:8080/api`;
@@ -675,7 +672,7 @@ export const useFileOperations = (
                 `${API_URL.replace("/api", "")}/downloads/zip/${jobId}`,
                 true,
               );
-              xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+              xhr.withCredentials = true;
               xhr.responseType = "blob";
 
               xhr.onload = () => {

@@ -16,6 +16,7 @@ import styles from "./PropertiesModal.module.css";
 import api from "../../services/api";
 import { toast } from "react-toastify";
 import { formatFileSize, formatDate } from "../../utils/formatters";
+import TagManager from "../common/TagManager";
 
 const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
   const [details, setDetails] = useState(null);
@@ -350,6 +351,20 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
                   )}
                 </div>
               )}
+
+            {/* Tags Section */}
+            {(itemType === "file" || itemType === "folder") && (
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Tags</div>
+                <TagManager
+                  item={details || item}
+                  itemType={itemType}
+                  onTagsUpdate={(newTags) => {
+                    setDetails((prev) => ({ ...prev, tags: newTags }));
+                  }}
+                />
+              </div>
+            )}
 
             {/* Trash Information */}
             {details?.trash && details?.trashedAt && (
