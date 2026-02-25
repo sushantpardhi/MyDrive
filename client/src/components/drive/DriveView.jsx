@@ -16,6 +16,7 @@ import SelectionBar from "./SelectionBar";
 import PropertiesModal from "../files/PropertiesModal";
 import PasswordConfirmModal from "../common/PasswordConfirmModal";
 import CreateFolderModal from "../files/CreateFolderModal";
+import TagApplyModal from "../common/TagApplyModal";
 
 // Hooks
 import { useFileOperations } from "../../hooks/useFileOperations";
@@ -129,6 +130,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // State for create folder modal
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+
+  // State for apply tag modal in tag view
+  const [isTagApplyModalOpen, setIsTagApplyModalOpen] = useState(false);
 
   // Password confirmation for permanent deletion
   const {
@@ -1118,6 +1122,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         clearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
         searchHistory={searchHistory}
+        onAddToTag={() => setIsTagApplyModalOpen(true)}
       />
 
       <LocationHeader
@@ -1256,6 +1261,16 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         isOpen={isCreateFolderModalOpen}
         onClose={() => setIsCreateFolderModalOpen(false)}
         onCreateFolder={handleCreateFolderSubmit}
+      />
+
+      {/* Tag Apply Modal for adding items to current tag view */}
+      <TagApplyModal
+        isOpen={isTagApplyModalOpen}
+        tagName={searchFilters?.tags?.[0] || ""}
+        onClose={() => {
+          setIsTagApplyModalOpen(false);
+          loadFolderContents(currentFolderId, 1, false);
+        }}
       />
     </div>
   );

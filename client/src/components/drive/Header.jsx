@@ -10,6 +10,7 @@ import {
   Copy,
   FolderInput,
   Clock,
+  Tag,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
@@ -41,6 +42,7 @@ const Header = ({
   clearFilters,
   hasActiveFilters,
   searchHistory,
+  onAddToTag,
 }) => {
   const { selectedItems } = useSelectionContext();
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -104,6 +106,11 @@ const Header = ({
                     style={{ display: "none" }}
                     onChange={onFileUpload}
                   />
+                  {searchFilters?.tags?.length === 1 && (
+                    <button onClick={onAddToTag} className={styles.actionBtn}>
+                      <Tag size={16} /> <span>Add to Tag</span>
+                    </button>
+                  )}
                 </>
               )}
               {type === "shared" && (

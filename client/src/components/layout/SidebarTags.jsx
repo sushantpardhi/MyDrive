@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { useSearchContext } from "../../contexts/SearchContext";
 import { useTagContext } from "../../contexts/TagContext";
+import TagApplyModal from "../common/TagApplyModal";
 import styles from "./SidebarTags.module.css";
 import logger from "../../utils/logger";
 import { createPortal } from "react-dom";
@@ -67,6 +68,7 @@ const CreateTagModal = ({ isOpen, mechanism, onClose, onCreate }) => {
 
 const SidebarTags = ({ onClose }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newlyCreatedTag, setNewlyCreatedTag] = useState(null);
   const navigate = useNavigate();
 
   const { tags, loading, addTag } = useTagContext();
@@ -83,6 +85,7 @@ const SidebarTags = ({ onClose }) => {
       const response = await api.createTag(tagName);
       addTag(response.data);
       setIsModalOpen(false);
+      setNewlyCreatedTag(response.data.name);
       toast.success("Tag created");
     } catch (error) {
       logger.error("Failed to create tag", error);
@@ -163,6 +166,12 @@ const SidebarTags = ({ onClose }) => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreate={handleCreateTag}
+      />
+
+      <TagApplyModal
+        isOpen={!!newlyCreatedTag}
+        tagName={newlyCreatedTag || ""}
+        onClose={() => setNewlyCreatedTag(null)}
       />
     </>
   );

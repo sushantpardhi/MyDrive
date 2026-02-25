@@ -28,6 +28,7 @@ import LoadingSpinner from "../common/LoadingSpinner";
 import logger from "../../utils/logger";
 import styles from "./UserProfile.module.css";
 import { getUserInitials, getAvatarColor } from "../../utils/helpers";
+import TagApplyModal from "../common/TagApplyModal";
 
 const defaultSettings = {
   emailNotifications: true,
@@ -82,6 +83,7 @@ export default function UserProfile() {
   const [newTagName, setNewTagName] = useState("");
   const [tagLoading, setTagLoading] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
+  const [newlyCreatedTag, setNewlyCreatedTag] = useState(null);
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -166,6 +168,7 @@ export default function UserProfile() {
       const res = await api.createTag(newTagName.trim());
       addTag(res.data);
       setNewTagName("");
+      setNewlyCreatedTag(res.data.name);
       toast.success(`Tag "${res.data.name}" created successfully`);
       logger.info("Tag created successfully", { tagName: res.data.name });
     } catch (err) {
@@ -435,613 +438,625 @@ export default function UserProfile() {
   }
 
   return (
-    <div className={styles.profileWrapper}>
-      {/* Mobile Header */}
-      <div className={styles.mobileHeader}>
-        <button
-          className={styles.hamburgerBtn}
-          onClick={toggleSidebar}
-          aria-label="Open navigation menu"
-        >
-          <Menu size={24} />
-        </button>
+    <>
+      <div className={styles.profileWrapper}>
+        {/* Mobile Header */}
+        <div className={styles.mobileHeader}>
+          <button
+            className={styles.hamburgerBtn}
+            onClick={toggleSidebar}
+            aria-label="Open navigation menu"
+          >
+            <Menu size={24} />
+          </button>
 
-        <h1 className={styles.pageTitle}>User Profile</h1>
-      </div>
+          <h1 className={styles.pageTitle}>User Profile</h1>
+        </div>
 
-      <div className={styles.profileContainer}>
-        <div className={styles.profileCard}>
-          <div className={styles.profileHeader}>
-            <div className={styles.avatarWrapper}>
-              <div
-                className={styles.avatar}
-                style={{ backgroundColor: getAvatarColor(profile.name) }}
-              >
-                {getUserInitials(profile.name)}
-              </div>
-            </div>
-            <div className={styles.profileInfo}>
-              <div className={styles.profileName}>{form.name || "User"}</div>
-              <div className={styles.profileEmail}>
-                {form.email || "No email"}
-              </div>
-              {profile.role && (
-                <div className={styles.profileRole}>
-                  <Shield size={14} />
-                  <span className={styles[`role-${profile.role}`]}>
-                    {profile.role.charAt(0).toUpperCase() +
-                      profile.role.slice(1)}
-                  </span>
+        <div className={styles.profileContainer}>
+          <div className={styles.profileCard}>
+            <div className={styles.profileHeader}>
+              <div className={styles.avatarWrapper}>
+                <div
+                  className={styles.avatar}
+                  style={{ backgroundColor: getAvatarColor(profile.name) }}
+                >
+                  {getUserInitials(profile.name)}
                 </div>
-              )}
-              {profile.createdAt && (
-                <div className={styles.profileDate}>
-                  <Calendar size={14} />
-                  <span>Joined {formatDate(profile.createdAt)}</span>
+              </div>
+              <div className={styles.profileInfo}>
+                <div className={styles.profileName}>{form.name || "User"}</div>
+                <div className={styles.profileEmail}>
+                  {form.email || "No email"}
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.profileForm}>
-            {/* Storage Usage Section - Full Width */}
-            {storageStats && (
-              <div className={styles.sectionCard}>
-                <h3>
-                  <HardDrive size={16} />
-                  Storage Usage
-                </h3>
-                <div className={styles.storageInfo}>
-                  <div className={styles.storageStats}>
-                    <span className={styles.storageUsed}>
-                      {formatFileSize(storageStats.storageUsed)}
+                {profile.role && (
+                  <div className={styles.profileRole}>
+                    <Shield size={14} />
+                    <span className={styles[`role-${profile.role}`]}>
+                      {profile.role.charAt(0).toUpperCase() +
+                        profile.role.slice(1)}
                     </span>
-                    {storageStats.isUnlimited ? (
-                      <>
-                        <span className={styles.storageSeparator}></span>
-                        <span className={styles.storageTotal}>Unlimited</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className={styles.storageSeparator}>/</span>
-                        <span className={styles.storageTotal}>
-                          {formatFileSize(storageStats.storageLimit)}
-                        </span>
-                        <span className={styles.storagePercent}>
-                          ({storageStats.percentage.toFixed(1)}%)
-                        </span>
-                      </>
+                  </div>
+                )}
+                {profile.createdAt && (
+                  <div className={styles.profileDate}>
+                    <Calendar size={14} />
+                    <span>Joined {formatDate(profile.createdAt)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.profileForm}>
+              {/* Storage Usage Section - Full Width */}
+              {storageStats && (
+                <div className={styles.sectionCard}>
+                  <h3>
+                    <HardDrive size={16} />
+                    Storage Usage
+                  </h3>
+                  <div className={styles.storageInfo}>
+                    <div className={styles.storageStats}>
+                      <span className={styles.storageUsed}>
+                        {formatFileSize(storageStats.storageUsed)}
+                      </span>
+                      {storageStats.isUnlimited ? (
+                        <>
+                          <span className={styles.storageSeparator}></span>
+                          <span className={styles.storageTotal}>Unlimited</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={styles.storageSeparator}>/</span>
+                          <span className={styles.storageTotal}>
+                            {formatFileSize(storageStats.storageLimit)}
+                          </span>
+                          <span className={styles.storagePercent}>
+                            ({storageStats.percentage.toFixed(1)}%)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {!storageStats.isUnlimited && (
+                      <div className={styles.progressBar}>
+                        <div
+                          className={styles.progressFill}
+                          style={{
+                            width: `${Math.min(storageStats.percentage, 100)}%`,
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
-                  {!storageStats.isUnlimited && (
-                    <div className={styles.progressBar}>
-                      <div
-                        className={styles.progressFill}
-                        style={{
-                          width: `${Math.min(storageStats.percentage, 100)}%`,
-                        }}
-                      />
+                </div>
+              )}
+
+              {/* Account Statistics Section - Full Width */}
+              {accountStats && (
+                <div className={styles.sectionCard}>
+                  <h3>
+                    <Activity size={16} />
+                    Account Statistics
+                  </h3>
+                  <div className={styles.statsGrid}>
+                    <div className={styles.statItem}>
+                      <File size={20} />
+                      <div className={styles.statInfo}>
+                        <span className={styles.statValue}>
+                          {accountStats.filesCount || 0}
+                        </span>
+                        <span className={styles.statLabel}>Files</span>
+                      </div>
                     </div>
-                  )}
+                    <div className={styles.statItem}>
+                      <Folder size={20} />
+                      <div className={styles.statInfo}>
+                        <span className={styles.statValue}>
+                          {accountStats.foldersCount || 0}
+                        </span>
+                        <span className={styles.statLabel}>Folders</span>
+                      </div>
+                    </div>
+                    <div className={styles.statItem}>
+                      <Share2 size={20} />
+                      <div className={styles.statInfo}>
+                        <span className={styles.statValue}>
+                          {accountStats.sharedItemsCount || 0}
+                        </span>
+                        <span className={styles.statLabel}>Shared</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Personal Information Section - Full Width */}
+              <div className={styles.sectionCard}>
+                <h3>Personal Information</h3>
+                <div className={styles.formRow}>
+                  <label htmlFor="name">Name:</label>
+                  <div className={styles.inputWithIcon}>
+                    <input
+                      id="name"
+                      type="text"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      onBlur={handleNameBlur}
+                      placeholder="Enter your name"
+                    />
+                    {savedFields.name && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="email">Email:</label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    disabled
+                    style={{ background: "#f7fafc", cursor: "not-allowed" }}
+                  />
                 </div>
               </div>
-            )}
 
-            {/* Account Statistics Section - Full Width */}
-            {accountStats && (
+              {/* Settings Section - Full Width */}
+              <div className={styles.sectionCard}>
+                <h3>Settings</h3>
+                <div className={styles.formRow}>
+                  <label htmlFor="emailNotifications">
+                    Email Notifications:
+                  </label>
+                  <div className={styles.inputWithIcon}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                        flex: 1,
+                      }}
+                    >
+                      <input
+                        id="emailNotifications"
+                        type="checkbox"
+                        name="settings.emailNotifications"
+                        checked={form.settings.emailNotifications}
+                        onChange={handleChange}
+                      />
+                      <small style={{ color: "#666", fontSize: "12px" }}>
+                        Receive email alerts for file shares and storage
+                        warnings
+                      </small>
+                    </div>
+                    {savedFields.emailNotifications && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="language">Language:</label>
+                  <div className={styles.inputWithIcon}>
+                    <select
+                      id="language"
+                      name="settings.language"
+                      value={form.settings.language}
+                      onChange={handleChange}
+                    >
+                      <option value="en">English</option>
+                      <option value="hi">Hindi</option>
+                    </select>
+                    {savedFields.language && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Preferences Section - Full Width (includes Appearance) */}
+              <div className={styles.sectionCard}>
+                <h3>Preferences</h3>
+                <div className={styles.formRow}>
+                  <label htmlFor="theme">Theme:</label>
+                  <div className={styles.inputWithIcon}>
+                    <select
+                      id="theme"
+                      name="settings.theme"
+                      value={theme}
+                      onChange={handleThemeChange}
+                    >
+                      <option value="light">Light Mode</option>
+                      <option value="dark">Dark Mode</option>
+                    </select>
+                    {savedFields.theme && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="viewMode">View Mode:</label>
+                  <div className={styles.inputWithIcon}>
+                    <select
+                      id="viewMode"
+                      name="preferences.viewMode"
+                      value={form.preferences.viewMode}
+                      onChange={handleChange}
+                    >
+                      <option value="list">List</option>
+                      <option value="grid">Grid</option>
+                    </select>
+                    {savedFields.viewMode && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label htmlFor="itemsPerPage">Items Per Page:</label>
+                  <div className={styles.inputWithIcon}>
+                    <select
+                      id="itemsPerPage"
+                      name="preferences.itemsPerPage"
+                      value={form.preferences.itemsPerPage}
+                      onChange={handleChange}
+                    >
+                      <option value={25}>25 items</option>
+                      <option value={50}>50 items</option>
+                      <option value={75}>75 items</option>
+                      <option value={100}>100 items</option>
+                    </select>
+                    {savedFields.itemsPerPage && (
+                      <Check
+                        size={18}
+                        className={styles.checkIcon}
+                        style={{ color: "#10b981" }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tags Section */}
               <div className={styles.sectionCard}>
                 <h3>
-                  <Activity size={16} />
-                  Account Statistics
+                  <Tag size={16} />
+                  Manage Tags
                 </h3>
-                <div className={styles.statsGrid}>
-                  <div className={styles.statItem}>
-                    <File size={20} />
-                    <div className={styles.statInfo}>
-                      <span className={styles.statValue}>
-                        {accountStats.filesCount || 0}
-                      </span>
-                      <span className={styles.statLabel}>Files</span>
-                    </div>
-                  </div>
-                  <div className={styles.statItem}>
-                    <Folder size={20} />
-                    <div className={styles.statInfo}>
-                      <span className={styles.statValue}>
-                        {accountStats.foldersCount || 0}
-                      </span>
-                      <span className={styles.statLabel}>Folders</span>
-                    </div>
-                  </div>
-                  <div className={styles.statItem}>
-                    <Share2 size={20} />
-                    <div className={styles.statInfo}>
-                      <span className={styles.statValue}>
-                        {accountStats.sharedItemsCount || 0}
-                      </span>
-                      <span className={styles.statLabel}>Shared</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Personal Information Section - Full Width */}
-            <div className={styles.sectionCard}>
-              <h3>Personal Information</h3>
-              <div className={styles.formRow}>
-                <label htmlFor="name">Name:</label>
-                <div className={styles.inputWithIcon}>
-                  <input
-                    id="name"
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    onBlur={handleNameBlur}
-                    placeholder="Enter your name"
-                  />
-                  {savedFields.name && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
-              </div>
-              <div className={styles.formRow}>
-                <label htmlFor="email">Email:</label>
-                <input
-                  id="email"
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  disabled
-                  style={{ background: "#f7fafc", cursor: "not-allowed" }}
-                />
-              </div>
-            </div>
-
-            {/* Settings Section - Full Width */}
-            <div className={styles.sectionCard}>
-              <h3>Settings</h3>
-              <div className={styles.formRow}>
-                <label htmlFor="emailNotifications">Email Notifications:</label>
-                <div className={styles.inputWithIcon}>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                      flex: 1,
-                    }}
-                  >
+                <p className={styles.sectionDescription}>
+                  Create tags to organize your files and folders.
+                </p>
+                <form onSubmit={handleCreateTag} className={styles.tagForm}>
+                  <div className={styles.tagInputRow}>
                     <input
-                      id="emailNotifications"
-                      type="checkbox"
-                      name="settings.emailNotifications"
-                      checked={form.settings.emailNotifications}
-                      onChange={handleChange}
+                      type="text"
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      placeholder="Enter tag name"
+                      className={styles.tagInput}
+                      maxLength={50}
                     />
-                    <small style={{ color: "#666", fontSize: "12px" }}>
-                      Receive email alerts for file shares and storage warnings
-                    </small>
+                    <button
+                      type="submit"
+                      className={styles.addTagBtn}
+                      disabled={tagLoading || !newTagName.trim()}
+                    >
+                      <Plus size={16} />
+                      Add Tag
+                    </button>
                   </div>
-                  {savedFields.emailNotifications && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
+                </form>
+                {tags.length > 0 ? (
+                  <div className={styles.tagsList}>
+                    {tags.map((tag) => (
+                      <div key={tag._id} className={styles.tagPill}>
+                        <span className={styles.tagName}>{tag.name}</span>
+                        <button
+                          type="button"
+                          className={styles.deleteTagBtn}
+                          onClick={() => setTagToDelete(tag)}
+                          aria-label={`Delete tag ${tag.name}`}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.noTags}>No tags created yet.</p>
+                )}
               </div>
-              <div className={styles.formRow}>
-                <label htmlFor="language">Language:</label>
-                <div className={styles.inputWithIcon}>
-                  <select
-                    id="language"
-                    name="settings.language"
-                    value={form.settings.language}
-                    onChange={handleChange}
-                  >
-                    <option value="en">English</option>
-                    <option value="hi">Hindi</option>
-                  </select>
-                  {savedFields.language && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {/* Preferences Section - Full Width (includes Appearance) */}
-            <div className={styles.sectionCard}>
-              <h3>Preferences</h3>
-              <div className={styles.formRow}>
-                <label htmlFor="theme">Theme:</label>
-                <div className={styles.inputWithIcon}>
-                  <select
-                    id="theme"
-                    name="settings.theme"
-                    value={theme}
-                    onChange={handleThemeChange}
-                  >
-                    <option value="light">Light Mode</option>
-                    <option value="dark">Dark Mode</option>
-                  </select>
-                  {savedFields.theme && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
-              </div>
-              <div className={styles.formRow}>
-                <label htmlFor="viewMode">View Mode:</label>
-                <div className={styles.inputWithIcon}>
-                  <select
-                    id="viewMode"
-                    name="preferences.viewMode"
-                    value={form.preferences.viewMode}
-                    onChange={handleChange}
-                  >
-                    <option value="list">List</option>
-                    <option value="grid">Grid</option>
-                  </select>
-                  {savedFields.viewMode && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
-              </div>
-              <div className={styles.formRow}>
-                <label htmlFor="itemsPerPage">Items Per Page:</label>
-                <div className={styles.inputWithIcon}>
-                  <select
-                    id="itemsPerPage"
-                    name="preferences.itemsPerPage"
-                    value={form.preferences.itemsPerPage}
-                    onChange={handleChange}
-                  >
-                    <option value={25}>25 items</option>
-                    <option value={50}>50 items</option>
-                    <option value={75}>75 items</option>
-                    <option value={100}>100 items</option>
-                  </select>
-                  {savedFields.itemsPerPage && (
-                    <Check
-                      size={18}
-                      className={styles.checkIcon}
-                      style={{ color: "#10b981" }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Tags Section */}
-            <div className={styles.sectionCard}>
-              <h3>
-                <Tag size={16} />
-                Manage Tags
-              </h3>
-              <p className={styles.sectionDescription}>
-                Create tags to organize your files and folders.
-              </p>
-              <form onSubmit={handleCreateTag} className={styles.tagForm}>
-                <div className={styles.tagInputRow}>
-                  <input
-                    type="text"
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="Enter tag name"
-                    className={styles.tagInput}
-                    maxLength={50}
-                  />
-                  <button
-                    type="submit"
-                    className={styles.addTagBtn}
-                    disabled={tagLoading || !newTagName.trim()}
-                  >
-                    <Plus size={16} />
-                    Add Tag
-                  </button>
-                </div>
-              </form>
-              {tags.length > 0 ? (
-                <div className={styles.tagsList}>
-                  {tags.map((tag) => (
-                    <div key={tag._id} className={styles.tagPill}>
-                      <span className={styles.tagName}>{tag.name}</span>
+              {/* Password Change Section */}
+              <div className={styles.sectionCard}>
+                <h3>
+                  <Lock size={16} />
+                  Change Password
+                </h3>
+                {passwordSuccess && (
+                  <div className={styles.successMessage}>
+                    Password changed successfully!
+                  </div>
+                )}
+                {passwordError && (
+                  <div className={styles.errorMessage}>{passwordError}</div>
+                )}
+                <div className={styles.passwordForm}>
+                  <div className={styles.formRow}>
+                    <label htmlFor="currentPassword">Current Password:</label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        id="currentPassword"
+                        type={showPasswords.current ? "text" : "password"}
+                        value={passwordForm.currentPassword}
+                        onChange={(e) =>
+                          setPasswordForm((prev) => ({
+                            ...prev,
+                            currentPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter current password"
+                      />
                       <button
                         type="button"
-                        className={styles.deleteTagBtn}
-                        onClick={() => setTagToDelete(tag)}
-                        aria-label={`Delete tag ${tag.name}`}
+                        className={styles.togglePassword}
+                        onClick={() =>
+                          setShowPasswords((prev) => ({
+                            ...prev,
+                            current: !prev.current,
+                          }))
+                        }
                       >
-                        <X size={14} />
+                        {showPasswords.current ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
                       </button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className={styles.noTags}>No tags created yet.</p>
-              )}
-            </div>
-
-            {/* Password Change Section */}
-            <div className={styles.sectionCard}>
-              <h3>
-                <Lock size={16} />
-                Change Password
-              </h3>
-              {passwordSuccess && (
-                <div className={styles.successMessage}>
-                  Password changed successfully!
-                </div>
-              )}
-              {passwordError && (
-                <div className={styles.errorMessage}>{passwordError}</div>
-              )}
-              <div className={styles.passwordForm}>
-                <div className={styles.formRow}>
-                  <label htmlFor="currentPassword">Current Password:</label>
-                  <div className={styles.passwordInput}>
-                    <input
-                      id="currentPassword"
-                      type={showPasswords.current ? "text" : "password"}
-                      value={passwordForm.currentPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({
-                          ...prev,
-                          currentPassword: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter current password"
-                    />
-                    <button
-                      type="button"
-                      className={styles.togglePassword}
-                      onClick={() =>
-                        setShowPasswords((prev) => ({
-                          ...prev,
-                          current: !prev.current,
-                        }))
-                      }
-                    >
-                      {showPasswords.current ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
                   </div>
-                </div>
-                <div className={styles.formRow}>
-                  <label htmlFor="newPassword">New Password:</label>
-                  <div className={styles.passwordInput}>
-                    <input
-                      id="newPassword"
-                      type={showPasswords.new ? "text" : "password"}
-                      value={passwordForm.newPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({
-                          ...prev,
-                          newPassword: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter new password (min 6 chars)"
-                    />
-                    <button
-                      type="button"
-                      className={styles.togglePassword}
-                      onClick={() =>
-                        setShowPasswords((prev) => ({
-                          ...prev,
-                          new: !prev.new,
-                        }))
-                      }
-                    >
-                      {showPasswords.new ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <label htmlFor="confirmPassword">Confirm Password:</label>
-                  <div className={styles.passwordInput}>
-                    <input
-                      id="confirmPassword"
-                      type={showPasswords.confirm ? "text" : "password"}
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({
-                          ...prev,
-                          confirmPassword: e.target.value,
-                        }))
-                      }
-                      placeholder="Confirm new password"
-                    />
-                    <button
-                      type="button"
-                      className={styles.togglePassword}
-                      onClick={() =>
-                        setShowPasswords((prev) => ({
-                          ...prev,
-                          confirm: !prev.confirm,
-                        }))
-                      }
-                    >
-                      {showPasswords.confirm ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handlePasswordChange}
-                  className={styles.changePasswordBtn}
-                  disabled={
-                    !passwordForm.currentPassword ||
-                    !passwordForm.newPassword ||
-                    !passwordForm.confirmPassword
-                  }
-                >
-                  Change Password
-                </button>
-              </div>
-            </div>
-
-            {/* Security Section */}
-            <div className={styles.sectionCard}>
-              <h3>
-                <Shield size={16} />
-                Security
-              </h3>
-              <div className={styles.formRow}>
-                <label htmlFor="twoFactor">Two-Factor Authentication:</label>
-                <div className={styles.securityOption}>
-                  <span className={styles.comingSoon}>Coming Soon</span>
-                  <small style={{ color: "#666", fontSize: "12px" }}>
-                    Add an extra layer of security to your account
-                  </small>
-                </div>
-              </div>
-            </div>
-
-            {/* Danger Zone */}
-            <div className={styles.dangerZone}>
-              <h3>
-                <AlertTriangle size={16} />
-                Danger Zone
-              </h3>
-              {!showDeleteConfirm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className={styles.dangerBtn}
-                >
-                  Delete Account
-                </button>
-              ) : (
-                <div className={styles.deleteConfirm}>
-                  <p className={styles.dangerWarning}>
-                    ⚠️ This action cannot be undone. All your files and data
-                    will be permanently deleted.
-                  </p>
-                  {deleteError && (
-                    <div className={styles.errorMessage}>{deleteError}</div>
-                  )}
                   <div className={styles.formRow}>
-                    <label htmlFor="deletePassword">
-                      Enter your password to confirm:
-                    </label>
-                    <input
-                      id="deletePassword"
-                      type="password"
-                      value={deletePassword}
-                      onChange={(e) => setDeletePassword(e.target.value)}
-                      placeholder="Your password"
-                    />
+                    <label htmlFor="newPassword">New Password:</label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        id="newPassword"
+                        type={showPasswords.new ? "text" : "password"}
+                        value={passwordForm.newPassword}
+                        onChange={(e) =>
+                          setPasswordForm((prev) => ({
+                            ...prev,
+                            newPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter new password (min 6 chars)"
+                      />
+                      <button
+                        type="button"
+                        className={styles.togglePassword}
+                        onClick={() =>
+                          setShowPasswords((prev) => ({
+                            ...prev,
+                            new: !prev.new,
+                          }))
+                        }
+                      >
+                        {showPasswords.new ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.deleteActions}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setDeletePassword("");
-                        setDeleteError(null);
-                      }}
-                      className={styles.cancelBtn}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeleteAccount}
-                      className={styles.confirmDeleteBtn}
-                      disabled={!deletePassword}
-                    >
-                      Permanently Delete Account
-                    </button>
+                  <div className={styles.formRow}>
+                    <label htmlFor="confirmPassword">Confirm Password:</label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        id="confirmPassword"
+                        type={showPasswords.confirm ? "text" : "password"}
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordForm((prev) => ({
+                            ...prev,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        className={styles.togglePassword}
+                        onClick={() =>
+                          setShowPasswords((prev) => ({
+                            ...prev,
+                            confirm: !prev.confirm,
+                          }))
+                        }
+                      >
+                        {showPasswords.confirm ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePasswordChange}
+                    className={styles.changePasswordBtn}
+                    disabled={
+                      !passwordForm.currentPassword ||
+                      !passwordForm.newPassword ||
+                      !passwordForm.confirmPassword
+                    }
+                  >
+                    Change Password
+                  </button>
+                </div>
+              </div>
+
+              {/* Security Section */}
+              <div className={styles.sectionCard}>
+                <h3>
+                  <Shield size={16} />
+                  Security
+                </h3>
+                <div className={styles.formRow}>
+                  <label htmlFor="twoFactor">Two-Factor Authentication:</label>
+                  <div className={styles.securityOption}>
+                    <span className={styles.comingSoon}>Coming Soon</span>
+                    <small style={{ color: "#666", fontSize: "12px" }}>
+                      Add an extra layer of security to your account
+                    </small>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className={styles.profileActions}>
-              <button
-                type="button"
-                className={styles.logoutBtn}
-                onClick={async () => {
-                  try {
-                    await api.logout();
-                  } catch (error) {
-                    console.error("Logout failed:", error);
-                  } finally {
-                    window.location.href = "/login";
-                  }
-                }}
-              >
-                Logout
-              </button>
+              {/* Danger Zone */}
+              <div className={styles.dangerZone}>
+                <h3>
+                  <AlertTriangle size={16} />
+                  Danger Zone
+                </h3>
+                {!showDeleteConfirm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className={styles.dangerBtn}
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <div className={styles.deleteConfirm}>
+                    <p className={styles.dangerWarning}>
+                      ⚠️ This action cannot be undone. All your files and data
+                      will be permanently deleted.
+                    </p>
+                    {deleteError && (
+                      <div className={styles.errorMessage}>{deleteError}</div>
+                    )}
+                    <div className={styles.formRow}>
+                      <label htmlFor="deletePassword">
+                        Enter your password to confirm:
+                      </label>
+                      <input
+                        id="deletePassword"
+                        type="password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="Your password"
+                      />
+                    </div>
+                    <div className={styles.deleteActions}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeletePassword("");
+                          setDeleteError(null);
+                        }}
+                        className={styles.cancelBtn}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        className={styles.confirmDeleteBtn}
+                        disabled={!deletePassword}
+                      >
+                        Permanently Delete Account
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.profileActions}>
+                <button
+                  type="button"
+                  className={styles.logoutBtn}
+                  onClick={async () => {
+                    try {
+                      await api.logout();
+                    } catch (error) {
+                      console.error("Logout failed:", error);
+                    } finally {
+                      window.location.href = "/login";
+                    }
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Tag Delete Confirmation Modal */}
+        {tagToDelete &&
+          createPortal(
+            <div
+              className={styles.tagModalOverlay}
+              onClick={() => setTagToDelete(null)}
+            >
+              <div
+                className={styles.tagModal}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className={styles.tagModalTitle}>Delete Tag</h3>
+                <p className={styles.tagModalText}>
+                  Are you sure you want to delete the tag{" "}
+                  <strong>"{tagToDelete.name}"</strong>? This will also remove
+                  the tag from all tagged files and folders.
+                </p>
+                <div className={styles.tagModalActions}>
+                  <button
+                    className={`${styles.tagModalBtn} ${styles.tagModalCancelBtn}`}
+                    onClick={() => setTagToDelete(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className={`${styles.tagModalBtn} ${styles.tagModalDeleteBtn}`}
+                    onClick={handleConfirmDeleteTag}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
 
-      {/* Tag Delete Confirmation Modal */}
-      {tagToDelete &&
-        createPortal(
-          <div
-            className={styles.tagModalOverlay}
-            onClick={() => setTagToDelete(null)}
-          >
-            <div
-              className={styles.tagModal}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={styles.tagModalTitle}>Delete Tag</h3>
-              <p className={styles.tagModalText}>
-                Are you sure you want to delete the tag{" "}
-                <strong>"{tagToDelete.name}"</strong>? This will also remove the
-                tag from all tagged files and folders.
-              </p>
-              <div className={styles.tagModalActions}>
-                <button
-                  className={`${styles.tagModalBtn} ${styles.tagModalCancelBtn}`}
-                  onClick={() => setTagToDelete(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className={`${styles.tagModalBtn} ${styles.tagModalDeleteBtn}`}
-                  onClick={handleConfirmDeleteTag}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </div>
+      {/* Tag Apply Modal */}
+      <TagApplyModal
+        isOpen={!!newlyCreatedTag}
+        tagName={newlyCreatedTag || ""}
+        onClose={() => setNewlyCreatedTag(null)}
+      />
+    </>
   );
 }
