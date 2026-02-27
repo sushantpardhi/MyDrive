@@ -38,8 +38,11 @@ jobs:
     needs: deploy-backend
     runs-on: self-hosted
     environment: production
-    env:
-      REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+    # env:
+    #   REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+    #   REACT_APP_CHUNK_SIZE: ${{ secrets.REACT_APP_CHUNK_SIZE }}
+    #   REACT_APP_MAX_RETRIES: ${{ secrets.REACT_APP_MAX_RETRIES }}
+    #   REACT_APP_SHOW_DEV_BANNER: ${{ secrets.REACT_APP_SHOW_DEV_BANNER }}
 
     steps:
       - name: Checkout code
@@ -55,7 +58,9 @@ jobs:
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/client
-          export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
+          export REACT_APP_API_URL=https://api.sushantpardhi.in/api
+          export REACT_APP_CHUNK_SIZE=1048576
+          export REACT_APP_MAX_RETRIES=5
           export REACT_APP_SHOW_DEV_BANNER=false
           npm ci
           npm run build
