@@ -26,12 +26,12 @@ router.post("/logout", async (req, res) => {
   res.clearCookie("accessToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
   res.json({ message: "Logged out successfully" });
 });
@@ -64,7 +64,7 @@ router.post("/refresh-token", async (req, res) => {
     res.cookie("accessToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
@@ -194,7 +194,7 @@ router.post(
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
 
@@ -202,7 +202,7 @@ router.post(
       res.cookie("accessToken", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
@@ -301,7 +301,7 @@ router.post(
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
 
@@ -309,7 +309,7 @@ router.post(
       res.cookie("accessToken", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
