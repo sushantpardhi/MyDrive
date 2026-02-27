@@ -103,7 +103,7 @@ jobs:
           cd /home/sushant/app/prod/MyDrive/worker/image-worker
           export CGO_ENABLED=1
           export CGO_CFLAGS="-I$(pwd)/cuda"
-          export CGO_LDFLAGS="-L$(pwd)/cuda -limage_ops -lcuda -lcudart -lstdc++"
+          export CGO_LDFLAGS="$(pwd)/cuda/libimage_ops.a -lcuda -lcudart -lstdc++"
           go build -o image-worker
           [ -f image-worker ] || (echo "Build failed: no image-worker binary" && exit 1)
       - name: Install new binary
@@ -115,8 +115,8 @@ jobs:
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload
-          sudo systemctl restart image-worker-prod  
-          sudo systemctl status image-worker-prod --no-pager
+          sudo systemctl restart image-worker  
+          sudo systemctl status image-worker --no-pager
 
   deploy-zipping-worker:
     needs: deploy-frontend
@@ -136,16 +136,16 @@ jobs:
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/worker/zipping-worker
-          go build -o zipping-worker-prod
-          [ -f zipping-worker-prod ] || (echo "Build failed: no zipping-worker binary" && exit 1)
+          go build -o zipping-worker
+          [ -f zipping-worker ] || (echo "Build failed: no zipping-worker binary" && exit 1)
       - name: Install new binary
         run: |
           set -e
           sudo install -m 755 \
-            /home/sushant/app/prod/MyDrive/worker/zipping-worker/zipping-worker-prod \
+            /home/sushant/app/prod/MyDrive/worker/zipping-worker/zipping-worker \
             /usr/local/bin/zipping-worker
       - name: Restart worker service
         run: |
           sudo systemctl daemon-reload
-          sudo systemctl restart zipping-worker-prod
-          sudo systemctl status zipping-worker-prod --no-pager
+          sudo systemctl restart zipping-worker
+          sudo systemctl status zipping-worker --no-pager
