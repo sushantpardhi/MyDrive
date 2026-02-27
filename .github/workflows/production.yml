@@ -32,11 +32,12 @@ jobs:
           pm2 restart backend-8080 || pm2 start index.js --name backend-8080
 
   deploy-frontend:
-    needs: deploy-backend # ← waits for backend
+    needs: deploy-backend
     runs-on: self-hosted
     environment: production
     env:
       REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -46,6 +47,7 @@ jobs:
           set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
+
       - name: Install & build
         run: |
           set -e
@@ -54,12 +56,14 @@ jobs:
           export REACT_APP_SHOW_DEV_BANNER=false
           npm install
           npm run build
-      - name: Restart frontend
+
+      - name: Deploy to Nginx directory
         run: |
           set -e
-          cd /home/sushant/app/prod/MyDrive/client
-          pm2 delete frontend-3000 || true
-          pm2 start serve --name frontend-3000 -- -s build -l 3000
+          sudo rm -rf /var/www/mydrive-frontend/*
+          sudo cp -r /home/sushant/app/prod/MyDrive/client/build/* /var/www/mydrive-frontend/
+          sudo chown -R www-data:www-data /var/www/mydrive-frontend
+          sudo systemctl reload nginx
 
   deploy-image-worker:
     needs: deploy-frontend # ← waits for frontend
