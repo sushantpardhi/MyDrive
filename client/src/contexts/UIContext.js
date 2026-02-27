@@ -149,24 +149,27 @@ export const UIProvider = ({ children }) => {
     setPreviewFileIndex(-1);
   }, []);
 
-  const navigatePreviewFile = useCallback((direction) => {
-    if (previewFileList.length === 0) return;
-    
-    let newIndex = previewFileIndex + direction;
-    
-    // Wrap around
-    if (newIndex < 0) {
-      newIndex = previewFileList.length - 1;
-    } else if (newIndex >= previewFileList.length) {
-      newIndex = 0;
-    }
-    
-    const newFile = previewFileList[newIndex];
-    if (newFile) {
-      setPreviewFile(newFile);
-      setPreviewFileIndex(newIndex);
-    }
-  }, [previewFileList, previewFileIndex]);
+  const navigatePreviewFile = useCallback(
+    (direction) => {
+      if (previewFileList.length === 0) return;
+
+      let newIndex = previewFileIndex + direction;
+
+      // Wrap around
+      if (newIndex < 0) {
+        newIndex = previewFileList.length - 1;
+      } else if (newIndex >= previewFileList.length) {
+        newIndex = 0;
+      }
+
+      const newFile = previewFileList[newIndex];
+      if (newFile) {
+        setPreviewFile(newFile);
+        setPreviewFileIndex(newIndex);
+      }
+    },
+    [previewFileList, previewFileIndex],
+  );
 
   const goToPreviousFile = useCallback(() => {
     navigatePreviewFile(-1);
@@ -194,7 +197,7 @@ export const UIProvider = ({ children }) => {
     // The previous context uses selectedItems (Set of IDs).
     setClipboard({ items, operation: "copy" });
     const count = items.length;
-    // toast.info(`Copied ${count} item${count !== 1 ? "s" : ""} to clipboard`); 
+    // toast.info(`Copied ${count} item${count !== 1 ? "s" : ""} to clipboard`);
     // Commented out toast to avoid spamming if user just presses Ctrl+C
   }, []);
 
