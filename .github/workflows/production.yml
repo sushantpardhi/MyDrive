@@ -24,12 +24,15 @@ jobs:
           set -e
           cd /home/sushant/app/prod/MyDrive
           git pull origin main
-      - name: Install & restart
+      - name: Install
         run: |
           set -e
           cd /home/sushant/app/prod/MyDrive/server
-          npm install
-          pm2 restart backend-8080 || pm2 start index.js --name backend-8080
+          npm ci
+      - name: Restart backend service
+        run: |
+          set -e
+          sudo systemctl restart mydrive-backend
 
   deploy-frontend:
     needs: deploy-backend
@@ -54,7 +57,7 @@ jobs:
           cd /home/sushant/app/prod/MyDrive/client
           export REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
           export REACT_APP_SHOW_DEV_BANNER=false
-          npm install
+          npm ci
           npm run build
 
       - name: Deploy to Nginx directory
