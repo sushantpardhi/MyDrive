@@ -99,7 +99,7 @@ export class ChunkedUploadService {
             end,
             hash,
           },
-          abortSignal
+          abortSignal,
         );
 
         chunkData.uploaded = true;
@@ -208,8 +208,9 @@ export class ChunkedUploadService {
       concurrency = Math.min(3, Math.max(2, Math.ceil(totalChunks / 50)));
     }
 
-    // Ensure reasonable bounds
-    return Math.min(Math.max(concurrency, 2), 10);
+    // Capping concurrency at 3 max to prevent MongoDB WriteConflict
+    // errors during atomical UploadSession chunk insertions on the server.
+    return Math.min(Math.max(concurrency, 2), 3);
   }
 
   /**
@@ -272,7 +273,7 @@ export class ChunkedUploadService {
     file,
     parentFolder = "root",
     fileId = null,
-    enableLogging = false
+    enableLogging = false,
   ) {
     // Generate unique file ID if not provided
     const uniqueFileId =
@@ -337,7 +338,7 @@ export class ChunkedUploadService {
       // Step 2: Upload chunks in parallel with concurrency control
       const maxConcurrentUploads = this.calculateOptimalConcurrency(
         file.size,
-        totalChunks
+        totalChunks,
       );
 
       // Enhanced semaphore implementation with priority queue
@@ -403,7 +404,7 @@ export class ChunkedUploadService {
             progress.uploadedBytes,
             file.size,
             progress.uploadedChunks,
-            totalChunks
+            totalChunks,
           );
         }
       };
@@ -422,7 +423,7 @@ export class ChunkedUploadService {
             uploadId,
             chunkData,
             uniqueFileId,
-            abortController.signal
+            abortController.signal,
           );
 
           // Update progress atomically
@@ -443,7 +444,7 @@ export class ChunkedUploadService {
 
         // Check if upload was paused
         const pausedResults = results.filter(
-          (r) => r.status === "fulfilled" && r.value === null
+          (r) => r.status === "fulfilled" && r.value === null,
         );
 
         if (pausedResults.length > 0) {
@@ -505,7 +506,7 @@ export class ChunkedUploadService {
       const uploadDuration = Date.now() - uploadState.startTime;
       const totalRetries = chunks.reduce(
         (sum, chunk) => sum + chunk.retries,
-        0
+        0,
       );
 
       logger.logUpload("completed", file.name, {
@@ -641,14 +642,14 @@ export class ChunkedUploadService {
             .filter((c) => c.uploaded)
             .reduce((sum, c) => sum + c.size, 0);
           const uploadedChunks = uploadState.chunks.filter(
-            (c) => c.uploaded
+            (c) => c.uploaded,
           ).length;
           this.onProgress(
             fileId,
             uploadState.uploadedBytes,
             uploadState.file.size,
             uploadedChunks,
-            uploadState.chunks.length
+            uploadState.chunks.length,
           );
         }
       }
@@ -677,7 +678,7 @@ export class ChunkedUploadService {
       // Resume on server if upload was initiated
       if (uploadState.uploadId) {
         const response = await this.api.resumeChunkedUpload(
-          uploadState.uploadId
+          uploadState.uploadId,
         );
         uploadState.status = "uploading";
         const pauseDuration = Date.now() - (uploadState.pausedAt || Date.now());
@@ -700,7 +701,7 @@ export class ChunkedUploadService {
             fileId,
             uploadState,
             missingChunks,
-            newAbortController.signal
+            newAbortController.signal,
           );
         }
       }
@@ -719,13 +720,13 @@ export class ChunkedUploadService {
     fileId,
     uploadState,
     missingChunkIndices,
-    abortSignal
+    abortSignal,
   ) {
     const { file, uploadId, chunks } = uploadState;
     if (!chunks) return;
 
     const missingChunks = chunks.filter(
-      (chunk) => missingChunkIndices.includes(chunk.index) && !chunk.uploaded
+      (chunk) => missingChunkIndices.includes(chunk.index) && !chunk.uploaded,
     );
 
     // Recalculate uploadedBytes from scratch based on chunks marked as uploaded
@@ -737,7 +738,7 @@ export class ChunkedUploadService {
     // Calculate optimal concurrency
     const maxConcurrentUploads = this.calculateOptimalConcurrency(
       file.size,
-      chunks.length
+      chunks.length,
     );
 
     // Simple semaphore for concurrency control
@@ -787,7 +788,7 @@ export class ChunkedUploadService {
           uploadId,
           chunkData,
           fileId,
-          abortSignal
+          abortSignal,
         );
 
         if (result && this.onProgress) {
@@ -801,7 +802,7 @@ export class ChunkedUploadService {
             uploadState.uploadedBytes,
             file.size,
             uploadedChunks,
-            chunks.length
+            chunks.length,
           );
         }
 
@@ -950,7 +951,7 @@ export class ChunkedUploadService {
 export const createChunkedUploadService = (
   api,
   onProgress,
-  onChunkProgress
+  onChunkProgress,
 ) => {
   return new ChunkedUploadService(api, onProgress, onChunkProgress);
 };

@@ -63,7 +63,13 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-    exposedHeaders: ["X-Total-Size", "X-Total-Files"],
+    exposedHeaders: [
+      "X-Total-Size",
+      "X-Total-Files",
+      "Accept-Ranges",
+      "Content-Range",
+      "Content-Length",
+    ],
   }),
 );
 app.use(express.json({ limit: "10mb" })); // Increase JSON payload limit

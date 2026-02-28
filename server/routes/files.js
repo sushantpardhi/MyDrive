@@ -971,6 +971,10 @@ router.post("/:id/lock", async (req, res) => {
 
     item.isLocked = true;
     await item.save();
+
+    // Invalidate user cache on file lock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File locked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -993,6 +997,10 @@ router.post("/:id/unlock", async (req, res) => {
 
     item.isLocked = false;
     await item.save();
+
+    // Invalidate user cache on file unlock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File unlocked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -695,6 +695,10 @@ router.post("/:id/lock", async (req, res) => {
 
     item.isLocked = true;
     await item.save();
+
+    // Invalidate user cache on folder lock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder locked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -717,6 +721,10 @@ router.post("/:id/unlock", async (req, res) => {
 
     item.isLocked = false;
     await item.save();
+
+    // Invalidate user cache on folder unlock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder unlocked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
