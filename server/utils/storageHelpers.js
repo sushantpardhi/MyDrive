@@ -1,5 +1,7 @@
 const logger = require("./logger");
 const emailService = require("./emailService");
+const fs = require("fs");
+const path = require("path");
 
 /**
  * Storage Helper Utilities
@@ -283,6 +285,35 @@ function validateStorageForUpload(user, fileSize) {
   return null;
 }
 
+/**
+ * Calculate the total physical size of a directory recursively
+ * @param {String} dirPath - Path to the directory
+ * @returns {Promise<Number>} - Total size in bytes
+ */
+async function getDirectorySize(dirPath) {
+  let totalSize = 0;
+  try {
+    const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    for (const file of files) {
+      const fullPath = path.join(dirPath, file.name);
+      if (file.isDirectory()) {
+        totalSize += await getDirectorySize(fullPath);
+      } else {
+        const stats = await fs.promises.stat(fullPath);
+        totalSize += stats.size;
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      logger.error("Error calculating directory size", {
+        dirPath,
+        error: error.message,
+      });
+    }
+  }
+  return totalSize;
+}
+
 module.exports = {
   checkStorageAvailability,
   getNotificationThreshold,
@@ -292,4 +323,5 @@ module.exports = {
   handlePostUploadNotification,
   validateStorageForUpload,
   NOTIFICATION_THRESHOLDS,
+  getDirectorySize,
 };

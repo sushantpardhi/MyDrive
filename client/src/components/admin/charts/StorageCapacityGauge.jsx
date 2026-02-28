@@ -13,7 +13,8 @@ import styles from "./ChartCard.module.css";
 
 const StorageCapacityGauge = ({ storageStats, maxCapacity = 107374182400 }) => {
   // Default 100GB capacity
-  const usedStorage = storageStats?.totalUsed || 0;
+  const usedStorage =
+    storageStats?.serverStorageUsed || storageStats?.totalUsed || 0;
   const usedPercentage = (usedStorage / maxCapacity) * 100;
   const freeStorage = maxCapacity - usedStorage;
 

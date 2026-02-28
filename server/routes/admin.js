@@ -5,7 +5,7 @@ const Folder = require("../models/Folder");
 const UploadSession = require("../models/UploadSession");
 const logger = require("../utils/logger");
 const { requireRole } = require("../middleware/roleAuth");
-const { formatBytes } = require("../utils/storageHelpers");
+const { formatBytes, getDirectorySize } = require("../utils/storageHelpers");
 const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
@@ -455,6 +455,9 @@ router.get("/stats", async (req, res) => {
       },
       storage: {
         totalUsed: storageStats[0]?.totalStorage || 0,
+        serverStorageUsed: await getDirectorySize(
+          process.env.UPLOAD_DIR || "/mnt/drive-storage",
+        ),
         averageFileSize: storageStats[0]?.avgFileSize || 0,
         largestFile: storageStats[0]?.maxFileSize || 0,
         smallestFile: storageStats[0]?.minFileSize || 0,

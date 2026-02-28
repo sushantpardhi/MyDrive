@@ -635,11 +635,13 @@ const AdminDashboard = () => {
             <span className={styles.metricLabel}>Storage</span>
           </div>
           <div className={styles.metricValue}>
-            {formatFileSize(storageStats.totalUsed)}
+            {formatFileSize(
+              storageStats.serverStorageUsed || storageStats.totalUsed,
+            )}
           </div>
           <div className={styles.metricChange}>
             <span className={styles.metricSubtext}>
-              Avg: {formatFileSize(storageStats.averageFileSize)}
+              DB Reported: {formatFileSize(storageStats.totalUsed)}
             </span>
           </div>
         </div>
