@@ -695,6 +695,10 @@ router.post("/:id/lock", async (req, res) => {
 
     item.isLocked = true;
     await item.save();
+
+    // Invalidate user cache on folder lock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder locked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -717,6 +721,10 @@ router.post("/:id/unlock", async (req, res) => {
 
     item.isLocked = false;
     await item.save();
+
+    // Invalidate user cache on folder unlock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder unlocked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -887,6 +895,10 @@ router.post("/:id/copy", async (req, res) => {
     };
 
     const newFolder = await copyFolderRecursive(id, parent, copyName);
+
+    // Invalidate user cache on folder copy
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder copied successfully", item: newFolder });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -980,6 +992,10 @@ router.put("/:id/move", async (req, res) => {
 
     item.parent = parent === "root" ? null : parent;
     await item.save();
+
+    // Invalidate user cache on folder move
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Folder moved successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });

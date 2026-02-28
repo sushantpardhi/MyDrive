@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { ChevronRight, MoreHorizontal, Tag } from "lucide-react";
 import styles from "./MobileBreadcrumb.module.css";
 
-const MobileBreadcrumb = ({ path, navigateTo }) => {
+const MobileBreadcrumb = ({ path, navigateTo, activeTag }) => {
   const scrollRef = useRef(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(false);
@@ -27,10 +27,11 @@ const MobileBreadcrumb = ({ path, navigateTo }) => {
         window.removeEventListener("resize", checkScroll);
       };
     }
-  }, [path]);
+  }, [path, activeTag]);
 
   // Don't show on root level - check AFTER hooks
-  if (path.length <= 1) {
+  // If no activeTag and path is just root, return null
+  if (!activeTag && path.length <= 1) {
     return null;
   }
 
@@ -65,6 +66,27 @@ const MobileBreadcrumb = ({ path, navigateTo }) => {
     navigateTo(actualIndex);
   };
 
+  if (activeTag) {
+    return (
+      <div className={styles.mobileBreadcrumbContainer}>
+        <div ref={scrollRef} className={styles.mobileBreadcrumb}>
+          <span className={`${styles.breadcrumbItem} ${styles["item-0"]}`}>
+            <span className={styles.mobileBreadcrumbCurrent} title={activeTag}>
+              <span className={styles.currentGradient} />
+              <Tag size={12} style={{ marginRight: "4px" }} />
+              <span
+                className={styles.currentText}
+                style={{ marginLeft: "4px" }}
+              >
+                {activeTag}
+              </span>
+            </span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.mobileBreadcrumbContainer}>
       <div
@@ -79,42 +101,46 @@ const MobileBreadcrumb = ({ path, navigateTo }) => {
       >
         {displayPath.map((p, i) => {
           // Create unique key that includes position to avoid React reconciliation issues
-          const itemKey = p.id === "ellipsis" ? `ellipsis-${path.length}` : p.id;
-          
+          const itemKey =
+            p.id === "ellipsis" ? `ellipsis-${path.length}` : p.id;
+
           return (
             <span
               key={itemKey}
               className={`${styles.breadcrumbItem} ${styles[`item-${i}`]}`}
               style={{ animationDelay: `${i * 0.05}s` }}
             >
-            {i < displayPath.length - 1 ? (
-              <>
-                <button
-                  onClick={() => handleItemClick(p, i)}
-                  className={`${styles.mobileBreadcrumbLink} ${
-                    p.id === "ellipsis" ? styles.ellipsis : ""
-                  }`}
-                  title={p.name}
-                  disabled={p.id === "ellipsis"}
-                  aria-label={`Navigate to ${p.name}`}
-                >
-                  {p.id === "ellipsis" ? (
-                    <MoreHorizontal size={16} className={styles.ellipsisIcon} />
-                  ) : (
-                    <span className={styles.linkText}>{p.name}</span>
-                  )}
-                </button>
-                <ChevronRight
-                  size={14}
-                  className={styles.mobileBreadcrumbSeparator}
-                />
-              </>
-            ) : (
-              <span className={styles.mobileBreadcrumbCurrent} title={p.name}>
-                <span className={styles.currentGradient} />
-                <span className={styles.currentText}>{p.name}</span>
-              </span>
-            )}
+              {i < displayPath.length - 1 ? (
+                <>
+                  <button
+                    onClick={() => handleItemClick(p, i)}
+                    className={`${styles.mobileBreadcrumbLink} ${
+                      p.id === "ellipsis" ? styles.ellipsis : ""
+                    }`}
+                    title={p.name}
+                    disabled={p.id === "ellipsis"}
+                    aria-label={`Navigate to ${p.name}`}
+                  >
+                    {p.id === "ellipsis" ? (
+                      <MoreHorizontal
+                        size={16}
+                        className={styles.ellipsisIcon}
+                      />
+                    ) : (
+                      <span className={styles.linkText}>{p.name}</span>
+                    )}
+                  </button>
+                  <ChevronRight
+                    size={14}
+                    className={styles.mobileBreadcrumbSeparator}
+                  />
+                </>
+              ) : (
+                <span className={styles.mobileBreadcrumbCurrent} title={p.name}>
+                  <span className={styles.currentGradient} />
+                  <span className={styles.currentText}>{p.name}</span>
+                </span>
+              )}
             </span>
           );
         })}

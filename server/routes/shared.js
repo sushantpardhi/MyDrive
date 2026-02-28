@@ -9,6 +9,7 @@ const {
 } = require("../utils/shareHelpers");
 const emailService = require("../utils/emailService");
 const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -330,6 +331,9 @@ router.delete("/trash/empty", async (req, res) => {
     await File.deleteMany({ trash: true, owner: req.user.id });
     await Folder.deleteMany({ trash: true, owner: req.user.id });
 
+    // Invalidate user cache on emptying trash
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Trash emptied successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -410,6 +414,9 @@ router.post(
             // Email send failure is non-critical
           });
       }
+
+      // Invalidate user cache on bulk share
+      redisCache.invalidateUserCache(req.user.id);
 
       res.json({
         message: `${sharedItems.length} items shared successfully`,

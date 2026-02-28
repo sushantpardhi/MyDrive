@@ -179,6 +179,75 @@ router.get("/verify-download/:fileId", async (req, res) => {
   }
 });
 
+// Stream file with Range request support (for progressive PDF loading etc.)
+router.get("/stream/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Verify file exists on disk
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
+    const stat = fs.statSync(file.path);
+    const fileSize = stat.size;
+    const mimeType = file.type || "application/octet-stream";
+    const range = req.headers.range;
+
+    if (range) {
+      // Parse Range header
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      // Validate range
+      if (start >= fileSize || end >= fileSize || start > end) {
+        res.status(416).set({
+          "Content-Range": `bytes */${fileSize}`,
+        });
+        return res.end();
+      }
+
+      const chunkSize = end - start + 1;
+      const stream = fs.createReadStream(file.path, { start, end });
+
+      res.status(206).set({
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Content-Type": mimeType,
+        "Cache-Control": "public, max-age=31536000",
+      });
+
+      stream.pipe(res);
+    } else {
+      // No Range header — return full file with Accept-Ranges hint
+      res.set({
+        "Content-Length": fileSize,
+        "Content-Type": mimeType,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=31536000",
+      });
+
+      fs.createReadStream(file.path).pipe(res);
+    }
+  } catch (error) {
+    logger.logError(error, {
+      operation: "stream",
+      userId: req.user.id,
+      ip: req.ip,
+      additionalInfo: req.params.fileId,
+    });
+
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
+
 // Download file with proper client disconnect handling
 router.get("/download/:fileId", async (req, res) => {
   const startTime = Date.now();
@@ -683,18 +752,27 @@ router.delete("/:id", async (req, res) => {
         fs.unlinkSync(item.path);
       }
 
-      // Delete cached thumbnail if exists
-      const thumbnailPath = path.join(
-        __dirname,
-        "..",
-        "uploads",
-        "thumbnails",
-        req.user.id,
-        `${id}-thumb.jpg`,
-      );
-      if (fs.existsSync(thumbnailPath)) {
-        fs.unlinkSync(thumbnailPath);
-      }
+      // Delete worker-processed files if they exist
+      const fileName = path.basename(item.path, path.extname(item.path));
+      const userDir = path.dirname(item.path);
+      const processedDir = path.join(userDir, "processed");
+
+      const processedFiles = [
+        `${fileName}_thumbnail.webp`,
+        `${fileName}_blur.webp`,
+        `${fileName}_low-quality.webp`,
+      ];
+
+      processedFiles.forEach((file) => {
+        const filePath = path.join(processedDir, file);
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            logger.warn(`Failed to delete processed file ${filePath}`);
+          }
+        }
+      });
 
       // Update user's storage usage (subtract file size)
       await User.findByIdAndUpdate(req.user.id, {
@@ -867,6 +945,10 @@ router.put("/:id/tags", async (req, res) => {
 
     item.tags = tags;
     await item.save();
+
+    // Invalidate user cache on file tags update
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Tags updated successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -889,6 +971,10 @@ router.post("/:id/lock", async (req, res) => {
 
     item.isLocked = true;
     await item.save();
+
+    // Invalidate user cache on file lock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File locked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -911,6 +997,10 @@ router.post("/:id/unlock", async (req, res) => {
 
     item.isLocked = false;
     await item.save();
+
+    // Invalidate user cache on file unlock
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File unlocked", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1057,6 +1147,9 @@ router.post("/:id/copy", async (req, res) => {
         });
     }
 
+    // Invalidate user cache on file copy
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File copied successfully", item: newFile });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1119,6 +1212,10 @@ router.put("/:id/move", async (req, res) => {
 
     item.parent = parent === "root" ? null : parent;
     await item.save();
+
+    // Invalidate user cache on file move
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File moved successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1598,6 +1695,9 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       session.completedAt = new Date();
       session.finalFileId = file._id;
       await session.save();
+
+      // Invalidate user cache on successful upload
+      redisCache.invalidateUserCache(req.user.id);
 
       // Clean up temporary directory
       cleanupTempDir(session.tempDirectory);
@@ -2475,5 +2575,160 @@ router.get("/chunked-download/sessions", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ========== FILE STREAMING (Range Request Support) ==========
+
+/**
+ * Stream file with HTTP Range request support
+ * GET /files/stream/:fileId
+ * Supports 206 Partial Content for video/audio seeking
+ */
+router.get("/stream/:fileId", async (req, res) => {
+  let fileStream = null;
+  let isAborted = false;
+
+  const handleDisconnect = () => {
+    if (isAborted) return;
+    isAborted = true;
+    if (fileStream && !fileStream.destroyed) {
+      fileStream.destroy();
+    }
+  };
+
+  req.on("close", handleDisconnect);
+  req.on("aborted", handleDisconnect);
+
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Verify file exists on disk
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
+    const stat = fs.statSync(file.path);
+    const fileSize = stat.size;
+
+    // Determine content type from extension
+    const ext = path.extname(file.name).toLowerCase();
+    const mimeTypes = {
+      ".mp4": "video/mp4",
+      ".webm": "video/webm",
+      ".ogg": "video/ogg",
+      ".mov": "video/quicktime",
+      ".avi": "video/x-msvideo",
+      ".mkv": "video/x-matroska",
+      ".mp3": "audio/mpeg",
+      ".wav": "audio/wav",
+      ".flac": "audio/flac",
+      ".m4a": "audio/mp4",
+      ".pdf": "application/pdf",
+    };
+    const contentType =
+      mimeTypes[ext] || file.type || "application/octet-stream";
+
+    const range = req.headers.range;
+
+    if (range) {
+      // Parse Range header
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      // Validate range
+      if (start >= fileSize || end >= fileSize || start > end) {
+        res.status(416).set({
+          "Content-Range": `bytes */${fileSize}`,
+        });
+        return res.end();
+      }
+
+      const chunkSize = end - start + 1;
+
+      res.status(206).set({
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=3600",
+      });
+
+      fileStream = fs.createReadStream(file.path, { start, end });
+    } else {
+      // No Range header — stream entire file
+      res.status(200).set({
+        "Content-Length": fileSize,
+        "Content-Type": contentType,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=3600",
+      });
+
+      fileStream = fs.createReadStream(file.path);
+    }
+
+    fileStream.on("error", (err) => {
+      if (!isAborted) {
+        logger.logError(err, "Error streaming file", {
+          fileId: req.params.fileId,
+          userId: req.user.id,
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error streaming file" });
+        }
+      }
+    });
+
+    fileStream.pipe(res);
+  } catch (error) {
+    if (isAborted) return;
+    logger.logError(error, "Error in stream route", {
+      fileId: req.params.fileId,
+      userId: req.user.id,
+    });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
+
+/**
+ * Get file metadata (lightweight, no content streaming)
+ * GET /files/:fileId/metadata
+ */
+router.get(
+  "/:fileId/metadata",
+  cacheMiddleware({ ttl: 300 }),
+  async (req, res) => {
+    try {
+      const file = await File.findById(req.params.fileId)
+        .populate("owner", "name email")
+        .populate("shared", "name email");
+
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      res.json({
+        id: file._id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        createdAt: file.createdAt,
+        updatedAt: file.updatedAt,
+        owner: file.owner,
+        shared: file.shared,
+        tags: file.tags || [],
+        isLocked: file.isLocked || false,
+        parent: file.parent,
+      });
+    } catch (error) {
+      logger.logError(error, "Error fetching file metadata");
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 module.exports = router;

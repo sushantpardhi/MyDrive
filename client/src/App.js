@@ -17,7 +17,7 @@ import ForgotPassword from "./components/auth/ForgotPassword.jsx";
 import ResetPassword from "./components/auth/ResetPassword.jsx";
 import UserProfile from "./components/auth/UserProfile.jsx";
 import Hero from "./components/landing/Hero.jsx";
-import PreviewModal from "./components/files/PreviewModal.jsx";
+import PreviewModal from "./components/preview/PreviewModal.jsx";
 import TransferProgressToast from "./components/files/TransferProgressToast.jsx";
 import AdminRoute from "./components/common/AdminRoute.jsx";
 import NotFound from "./components/common/NotFound.jsx";

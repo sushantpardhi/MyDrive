@@ -353,7 +353,7 @@ const PropertiesModal = ({ item, itemType, onClose, isOpen }) => {
               )}
 
             {/* Tags Section */}
-            {(itemType === "file" || itemType === "folder") && (
+            {itemType === "file" && (
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Tags</div>
                 <TagManager

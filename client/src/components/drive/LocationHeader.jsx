@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Share2, Trash2, Grid, List, CheckSquare, ChevronRight, Home, Folder, MoreHorizontal } from "lucide-react";
+import {
+  Share2,
+  Trash2,
+  Grid,
+  List,
+  CheckSquare,
+  ChevronRight,
+  Home,
+  Folder,
+  MoreHorizontal,
+} from "lucide-react";
 import { useSelectionContext } from "../../contexts/SelectionContext";
 import styles from "./LocationHeader.module.css";
 
@@ -13,6 +23,7 @@ const LocationHeader = ({
   path,
   navigateTo,
   breadcrumbRef,
+  activeTag,
 }) => {
   const { selectedItems } = useSelectionContext();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -55,7 +66,8 @@ const LocationHeader = ({
 
     if (showDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showDropdown]);
 
@@ -66,13 +78,46 @@ const LocationHeader = ({
   };
 
   const renderBreadcrumbItems = () => {
+    // If a tag is active, ignore the normal folder path beyond root, and show the tag
+    if (activeTag) {
+      return [
+        <span
+          key={`tag-${activeTag}`}
+          className={`${styles.breadcrumbItem} ${styles["item-0"]}`}
+          style={{ animationDelay: "0.05s" }}
+        >
+          <div
+            className={`${styles.breadcrumbLink} ${styles.breadcrumbCurrent}`}
+          >
+            <span className={styles.gradientBg} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.breadcrumbIcon}
+            >
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+              <path d="M7 7h.01" />
+            </svg>
+            <span className={styles.breadcrumbText}>{activeTag}</span>
+          </div>
+        </span>,
+      ];
+    }
+
     if (!shouldCollapse) {
       return path.map((p, i) => renderBreadcrumbItem(p, i, false));
     }
 
     // Collapsed view: First item, ellipsis, last 2 items
     const items = [];
-    
+
     // First item (root)
     items.push(renderBreadcrumbItem(path[0], 0, false));
 
@@ -105,7 +150,7 @@ const LocationHeader = ({
             )}
           </div>
           <ChevronRight size={16} className={styles.separator} />
-        </span>
+        </span>,
       );
     }
 
@@ -119,9 +164,15 @@ const LocationHeader = ({
     return items;
   };
 
-  const renderBreadcrumbItem = (p, i, isLast = i === path.length - 1) => {
+  const renderBreadcrumbItem = (
+    p,
+    i,
+    isLast = i === path.length - 1,
+    isTagRoot = false,
+  ) => {
     const Icon = i === 0 ? Home : Folder;
-    const isCurrent = i === path.length - 1;
+    // If we're forcing root to not be current due to a tag being active
+    const isCurrent = isTagRoot ? false : i === path.length - 1;
 
     return (
       <span
@@ -141,9 +192,7 @@ const LocationHeader = ({
           <Icon size={i === 0 ? 16 : 14} className={styles.breadcrumbIcon} />
           <span className={styles.breadcrumbText}>{p.name}</span>
         </button>
-        {!isCurrent && (
-          <ChevronRight size={16} className={styles.separator} />
-        )}
+        {!isCurrent && <ChevronRight size={16} className={styles.separator} />}
       </span>
     );
   };

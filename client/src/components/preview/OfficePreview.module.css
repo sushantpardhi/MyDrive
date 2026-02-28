@@ -1,0 +1,161 @@
+/* Office Preview */
+.officePreview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Sheet tabs */
+.sheetTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.sheetTab {
+  padding: 6px 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.sheetTab:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.activeTab {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.controlBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.controlBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Excel table */
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.excelTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.excelTable td {
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #e2e8f0);
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excelTable tr:first-child td {
+  background: rgba(99, 102, 241, 0.08);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.excelTable tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Word content */
+.wordContent {
+  flex: 1;
+  overflow: auto;
+  padding: 32px 40px;
+  background: #fff;
+  color: #1a1a1a;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.wordContent img {
+  max-width: 100%;
+  height: auto;
+}
+
+.wordContent table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.wordContent table td,
+.wordContent table th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* PowerPoint placeholder */
+.pptPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.downloadBtn {
+  padding: 10px 24px;
+  border: none;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.downloadBtn:hover {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+@media (max-width: 768px) {
+  .wordContent {
+    padding: 16px;
+  }
+}

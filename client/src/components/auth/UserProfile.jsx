@@ -95,6 +95,29 @@ export default function UserProfile() {
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  // Password strength helper
+  function getPasswordStrength(pwd) {
+    if (!pwd) return { score: 0, label: "", color: "" };
+    let score = 0;
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
+    };
+    score = Object.values(checks).filter(Boolean).length;
+    const levels = [
+      { label: "", color: "" },
+      { label: "Very Weak", color: "#ef4444" },
+      { label: "Weak", color: "#f97316" },
+      { label: "Fair", color: "#eab308" },
+      { label: "Good", color: "#22c55e" },
+      { label: "Strong", color: "#10b981" },
+    ];
+    return { score, checks, ...levels[score] };
+  }
+
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
@@ -349,8 +372,25 @@ export default function UserProfile() {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
+    const pwd = passwordForm.newPassword;
+    if (pwd.length < 8) {
+      setPasswordError("Password must be at least 8 characters long");
+      return;
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      setPasswordError("Password must contain at least one uppercase letter");
+      return;
+    }
+    if (!/[a-z]/.test(pwd)) {
+      setPasswordError("Password must contain at least one lowercase letter");
+      return;
+    }
+    if (!/[0-9]/.test(pwd)) {
+      setPasswordError("Password must contain at least one number");
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
+      setPasswordError("Password must contain at least one special character");
       return;
     }
 
@@ -842,35 +882,93 @@ export default function UserProfile() {
                   </div>
                   <div className={styles.formRow}>
                     <label htmlFor="newPassword">New Password:</label>
-                    <div className={styles.passwordInput}>
-                      <input
-                        id="newPassword"
-                        type={showPasswords.new ? "text" : "password"}
-                        value={passwordForm.newPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({
-                            ...prev,
-                            newPassword: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter new password (min 6 chars)"
-                      />
-                      <button
-                        type="button"
-                        className={styles.togglePassword}
-                        onClick={() =>
-                          setShowPasswords((prev) => ({
-                            ...prev,
-                            new: !prev.new,
-                          }))
-                        }
-                      >
-                        {showPasswords.new ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
-                      </button>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        flex: 1,
+                        gap: "8px",
+                      }}
+                    >
+                      <div className={styles.passwordInput}>
+                        <input
+                          id="newPassword"
+                          type={showPasswords.new ? "text" : "password"}
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              newPassword: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter new password (min 8 chars)"
+                        />
+                        <button
+                          type="button"
+                          className={styles.togglePassword}
+                          onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              new: !prev.new,
+                            }))
+                          }
+                        >
+                          {showPasswords.new ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      </div>
+                      {passwordForm.newPassword && (
+                        <div
+                          className={styles.passwordIndicators}
+                          style={{ width: "100%", maxWidth: "350px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "4px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            {[...Array(5)].map((_, i) => {
+                              const strength = getPasswordStrength(
+                                passwordForm.newPassword,
+                              );
+                              return (
+                                <div
+                                  key={i}
+                                  style={{
+                                    height: "4px",
+                                    flex: 1,
+                                    borderRadius: "2px",
+                                    backgroundColor:
+                                      i < strength.score
+                                        ? strength.color
+                                        : "#e2e8f0",
+                                    transition: "all 0.3s ease",
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: getPasswordStrength(
+                                passwordForm.newPassword,
+                              ).color,
+                              fontWeight: "500",
+                            }}
+                          >
+                            {
+                              getPasswordStrength(passwordForm.newPassword)
+                                .label
+                            }
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className={styles.formRow}>

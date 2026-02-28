@@ -24,6 +24,7 @@
     "react-scripts": "5.0.1",
     "react-syntax-highlighter": "^16.1.0",
     "react-toastify": "^11.0.5",
+    "react-window": "^2.2.7",
     "recharts": "^3.5.1",
     "remark-gfm": "^4.0.1",
     "three": "^0.181.2",

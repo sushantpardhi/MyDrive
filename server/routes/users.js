@@ -8,6 +8,7 @@ const Folder = require("../models/Folder");
 const logger = require("../utils/logger");
 const { formatBytes } = require("../utils/storageHelpers");
 const { requireAdmin } = require("../middleware/roleAuth");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -117,6 +118,9 @@ router.post("/tags", async (req, res) => {
       tagId: savedTag._id,
     });
 
+    // Invalidate user cache because tag creation affects file properties potential display
+    redisCache.invalidateUserCache(req.user.id);
+
     res.status(201).json(savedTag);
   } catch (error) {
     logger.error("Error creating tag", {
@@ -149,6 +153,21 @@ router.delete("/tags/:tagId", async (req, res) => {
     const deletedTag = user.tags[tagIndex];
     user.tags.splice(tagIndex, 1);
     await user.save();
+
+    // Remove the tag from all files owned by the user
+    await File.updateMany(
+      { owner: user._id, tags: deletedTag.name },
+      { $pull: { tags: deletedTag.name } },
+    );
+
+    // Also remove from folders just in case they were added previously
+    await Folder.updateMany(
+      { owner: user._id, tags: deletedTag.name },
+      { $pull: { tags: deletedTag.name } },
+    );
+
+    // Invalidate user cache because file/folder properties have changed
+    redisCache.invalidateUserCache(req.user.id);
 
     logger.info("Tag deleted", {
       userId: req.user.id,
@@ -345,10 +364,10 @@ router.put("/change-password", async (req, res) => {
         .json({ error: "Current and new password are required" });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return res
         .status(400)
-        .json({ error: "Password must be at least 6 characters" });
+        .json({ error: "Password must be at least 8 characters" });
     }
 
     // Get user with password
@@ -369,8 +388,31 @@ router.put("/change-password", async (req, res) => {
       return res.status(401).json({ error: "Current password is incorrect" });
     }
 
-    // Hash new password
+    // Check new password against last 5 passwords (including current)
+    const historyToCheck = [user.password, ...(user.passwordHistory || [])];
+    for (const oldHash of historyToCheck) {
+      const isReused = await bcrypt.compare(newPassword, oldHash);
+      if (isReused) {
+        logger.warn("Password change failed - Password reuse detected", {
+          userId: req.user.id,
+        });
+        return res.status(400).json({
+          error:
+            "New password cannot be the same as any of your last 5 passwords",
+          errorType: "PASSWORD_REUSED",
+        });
+      }
+    }
+
+    // Push current password hash to history (keep last 5)
+    const updatedHistory = [
+      user.password,
+      ...(user.passwordHistory || []),
+    ].slice(0, 5);
+
+    // Hash new password and save
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.passwordHistory = updatedHistory;
     user.password = hashedPassword;
     await user.save();
 
@@ -500,6 +542,9 @@ router.delete("/account", async (req, res) => {
 
     // Delete user account
     await User.findByIdAndDelete(req.user.id);
+
+    // Invalidate user cache
+    redisCache.invalidateUserCache(req.user.id);
 
     logger.info("User account deleted successfully", { userId: req.user.id });
     res.json({ message: "Account deleted successfully" });
