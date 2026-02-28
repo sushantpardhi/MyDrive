@@ -26,12 +26,17 @@ axios.interceptors.response.use(
   (error) => {
     const originalRequest = error.config;
 
+    const isAuthPage =
+      window.location.pathname === "/" ||
+      window.location.pathname.includes("/login") ||
+      window.location.pathname.includes("/register");
+
     if (
       error.response &&
       error.response.status === 401 &&
       !originalRequest._retry &&
-      !window.location.pathname.includes("/login") &&
-      !window.location.pathname.includes("/register")
+      !originalRequest.url.includes("/auth/refresh-token") &&
+      !isAuthPage
     ) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
@@ -53,7 +58,7 @@ axios.interceptors.response.use(
         .catch((err) => {
           processQueue(err);
           localStorage.removeItem("user");
-          window.location.href = "/login";
+          window.location.href = "/";
           return Promise.reject(err);
         })
         .finally(() => {
@@ -95,8 +100,8 @@ const api = {
   getStorageStats: () => axios.get(`${API_URL}/users/storage`),
 
   // Auth operations
-  register: (name, email, password) =>
-    axios.post(`${API_URL}/auth/register`, { name, email, password }),
+  register: (name, email, password, { theme } = {}) =>
+    axios.post(`${API_URL}/auth/register`, { name, email, password, theme }),
 
   login: (email, password) =>
     axios.post(`${API_URL}/auth/login`, { email, password }),

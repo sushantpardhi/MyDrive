@@ -260,7 +260,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 4px;
     flex-wrap: nowrap;
   }
 
@@ -276,19 +276,21 @@
   .text {
     font-size: 13px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .hideOnMobile {
+    display: none;
   }
 
   .actions {
     flex-shrink: 0;
-    gap: 6px;
+    gap: 4px;
   }
 
   .extendButton,
   .createAccountButton {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 8px;
+    font-size: 11px;
   }
 
   .warningModal {

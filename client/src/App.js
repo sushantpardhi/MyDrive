@@ -16,9 +16,11 @@ import Login from "./components/auth/Login.jsx";
 import ForgotPassword from "./components/auth/ForgotPassword.jsx";
 import ResetPassword from "./components/auth/ResetPassword.jsx";
 import UserProfile from "./components/auth/UserProfile.jsx";
+import Hero from "./components/landing/Hero.jsx";
 import PreviewModal from "./components/files/PreviewModal.jsx";
 import TransferProgressToast from "./components/files/TransferProgressToast.jsx";
 import AdminRoute from "./components/common/AdminRoute.jsx";
+import NotFound from "./components/common/NotFound.jsx";
 import AdminDashboard from "./components/admin/AdminDashboard.jsx";
 import UserManagement from "./components/admin/UserManagement.jsx";
 import FileManagement from "./components/admin/FileManagement.jsx";
@@ -50,7 +52,7 @@ const ProtectedRoute = ({ children }) => {
     return null; // Or a loading spinner
   }
 
-  return isAuthenticated() ? children : <Navigate to="/login" replace />;
+  return isAuthenticated() ? children : <Navigate to="/" replace />;
 };
 
 // Auth Route Component (redirects to drive if already logged in)
@@ -180,6 +182,7 @@ const AppLayout = () => {
               </AdminRoute>
             }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
       {/* Global Preview Modal */}
@@ -211,6 +214,14 @@ const App = () => {
             <Routes>
               {/* Auth Routes */}
               <Route
+                path="/"
+                element={
+                  <AuthRoute>
+                    <Hero />
+                  </AuthRoute>
+                }
+              />
+              {/* <Route
                 path="/register"
                 element={
                   <AuthRoute>
@@ -225,7 +236,7 @@ const App = () => {
                     <Login />
                   </AuthRoute>
                 }
-              />
+              /> */}
               <Route
                 path="/forgot-password"
                 element={

@@ -157,6 +157,7 @@
 @media (max-width: 480px) {
   .container {
     margin: 0 8px 8px;
+    padding-bottom: 100px; /* Extra bottom padding for floating buttons */
     min-height: calc(100vh - 140px);
   }
 

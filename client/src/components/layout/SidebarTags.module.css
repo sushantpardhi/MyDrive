@@ -40,7 +40,7 @@
 
 .addButton:hover {
   background-color: var(--hover-bg);
-  color: var(--primary-color);
+  color: var(--accent-primary);
 }
 
 .tagsContainer {
@@ -196,7 +196,7 @@
 }
 
 .input:focus {
-  border-color: var(--primary-color);
+  border-color: var(--accent-primary);
 }
 
 .modalActions {
@@ -226,12 +226,12 @@
 }
 
 .createButton {
-  background-color: var(--primary-color);
+  background-color: var(--accent-primary);
   color: white;
 }
 
 .createButton:hover {
-  background-color: var(--primary-dark);
+  background-color: var(--accent-active);
   transform: translateY(-1px);
 }
 

@@ -130,7 +130,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, password, role } = req.body;
+      const { name, email, password, role, theme } = req.body;
 
       // Check if user already exists
       const existingUser = await User.findOne({ email });
@@ -157,6 +157,9 @@ router.post(
         email,
         password: hashedPassword,
         role: userRole,
+        settings: {
+          theme: theme || "light",
+        },
       });
 
       await user.save();

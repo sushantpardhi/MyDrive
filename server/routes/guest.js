@@ -90,6 +90,23 @@ router.post("/", async (req, res) => {
       { expiresIn: JWT_EXPIRATION },
     );
 
+    // Generate refresh token
+    const refreshToken = await generateRefreshToken(guestUser);
+
+    // Set cookies
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 15 * 60 * 1000,
+    });
+
     logger.logAuth("guest-session-create", guestUser._id, {
       ip,
       userAgent,
@@ -191,6 +208,23 @@ router.post("/resume", async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
+
+    // Generate refresh token
+    const refreshToken = await generateRefreshToken(guestUser);
+
+    // Set cookies
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 15 * 60 * 1000,
+    });
 
     logger.logAuth("guest-session-resume", guestUser._id, {
       ip,
@@ -411,7 +445,7 @@ router.post(
       );
 
       // Generate new refresh token
-      const refreshToken = generateRefreshToken(user);
+      const refreshToken = await generateRefreshToken(user);
 
       // Set refresh token as HTTP-only cookie
       res.cookie("refreshToken", refreshToken, {
@@ -419,6 +453,14 @@ router.post(
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+
+      // Set access token as HTTP-only cookie
+      res.cookie("accessToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
       logger.logAuth("guest-convert", user._id, {

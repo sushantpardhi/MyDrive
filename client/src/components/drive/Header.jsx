@@ -186,15 +186,17 @@ const Header = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={handleSearchFocus}
             />
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className={styles.clearSearchBtn}
-                aria-label="Clear search"
-              >
-                ×
-              </button>
-            )}
+            <button
+              onClick={clearSearch}
+              className={styles.clearSearchBtn}
+              aria-label="Clear search"
+              style={{
+                visibility: searchQuery ? "visible" : "hidden",
+                pointerEvents: searchQuery ? "auto" : "none",
+              }}
+            >
+              ×
+            </button>
 
             {/* Search Suggestions Dropdown */}
             {showSuggestions &&
