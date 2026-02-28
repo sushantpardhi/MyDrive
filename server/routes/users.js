@@ -361,10 +361,10 @@ router.put("/change-password", async (req, res) => {
         .json({ error: "Current and new password are required" });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return res
         .status(400)
-        .json({ error: "Password must be at least 6 characters" });
+        .json({ error: "Password must be at least 8 characters" });
     }
 
     // Get user with password
@@ -385,8 +385,31 @@ router.put("/change-password", async (req, res) => {
       return res.status(401).json({ error: "Current password is incorrect" });
     }
 
-    // Hash new password
+    // Check new password against last 5 passwords (including current)
+    const historyToCheck = [user.password, ...(user.passwordHistory || [])];
+    for (const oldHash of historyToCheck) {
+      const isReused = await bcrypt.compare(newPassword, oldHash);
+      if (isReused) {
+        logger.warn("Password change failed - Password reuse detected", {
+          userId: req.user.id,
+        });
+        return res.status(400).json({
+          error:
+            "New password cannot be the same as any of your last 5 passwords",
+          errorType: "PASSWORD_REUSED",
+        });
+      }
+    }
+
+    // Push current password hash to history (keep last 5)
+    const updatedHistory = [
+      user.password,
+      ...(user.passwordHistory || []),
+    ].slice(0, 5);
+
+    // Hash new password and save
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.passwordHistory = updatedHistory;
     user.password = hashedPassword;
     await user.save();
 

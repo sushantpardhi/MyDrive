@@ -577,6 +577,7 @@
 .formRow input[type="text"],
 .formRow input[type="email"],
 .formRow input[type="number"],
+.formRow input[type="password"],
 .formRow select {
   width: 100%;
   max-width: 350px;
@@ -611,13 +612,16 @@
 }
 
 .formRow input[type="text"]:hover:not(:disabled):not(:focus),
-.formRow input[type="number"]:hover:not(:disabled):not(:focus) {
+.formRow input[type="email"]:hover:not(:disabled):not(:focus),
+.formRow input[type="number"]:hover:not(:disabled):not(:focus),
+.formRow input[type="password"]:hover:not(:disabled):not(:focus) {
   border-color: var(--accent-primary);
 }
 
 .formRow input[type="text"]:focus,
 .formRow input[type="email"]:focus,
 .formRow input[type="number"]:focus,
+.formRow input[type="password"]:focus,
 .formRow select:focus {
   outline: none;
   border-color: var(--input-focus-border);
@@ -627,6 +631,7 @@
 .formRow input[type="text"]:disabled,
 .formRow input[type="email"]:disabled,
 .formRow input[type="number"]:disabled,
+.formRow input[type="password"]:disabled,
 .formRow select:disabled {
   background: var(--input-disabled-bg);
   color: var(--text-tertiary);
