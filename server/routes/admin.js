@@ -6,6 +6,7 @@ const UploadSession = require("../models/UploadSession");
 const logger = require("../utils/logger");
 const { requireRole } = require("../middleware/roleAuth");
 const { formatBytes } = require("../utils/storageHelpers");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -752,6 +753,9 @@ router.delete("/users/:userId", async (req, res) => {
 
     // Delete user
     await User.findByIdAndDelete(userId);
+
+    // Invalidate user cache
+    redisCache.invalidateUserCache(userId);
 
     logger.info("User deleted successfully", {
       adminId: req.user.id,

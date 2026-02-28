@@ -118,6 +118,9 @@ router.post("/tags", async (req, res) => {
       tagId: savedTag._id,
     });
 
+    // Invalidate user cache because tag creation affects file properties potential display
+    redisCache.invalidateUserCache(req.user.id);
+
     res.status(201).json(savedTag);
   } catch (error) {
     logger.error("Error creating tag", {
@@ -539,6 +542,9 @@ router.delete("/account", async (req, res) => {
 
     // Delete user account
     await User.findByIdAndDelete(req.user.id);
+
+    // Invalidate user cache
+    redisCache.invalidateUserCache(req.user.id);
 
     logger.info("User account deleted successfully", { userId: req.user.id });
     res.json({ message: "Account deleted successfully" });

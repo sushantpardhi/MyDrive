@@ -1147,6 +1147,9 @@ router.post("/:id/copy", async (req, res) => {
         });
     }
 
+    // Invalidate user cache on file copy
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File copied successfully", item: newFile });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1209,6 +1212,10 @@ router.put("/:id/move", async (req, res) => {
 
     item.parent = parent === "root" ? null : parent;
     await item.save();
+
+    // Invalidate user cache on file move
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "File moved successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
