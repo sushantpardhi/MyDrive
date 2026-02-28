@@ -6,6 +6,7 @@ const UploadSession = require("../models/UploadSession");
 const logger = require("../utils/logger");
 const { requireRole } = require("../middleware/roleAuth");
 const { formatBytes, getDirectorySize } = require("../utils/storageHelpers");
+const { getUserUploadDir } = require("../utils/fileHelpers");
 const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
@@ -753,6 +754,18 @@ router.delete("/users/:userId", async (req, res) => {
 
     // Delete user's upload sessions
     await UploadSession.deleteMany({ userId });
+
+    // Delete user's physical files
+    const userUploadDir = getUserUploadDir(userId);
+    try {
+      await fs.rm(userUploadDir, { recursive: true, force: true });
+    } catch (err) {
+      logger.warn("Failed to delete physical user upload directory", {
+        userId,
+        error: err.message,
+        path: userUploadDir,
+      });
+    }
 
     // Delete user
     await User.findByIdAndDelete(userId);

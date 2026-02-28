@@ -7,6 +7,7 @@ const File = require("../models/File");
 const Folder = require("../models/Folder");
 const logger = require("../utils/logger");
 const { formatBytes } = require("../utils/storageHelpers");
+const { getUserUploadDir } = require("../utils/fileHelpers");
 const { requireAdmin } = require("../middleware/roleAuth");
 const redisCache = require("../utils/redisCache");
 
@@ -508,35 +509,20 @@ router.delete("/account", async (req, res) => {
       email: user.email,
     });
 
-    // Delete all user files
-    const userFiles = await File.find({ owner: user._id });
-    for (const file of userFiles) {
-      const filePath = path.join(__dirname, "../uploads", file.path);
-      try {
-        await fs.unlink(filePath);
-      } catch (err) {
-        logger.warn("Failed to delete file", {
-          fileId: file._id,
-          error: err.message,
-        });
-      }
-    }
+    // Delete all user files from database
     await File.deleteMany({ owner: user._id });
 
-    // Delete all user folders
+    // Delete all user folders from database
     await Folder.deleteMany({ owner: user._id });
 
     // Delete user's upload directory
-    const userUploadDir = path.join(
-      __dirname,
-      "../uploads",
-      user._id.toString(),
-    );
+    const userUploadDir = getUserUploadDir(user._id.toString());
     try {
       await fs.rm(userUploadDir, { recursive: true, force: true });
     } catch (err) {
       logger.warn("Failed to delete user upload directory", {
         error: err.message,
+        path: userUploadDir,
       });
     }
 
