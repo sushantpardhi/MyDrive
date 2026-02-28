@@ -847,6 +847,12 @@
   .authCard {
     max-width: 100%;
     padding: 28px 20px;
+    margin: 0 -10px; /* pull out edge constraints slightly */
+  }
+
+  .authTabs {
+    width: 100%;
+    display: flex;
   }
 }
 
@@ -864,7 +870,7 @@
   }
 
   .statsBar {
-    flex-direction: column;
+    border-radius: 12px;
   }
 
   .statItem:not(:last-child) {

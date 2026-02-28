@@ -79,11 +79,11 @@ const GuestBanner = () => {
           <div className={styles.info}>
             <span className={styles.icon}>⏱️</span>
             <span className={styles.text}>
-              Guest session:{" "}
+              Guest <span className={styles.hideOnMobile}>session:</span>{" "}
               <strong className={isLowTime ? styles.urgentTime : ""}>
                 {formattedTime}
-              </strong>{" "}
-              remaining
+              </strong>
+              <span className={styles.hideOnMobile}> remaining</span>
             </span>
           </div>
 
@@ -95,7 +95,13 @@ const GuestBanner = () => {
                 disabled={extending}
                 title={`${extensionsLeft} extension${extensionsLeft !== 1 ? "s" : ""} left`}
               >
-                {extending ? "Extending..." : `Extend (+15 min)`}
+                {extending ? (
+                  "Extending..."
+                ) : (
+                  <>
+                    Extend <span className={styles.hideOnMobile}>(+15m)</span>
+                  </>
+                )}
               </button>
             )}
             <button
