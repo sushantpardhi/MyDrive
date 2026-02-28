@@ -8,6 +8,7 @@ const Folder = require("../models/Folder");
 const logger = require("../utils/logger");
 const { formatBytes } = require("../utils/storageHelpers");
 const { requireAdmin } = require("../middleware/roleAuth");
+const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
@@ -149,6 +150,21 @@ router.delete("/tags/:tagId", async (req, res) => {
     const deletedTag = user.tags[tagIndex];
     user.tags.splice(tagIndex, 1);
     await user.save();
+
+    // Remove the tag from all files owned by the user
+    await File.updateMany(
+      { owner: user._id, tags: deletedTag.name },
+      { $pull: { tags: deletedTag.name } },
+    );
+
+    // Also remove from folders just in case they were added previously
+    await Folder.updateMany(
+      { owner: user._id, tags: deletedTag.name },
+      { $pull: { tags: deletedTag.name } },
+    );
+
+    // Invalidate user cache because file/folder properties have changed
+    redisCache.invalidateUserCache(req.user.id);
 
     logger.info("Tag deleted", {
       userId: req.user.id,

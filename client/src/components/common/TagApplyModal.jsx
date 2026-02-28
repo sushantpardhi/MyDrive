@@ -203,17 +203,35 @@ const TagApplyModal = ({ isOpen, tagName, onClose }) => {
               return (
                 <button
                   key={`${item.itemType}-${item._id}`}
-                  className={`${styles.itemRow} ${isSelected ? styles.selected : ""} ${alreadyTagged ? styles.alreadyTagged : ""}`}
-                  onClick={() => !alreadyTagged && toggleItem(item)}
-                  disabled={alreadyTagged}
+                  className={`${styles.itemRow} ${item.itemType === "file" && isSelected ? styles.selected : ""} ${item.itemType === "file" && alreadyTagged ? styles.alreadyTagged : ""}`}
+                  onClick={() => {
+                    if (item.itemType === "folder") {
+                      setFolderPath((prev) => [
+                        ...prev,
+                        { _id: item._id, name: displayName },
+                      ]);
+                    } else if (!alreadyTagged) {
+                      toggleItem(item);
+                    }
+                  }}
+                  disabled={item.itemType === "file" && alreadyTagged}
                   title={
-                    alreadyTagged ? "Already tagged" : `Select ${displayName}`
+                    item.itemType === "folder"
+                      ? `Open ${displayName}`
+                      : alreadyTagged
+                        ? "Already tagged"
+                        : `Select ${displayName}`
                   }
                 >
                   <div
-                    className={`${styles.checkbox} ${isSelected ? styles.checked : ""}`}
+                    className={`${styles.checkbox} ${item.itemType === "file" && isSelected ? styles.checked : ""}`}
+                    style={
+                      item.itemType === "folder" ? { visibility: "hidden" } : {}
+                    }
                   >
-                    {isSelected && <Check size={12} />}
+                    {item.itemType === "file" && isSelected && (
+                      <Check size={12} />
+                    )}
                   </div>
                   {item.itemType === "folder" ? (
                     <Folder size={18} className={styles.itemIconFolder} />
@@ -221,23 +239,13 @@ const TagApplyModal = ({ isOpen, tagName, onClose }) => {
                     <File size={18} className={styles.itemIconFile} />
                   )}
                   <span className={styles.itemName}>{displayName}</span>
-                  {alreadyTagged && (
+                  {item.itemType === "file" && alreadyTagged && (
                     <span className={styles.alreadyBadge}>Already tagged</span>
                   )}
                   {item.itemType === "folder" && (
-                    <button
-                      className={styles.openFolderBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFolderPath((prev) => [
-                          ...prev,
-                          { _id: item._id, name: displayName },
-                        ]);
-                      }}
-                      title={`Open ${displayName}`}
-                    >
+                    <div className={styles.openFolderBtn}>
                       <ChevronRight size={16} />
-                    </button>
+                    </div>
                   )}
                 </button>
               );

@@ -1135,6 +1135,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         path={path}
         navigateTo={navigateTo}
         breadcrumbRef={breadcrumbRef}
+        activeTag={searchFilters?.tags?.[0]}
       />
 
       {selectedItems.size > 0 && (
@@ -1151,7 +1152,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
         />
       )}
 
-      <MobileBreadcrumb path={path} navigateTo={navigateTo} />
+      <MobileBreadcrumb
+        path={path}
+        navigateTo={navigateTo}
+        activeTag={searchFilters?.tags?.[0]}
+      />
 
       <DriveContent
         loading={loading}

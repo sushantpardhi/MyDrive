@@ -867,6 +867,10 @@ router.put("/:id/tags", async (req, res) => {
 
     item.tags = tags;
     await item.save();
+
+    // Invalidate user cache on file tags update
+    redisCache.invalidateUserCache(req.user.id);
+
     res.json({ message: "Tags updated successfully", item });
   } catch (error) {
     res.status(500).json({ error: error.message });

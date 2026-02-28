@@ -103,9 +103,13 @@ const SidebarTags = ({ onClose }) => {
     } else {
       updateFilters({ tags: [tag.name] });
 
-      // Navigate to drive if not there
-      if (!location.pathname.startsWith("/drive")) {
-        navigate("/drive");
+      // Navigate to the root of the current drive type
+      let basePath = "/drive";
+      if (location.pathname.startsWith("/shared")) basePath = "/shared";
+      if (location.pathname.startsWith("/trash")) basePath = "/trash";
+
+      if (location.pathname !== basePath) {
+        navigate(basePath);
       }
     }
 
