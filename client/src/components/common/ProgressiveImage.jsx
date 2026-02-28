@@ -4,9 +4,9 @@ import styles from "./ProgressiveImage.module.css";
 
 /**
  * ProgressiveImage Component
- * 
+ *
  * Implements progressive image loading with independent loading of each quality level.
- * 
+ *
  * Features:
  * - Shows blur image immediately when available (instant placeholder)
  * - Replaces with low-quality image when it loads independently
@@ -14,7 +14,7 @@ import styles from "./ProgressiveImage.module.css";
  * - Each quality level loads independently via separate API calls
  * - Smooth transitions with fade effects between quality levels
  * - Graceful fallbacks if any quality level is unavailable
- * 
+ *
  * @param {Object} props
  * @param {string} props.thumbnailUrl - Always shown in file cards (small, optimized)
  * @param {string} props.blurUrl - Tiny blurred placeholder (shown immediately in preview)
@@ -34,13 +34,14 @@ const ProgressiveImage = ({
   mode = "thumbnail", // 'thumbnail' or 'progressive'
   onLoad,
   className = "",
+  imgClassName = "",
   style = {},
 }) => {
   // State to track which image is currently displayed
   const [currentSrc, setCurrentSrc] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadedImages, setLoadedImages] = useState(new Set());
-  
+
   // Refs to track component mount state
   const isMountedRef = useRef(true);
 
@@ -62,16 +63,16 @@ const ProgressiveImage = ({
     if (mode === "progressive") {
       // Priority order: original > low-quality > blur
       // Always show the highest quality available
-      
+
       if (originalUrl) {
         // Original is available - show it
 
         setCurrentSrc(originalUrl);
         setIsLoading(false);
-        
+
         // Mark as loaded and trigger callback
         if (!loadedImages.has(originalUrl)) {
-          setLoadedImages(prev => new Set([...prev, originalUrl]));
+          setLoadedImages((prev) => new Set([...prev, originalUrl]));
           onLoad?.();
         }
       } else if (lowQualityUrl) {
@@ -79,18 +80,18 @@ const ProgressiveImage = ({
 
         setCurrentSrc(lowQualityUrl);
         setIsLoading(false);
-        
+
         if (!loadedImages.has(lowQualityUrl)) {
-          setLoadedImages(prev => new Set([...prev, lowQualityUrl]));
+          setLoadedImages((prev) => new Set([...prev, lowQualityUrl]));
         }
       } else if (blurUrl) {
         // Only blur is available - show it
 
         setCurrentSrc(blurUrl);
         setIsLoading(false); // Hide spinner once we have blur
-        
+
         if (!loadedImages.has(blurUrl)) {
-          setLoadedImages(prev => new Set([...prev, blurUrl]));
+          setLoadedImages((prev) => new Set([...prev, blurUrl]));
         }
       } else {
         // Nothing available yet - show loading
@@ -102,16 +103,28 @@ const ProgressiveImage = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [mode, thumbnailUrl, blurUrl, lowQualityUrl, originalUrl, onLoad, loadedImages]);
+  }, [
+    mode,
+    thumbnailUrl,
+    blurUrl,
+    lowQualityUrl,
+    originalUrl,
+    onLoad,
+    loadedImages,
+  ]);
 
   // Determine if current image is the blur placeholder
   const isBlurPlaceholder = currentSrc === blurUrl;
-  
+
   // Determine if current image is fully loaded
-  const isFullyLoaded = currentSrc === originalUrl && loadedImages.has(originalUrl);
+  const isFullyLoaded =
+    currentSrc === originalUrl && loadedImages.has(originalUrl);
 
   return (
-    <div className={`${styles.progressiveImageContainer} ${className}`} style={style}>
+    <div
+      className={`${styles.progressiveImageContainer} ${className}`}
+      style={style}
+    >
       {currentSrc && (
         <img
           key={currentSrc}
@@ -119,10 +132,10 @@ const ProgressiveImage = ({
           alt={alt}
           className={`${styles.progressiveImage} ${
             isBlurPlaceholder ? styles.blur : ""
-          } ${isFullyLoaded ? styles.loaded : ""}`}
+          } ${isFullyLoaded ? styles.loaded : ""} ${imgClassName}`}
         />
       )}
-      
+
       {/* Loading indicator: only show if no image is displayed yet in progressive mode */}
       {mode === "progressive" && isLoading && !currentSrc && (
         <div className={styles.loadingIndicator}>
@@ -142,6 +155,7 @@ ProgressiveImage.propTypes = {
   mode: PropTypes.oneOf(["thumbnail", "progressive"]),
   onLoad: PropTypes.func,
   className: PropTypes.string,
+  imgClassName: PropTypes.string,
   style: PropTypes.object,
 };
 

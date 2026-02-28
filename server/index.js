@@ -219,10 +219,14 @@ const gracefulShutdown = async (signal) => {
     await redisQueue.disconnect();
     await redisCache.disconnect();
 
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close(false);
       logger.info("MongoDB connection closed");
       process.exit(0);
-    });
+    } catch (err) {
+      logger.error("Error closing MongoDB connection", { error: err.message });
+      process.exit(1);
+    }
   });
 
   // Force close after 10 seconds
@@ -245,6 +249,7 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason, promise) => {
+  console.error("RAW UNHANDLED REJECTION:", reason);
   logger.error("Unhandled Rejection", {
     reason,
     promise,

@@ -1,0 +1,135 @@
+/* PDF Preview */
+.pdfPreview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.controlBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #e2e8f0);
+}
+
+.controlBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pageInfo {
+  color: var(--text-primary, #e2e8f0);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 120px;
+  text-align: center;
+}
+
+.zoomLevel {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 8px;
+}
+
+/* Pages Container */
+.pagesContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #1a1a2e;
+}
+
+.pagesContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pagesContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pagesContainer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.pageWrapper {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+.pageCanvas {
+  display: block;
+}
+
+.pagePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a2a3e;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  min-width: 612px;
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .pageInfo {
+    font-size: 12px;
+    min-width: auto;
+  }
+
+  .pagesContainer {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .pagePlaceholder {
+    min-width: 100%;
+  }
+}

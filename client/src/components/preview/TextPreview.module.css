@@ -1,0 +1,81 @@
+/* Text Preview */
+.textPreview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.lineCount,
+.fileSizeInfo {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+}
+
+.virtualizedBadge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.syntaxContainer {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Virtualized text rendering */
+.virtualContainer {
+  flex: 1;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+.virtualList {
+  font-family:
+    "Fira Code", "Cascadia Code", "JetBrains Mono", Consolas, "Courier New",
+    monospace;
+  font-size: 13px;
+}
+
+.virtualLine {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.virtualLine:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lineNumber {
+  color: rgba(255, 255, 255, 0.25);
+  min-width: 48px;
+  text-align: right;
+  padding-right: 16px;
+  font-size: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.lineContent {
+  color: #d4d4d4;
+  white-space: pre;
+  overflow-x: auto;
+  flex: 1;
+}

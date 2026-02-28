@@ -1,6 +1,7 @@
 const redis = require("redis");
 const logger = require("./logger");
 const path = require("path");
+const { getBaseDir } = require("./fileHelpers");
 
 class RedisQueue {
   constructor() {
@@ -32,7 +33,9 @@ class RedisQueue {
       });
 
       this.client.on("connect", () => {
-        logger.info(`Connected to Redis - ${redisHost}:${redisPort} (DB: ${redisDB})`);
+        logger.info(
+          `Connected to Redis - ${redisHost}:${redisPort} (DB: ${redisDB})`,
+        );
         this.isConnected = true;
       });
 
@@ -105,13 +108,8 @@ class RedisQueue {
       const uniqueFileName = path.basename(jobData.filePath);
       const jobId = path.parse(uniqueFileName).name; // Remove extension
 
-      // Create output directory path: server/uploads/<userId>/processed
-      const outputDir = path.join(
-        process.cwd(),
-        "uploads",
-        jobData.userId,
-        "processed"
-      );
+      // Create output directory path: <BaseDir>/<userId>/processed
+      const outputDir = path.join(getBaseDir(), jobData.userId, "processed");
 
       const job = {
         jobId: jobId,
@@ -190,7 +188,7 @@ class RedisQueue {
         jobId: jobData.jobId,
         items: jobData.items,
         userId: jobData.userId,
-        outputDir: path.join(process.cwd(), "temp"),
+        outputDir: path.join(getBaseDir(), "temp"),
         timestamp: Date.now(),
       };
 

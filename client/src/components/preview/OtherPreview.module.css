@@ -1,0 +1,310 @@
+/* Other Preview */
+.otherPreview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* SVG */
+.svgControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.viewBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.viewBtn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.dims {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.svgRender {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 16px;
+}
+
+.svgImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Markdown */
+.markdownContent {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 32px;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3 {
+  margin-top: 24px;
+}
+.markdownContent code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.markdownContent pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.markdownContent img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.markdownContent a {
+  color: #818cf8;
+}
+.markdownContent blockquote {
+  border-left: 3px solid #6366f1;
+  margin-left: 0;
+  padding-left: 16px;
+  color: var(--text-secondary, #94a3b8);
+}
+.markdownContent table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.markdownContent th,
+.markdownContent td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+/* JSON */
+.jsonContainer {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  background: #1e1e2e;
+}
+
+/* Archive */
+.archiveList {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.archiveHeader {
+  padding: 12px 16px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+}
+
+.archiveItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+}
+
+.archiveItem:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.archiveFolderIcon {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+.archiveFileIcon {
+  color: var(--text-secondary, #94a3b8);
+  flex-shrink: 0;
+}
+.archiveItemName {
+  color: var(--text-primary, #e2e8f0);
+  flex: 1;
+  word-break: break-all;
+}
+.archiveItemSize {
+  color: var(--text-secondary, #94a3b8);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* EPUB */
+.epubControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--bg-secondary, #16213e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.epubViewer {
+  flex: 1;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* Font */
+.fontPreview {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.fontMeta {
+  margin-bottom: 20px;
+}
+
+.fontMeta h3 {
+  color: var(--text-primary, #e2e8f0);
+  font-size: 18px;
+  margin: 0;
+}
+
+.fontMeta p {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.fontInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 24px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.fontInput:focus {
+  border-color: #6366f1;
+}
+
+.fontSample {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fontSizeLabel {
+  display: inline-block;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 11px;
+  margin-bottom: 4px;
+  min-width: 40px;
+}
+
+.fontSample p {
+  color: var(--text-primary, #e2e8f0);
+  margin: 0;
+  word-break: break-word;
+}
+
+/* 3D Model */
+.modelContainer {
+  flex: 1;
+  width: 100%;
+  min-height: 400px;
+}
+
+/* Subtitle */
+.subtitleList {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.subtitleItem {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border-left: 3px solid #6366f1;
+}
+
+.subtitleTime {
+  color: #818cf8;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.subtitleText {
+  color: var(--text-primary, #e2e8f0);
+  font-size: 14px;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .markdownContent {
+    padding: 16px;
+  }
+  .fontPreview {
+    padding: 16px;
+  }
+}

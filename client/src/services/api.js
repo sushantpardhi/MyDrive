@@ -236,6 +236,12 @@ const api = {
   // Get item details with populated shared users
   getFileDetails: (fileId) => axios.get(`${API_URL}/files/${fileId}/details`),
 
+  // Get file metadata (lightweight, for preview modal)
+  getFileMetadata: (fileId) => axios.get(`${API_URL}/files/${fileId}/metadata`),
+
+  // Get file stream URL (for video/audio streaming with Range support)
+  getFileStreamUrl: (fileId) => `${API_URL}/files/stream/${fileId}`,
+
   getFolderDetails: (folderId) =>
     axios.get(`${API_URL}/folders/${folderId}/details`),
 

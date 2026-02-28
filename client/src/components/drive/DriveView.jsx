@@ -807,9 +807,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       const droppedFiles = Array.from(e.dataTransfer.files);
       if (droppedFiles.length > 0) {
         toast.info(`Uploading ${droppedFiles.length} file(s)...`);
+        const targetFolder =
+          currentFolderId === "root" ? null : currentFolderId;
         const newFiles = await uploadFiles(
           droppedFiles,
-          null,
+          targetFolder,
           true,
           (completedFile) => {
             // Add each file to UI as it completes
