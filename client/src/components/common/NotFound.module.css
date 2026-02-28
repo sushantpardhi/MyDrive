@@ -1,0 +1,85 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%; /* Fill the AppLayout main area */
+  height: 100vh; /* Fallback */
+  background: transparent;
+  padding: 40px;
+}
+
+.content {
+  text-align: center;
+  max-width: 500px;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
+  font-size: 140px;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary, #667eea) 0%,
+    var(--accent-secondary, #764ba2) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
+  letter-spacing: -6px;
+  text-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+}
+
+.subtitle {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  margin: 16px 0 12px;
+}
+
+.description {
+  font-size: 16px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.homeButton {
+  display: inline-block;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary, #667eea) 0%,
+    var(--accent-secondary, #764ba2) 100%
+  );
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 14px 32px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  font-size: 16px;
+}
+
+.homeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  color: white;
+  text-decoration: none;
+}
+
+.homeButton:active {
+  transform: translateY(0);
+}
