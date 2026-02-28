@@ -4,7 +4,8 @@
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-tertiary);
   box-shadow: var(--shadow-sm);
-  transition: background-color var(--transition-normal),
+  transition:
+    background-color var(--transition-normal),
     border-color var(--transition-normal);
 }
 
@@ -163,7 +164,8 @@
   background: transparent;
   outline: none;
   font-size: 14px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   color: var(--text-primary);
 }
 
