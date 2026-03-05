@@ -242,6 +242,22 @@ const api = {
   // Get file stream URL (for video/audio streaming with Range support)
   getFileStreamUrl: (fileId) => `${API_URL}/files/stream/${fileId}`,
 
+  // Get a short-lived stream token for mobile/native player auth (5 min TTL)
+  getStreamToken: (fileId) =>
+    axios.get(`${API_URL}/files/stream-token/${fileId}`),
+
+  // Build an authenticated stream URL with token embedded in query string.
+  // Use this instead of getFileStreamUrl when cookies may not be sent (mobile).
+  getAuthenticatedStreamUrl: async (fileId) => {
+    try {
+      const res = await axios.get(`${API_URL}/files/stream-token/${fileId}`);
+      return `${API_URL}/files/stream/${fileId}?token=${res.data.token}`;
+    } catch {
+      // Fallback to plain URL — works on desktop where cookies are sent
+      return `${API_URL}/files/stream/${fileId}`;
+    }
+  },
+
   getFolderDetails: (folderId) =>
     axios.get(`${API_URL}/folders/${folderId}/details`),
 

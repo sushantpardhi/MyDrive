@@ -7,7 +7,7 @@ import logger from "../utils/logger";
 
 const CHUNK_SIZE = process.env.REACT_APP_CHUNK_SIZE
   ? parseInt(process.env.REACT_APP_CHUNK_SIZE)
-  : 1024 * 1024; // 1MB chunks
+  : 5 * 1024 * 1024; // 5MB default — matches server CHUNK_SIZE
 const MAX_RETRIES = process.env.REACT_APP_MAX_RETRIES
   ? parseInt(process.env.REACT_APP_MAX_RETRIES)
   : 3;
@@ -208,9 +208,9 @@ export class ChunkedUploadService {
       concurrency = Math.min(3, Math.max(2, Math.ceil(totalChunks / 50)));
     }
 
-    // Capping concurrency at 3 max to prevent MongoDB WriteConflict
-    // errors during atomical UploadSession chunk insertions on the server.
-    return Math.min(Math.max(concurrency, 2), 3);
+    // Capping concurrency at 6 max — server-side DB now uses atomic $inc so
+    // MongoDB WriteConflict errors are no longer a concern at this level.
+    return Math.min(Math.max(concurrency, 3), 6);
   }
 
   /**
@@ -335,7 +335,19 @@ export class ChunkedUploadService {
         logInterval = this.enableDetailedLogging(uniqueFileId);
       }
 
-      // Step 2: Upload chunks in parallel with concurrency control
+      // Step 2a: Pre-calculate all chunk hashes in parallel before uploading
+      // This saturates the CPU while network is idle, removing per-chunk hash delays
+      logger.info("Pre-calculating chunk hashes in parallel", {
+        fileName: file.name,
+        totalChunks,
+      });
+      await Promise.all(
+        chunks.map(async (chunkData) => {
+          chunkData.hash = await this.calculateChunkHash(chunkData.chunk);
+        }),
+      );
+
+      // Step 2b: Upload chunks in parallel with concurrency control
       const maxConcurrentUploads = this.calculateOptimalConcurrency(
         file.size,
         totalChunks,
@@ -388,15 +400,12 @@ export class ChunkedUploadService {
       };
 
       const updateProgress = (chunkSize) => {
-        // Simple lock mechanism to prevent race conditions
-        while (progress.lock) {
-          // Busy wait - not ideal but simple for this use case
-        }
-        progress.lock = true;
+        // Plain increments are safe in JS — the event loop is single-threaded,
+        // so concurrent async callbacks never truly run simultaneously.
+        // The previous spin-lock was unnecessary and blocked the event loop.
         progress.uploadedChunks++;
         progress.uploadedBytes += chunkSize;
         uploadState.uploadedBytes = progress.uploadedBytes;
-        progress.lock = false;
 
         if (this.onProgress) {
           this.onProgress(

@@ -7,16 +7,24 @@ import api from "../../services/api";
 const AudioPreview = ({ file, onDownload }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [streamUrl, setStreamUrl] = useState(null);
   const audioRef = useRef(null);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
   const analyserRef = useRef(null);
 
-  const streamUrl = api.getFileStreamUrl(file._id);
-
+  // Fetch an authenticated stream URL (with token for mobile browsers)
   useEffect(() => {
+    let cancelled = false;
+    setStreamUrl(null);
     setLoading(true);
     setError(null);
+    api.getAuthenticatedStreamUrl(file._id).then((url) => {
+      if (!cancelled) setStreamUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [file._id]);
 
   // Waveform visualization
@@ -120,12 +128,11 @@ const AudioPreview = ({ file, onDownload }) => {
           ref={audioRef}
           controls
           preload="metadata"
-          crossOrigin="use-credentials"
           onCanPlay={handleCanPlay}
           onError={handleError}
           className={styles.audioPlayer}
         >
-          <source src={streamUrl} />
+          {streamUrl && <source src={streamUrl} />}
           Your browser does not support audio playback.
         </audio>
       </div>
