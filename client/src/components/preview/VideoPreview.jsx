@@ -8,14 +8,21 @@ const VideoPreview = ({ file, onDownload }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [buffering, setBuffering] = useState(false);
+  const [streamUrl, setStreamUrl] = useState(null);
   const videoRef = useRef(null);
 
-  // Build streaming URL (browser handles Range requests natively)
-  const streamUrl = api.getFileStreamUrl(file._id);
-
+  // Fetch an authenticated stream URL (token embedded in URL for mobile browser compat)
   useEffect(() => {
+    let cancelled = false;
+    setStreamUrl(null);
     setLoading(true);
     setError(null);
+    api.getAuthenticatedStreamUrl(file._id).then((url) => {
+      if (!cancelled) setStreamUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [file._id]);
 
   const handleCanPlay = () => {
@@ -59,14 +66,13 @@ const VideoPreview = ({ file, onDownload }) => {
         className={styles.videoPlayer}
         controls
         preload="metadata"
-        crossOrigin="use-credentials"
         onCanPlay={handleCanPlay}
         onWaiting={handleWaiting}
         onPlaying={handlePlaying}
         onError={handleError}
-        style={{ display: loading ? "none" : "block" }}
+        style={{ display: loading || !streamUrl ? "none" : "block" }}
       >
-        <source src={streamUrl} />
+        {streamUrl && <source src={streamUrl} />}
         Your browser does not support video playback.
       </video>
     </div>

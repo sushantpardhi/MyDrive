@@ -17,6 +17,8 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import ProgressiveImage from "../common/ProgressiveImage";
+import VideoPreview from "../preview/VideoPreview";
+import AudioPreview from "../preview/AudioPreview";
 import {
   X,
   Download,
@@ -82,7 +84,7 @@ const parseSubtitles = (text, format) => {
       const lines = block.trim().split("\n");
       if (lines.length >= 3) {
         const timeMatch = lines[1].match(
-          /(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/
+          /(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/,
         );
         if (timeMatch) {
           subtitles.push({
@@ -100,7 +102,7 @@ const parseSubtitles = (text, format) => {
       const lines = block.trim().split("\n");
       if (lines.length >= 2) {
         const timeMatch = lines[0].match(
-          /(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/
+          /(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/,
         );
         if (timeMatch) {
           subtitles.push({
@@ -154,7 +156,7 @@ const Model3D = ({ url, fileType }) => {
         (err) => {
           console.error("Error loading 3D model:", err);
           setError("Failed to load 3D model");
-        }
+        },
       );
     }
   }, [url, fileType]);
@@ -186,14 +188,14 @@ const Model3D = ({ url, fileType }) => {
 };
 
 const PreviewModal = () => {
-  const { 
-    previewModalOpen, 
-    previewFile, 
-    previewFileList, 
-    previewFileIndex, 
+  const {
+    previewModalOpen,
+    previewFile,
+    previewFileList,
+    previewFileIndex,
     closePreviewModal,
     goToPreviousFile,
-    goToNextFile 
+    goToNextFile,
   } = useUIContext();
   const [fileUrl, setFileUrl] = useState(null);
   const [fileContent, setFileContent] = useState(null);
@@ -253,7 +255,7 @@ const PreviewModal = () => {
   // Font viewer state
   const [fontData, setFontData] = useState(null);
   const [fontPreviewText, setFontPreviewText] = useState(
-    "The quick brown fox jumps over the lazy dog"
+    "The quick brown fox jumps over the lazy dog",
   );
 
   // 3D model viewer state
@@ -659,49 +661,52 @@ const PreviewModal = () => {
 
           // Load all image variants independently (parallel, non-blocking)
           // Each variant loads independently and updates the UI as soon as it's ready
-          
+
           // 1. Load blur image immediately (smallest, fastest)
-          api.getFileBlur(previewFile._id)
-            .then(blurResponse => {
+          api
+            .getFileBlur(previewFile._id)
+            .then((blurResponse) => {
               if (!cancelled) {
                 const blurBlobUrl = URL.createObjectURL(blurResponse.data);
                 setBlurUrl(blurBlobUrl);
                 setLoading(false); // Hide loading spinner as soon as blur is ready
-
               }
             })
-            .catch(error => {
-
-            });
+            .catch((error) => {});
 
           // 2. Load low-quality image independently (medium size, medium speed)
-          api.getFileLowQuality(previewFile._id)
-            .then(lowQualityResponse => {
+          api
+            .getFileLowQuality(previewFile._id)
+            .then((lowQualityResponse) => {
               if (!cancelled) {
-                const lowQualityBlobUrl = URL.createObjectURL(lowQualityResponse.data);
+                const lowQualityBlobUrl = URL.createObjectURL(
+                  lowQualityResponse.data,
+                );
                 setLowQualityUrl(lowQualityBlobUrl);
                 setLoading(false); // Hide loading spinner if not already hidden
-
               }
             })
-            .catch(error => {
-
-            });
+            .catch((error) => {});
 
           // 3. Load original image independently (largest, slowest)
-          api.getFilePreview(previewFile._id)
-            .then(originalResponse => {
+          api
+            .getFilePreview(previewFile._id)
+            .then((originalResponse) => {
               if (!cancelled) {
-                const originalBlobUrl = URL.createObjectURL(originalResponse.data);
+                const originalBlobUrl = URL.createObjectURL(
+                  originalResponse.data,
+                );
                 setOriginalUrl(originalBlobUrl);
                 setLoading(false); // Hide loading spinner if not already hidden
-
 
                 // Get image dimensions from original
                 const img = new Image();
                 img.onload = () => {
                   if (!cancelled) {
-                    setImageDimensions({ width: img.width, height: img.height });
+                    setImageDimensions({
+                      width: img.width,
+                      height: img.height,
+                    });
                   }
                 };
                 img.onerror = (e) => {
@@ -713,8 +718,11 @@ const PreviewModal = () => {
                 img.src = originalBlobUrl;
               }
             })
-            .catch(error => {
-              console.error("[PreviewModal] Failed to load original image:", error);
+            .catch((error) => {
+              console.error(
+                "[PreviewModal] Failed to load original image:",
+                error,
+              );
               if (!cancelled) {
                 setError("Failed to load original image");
                 setLoading(false);
@@ -732,33 +740,39 @@ const PreviewModal = () => {
           const url = URL.createObjectURL(response.data);
           setPdfData(url);
         }
-        // Create blob URL for other media files
-        else if (["video", "audio", "svg"].includes(fileType)) {
+        // Video and audio: do NOT download the file as a blob.
+        // The VideoPreview / AudioPreview components stream directly from
+        // /files/stream/:id using the browser's native <video>/<audio> element
+        // which supports Range requests. Downloading the whole file via axios
+        // would block large videos from ever opening.
+        if (fileType === "video" || fileType === "audio") {
+          if (cancelled) return;
+          setLoading(false); // Let the player component handle its own loading state
+          return;
+        }
+
+        // Handle SVG with blob URL (needs content for rendering)
+        if (fileType === "svg") {
           if (cancelled) return;
           const response = await api.getFilePreview(previewFile._id);
-
           const url = URL.createObjectURL(response.data);
           setFileUrl(url);
 
           // Get image dimensions for SVG
-          if (fileType === "svg") {
-            const img = new Image();
-            img.onload = () => {
-              if (!cancelled) {
-                setImageDimensions({ width: img.width, height: img.height });
-              }
-            };
-            img.onerror = (e) => {
-              if (!cancelled) {
-                setError("Failed to load SVG");
-                setLoading(false);
-              }
-            };
-            img.src = url;
-          }
+          const img = new Image();
+          img.onload = () => {
+            if (!cancelled) {
+              setImageDimensions({ width: img.width, height: img.height });
+            }
+          };
+          img.onerror = () => {
+            if (!cancelled) {
+              setError("Failed to load SVG");
+              setLoading(false);
+            }
+          };
+          img.src = url;
         }
-
-        const response = await api.getFilePreview(previewFile._id);
 
         // Read text content for text files
         if (fileType === "text") {
@@ -870,7 +884,7 @@ const PreviewModal = () => {
           if (cancelled) return;
           const parsed = parseSubtitles(
             text,
-            previewFile.name.endsWith(".srt") ? "srt" : "vtt"
+            previewFile.name.endsWith(".srt") ? "srt" : "vtt",
           );
           setSubtitleContent(parsed);
         }
@@ -1311,7 +1325,10 @@ const PreviewModal = () => {
 
       {/* File Counter */}
       {previewFileList.length > 1 && (
-        <div className={styles.fileCounter} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={styles.fileCounter}
+          onClick={(e) => e.stopPropagation()}
+        >
           {previewFileIndex + 1} / {previewFileList.length}
         </div>
       )}
@@ -1576,28 +1593,30 @@ const PreviewModal = () => {
             </div>
           )}
 
-          {!loading && !error && fileType === "image" && (blurUrl || lowQualityUrl || originalUrl) && (
-            <div className={styles.imagePreview}>
-              <ProgressiveImage
-                thumbnailUrl={null}
-                blurUrl={blurUrl}
-                lowQualityUrl={lowQualityUrl}
-                originalUrl={originalUrl}
-                alt={previewFile.name}
-                mode="progressive"
-                onLoad={() => {
-                  // Callback when original image fully loads
-
-                }}
-                style={{
-                  transform: `scale(${
-                    imageZoom / 100
-                  }) rotate(${imageRotation}deg)`,
-                  transition: "transform 0.2s ease",
-                }}
-              />
-            </div>
-          )}
+          {!loading &&
+            !error &&
+            fileType === "image" &&
+            (blurUrl || lowQualityUrl || originalUrl) && (
+              <div className={styles.imagePreview}>
+                <ProgressiveImage
+                  thumbnailUrl={null}
+                  blurUrl={blurUrl}
+                  lowQualityUrl={lowQualityUrl}
+                  originalUrl={originalUrl}
+                  alt={previewFile.name}
+                  mode="progressive"
+                  onLoad={() => {
+                    // Callback when original image fully loads
+                  }}
+                  style={{
+                    transform: `scale(${
+                      imageZoom / 100
+                    }) rotate(${imageRotation}deg)`,
+                    transition: "transform 0.2s ease",
+                  }}
+                />
+              </div>
+            )}
 
           {!loading && !error && fileType === "pdf" && pdfData && (
             <div className={styles.pdfPreview}>
@@ -1609,7 +1628,7 @@ const PreviewModal = () => {
                 onLoadError={(error) => {
                   console.error("Error loading PDF:", error);
                   setError(
-                    `Failed to load PDF: ${error.message || "Unknown error"}`
+                    `Failed to load PDF: ${error.message || "Unknown error"}`,
                   );
                 }}
                 onSourceError={(error) => {
@@ -1655,20 +1674,14 @@ const PreviewModal = () => {
             </div>
           )}
 
-          {!loading && !error && fileType === "video" && fileUrl && (
-            <div className={styles.videoPreview}>
-              <video controls src={fileUrl} className={styles.video}>
-                Your browser does not support the video tag.
-              </video>
-            </div>
+          {/* Video: use VideoPreview which streams via /files/stream/:id with Range support */}
+          {!loading && !error && fileType === "video" && previewFile && (
+            <VideoPreview file={previewFile} onDownload={handleDownload} />
           )}
 
-          {!loading && !error && fileType === "audio" && fileUrl && (
-            <div className={styles.audioPreview}>
-              <audio controls src={fileUrl} className={styles.audio}>
-                Your browser does not support the audio tag.
-              </audio>
-            </div>
+          {/* Audio: use AudioPreview which also streams via /files/stream/:id */}
+          {!loading && !error && fileType === "audio" && previewFile && (
+            <AudioPreview file={previewFile} onDownload={handleDownload} />
           )}
 
           {!loading && !error && fileType === "text" && fileContent && (
@@ -1937,7 +1950,7 @@ const PreviewModal = () => {
             <div className={styles.powerpointPreview}>
               <iframe
                 src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                  fileUrl
+                  fileUrl,
                 )}`}
                 className={styles.officeIframe}
                 title={previewFile.name}
@@ -1951,7 +1964,7 @@ const PreviewModal = () => {
             <div className={styles.googleViewerPreview}>
               <iframe
                 src={`https://docs.google.com/viewer?url=${encodeURIComponent(
-                  fileUrl
+                  fileUrl,
                 )}&embedded=true`}
                 className={styles.googleViewerIframe}
                 title={previewFile.name}

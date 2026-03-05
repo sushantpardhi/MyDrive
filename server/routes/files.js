@@ -33,6 +33,11 @@ const redisQueue = require("../utils/redisQueue");
 const { checkLockStatus } = require("../utils/lockHelpers");
 const { cacheMiddleware } = require("../middleware/cache");
 const redisCache = require("../utils/redisCache");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const STREAM_TOKEN_TTL = 5 * 60; // 5 minutes — enough for the player to establish the stream
 
 const router = express.Router();
 
@@ -179,9 +184,61 @@ router.get("/verify-download/:fileId", async (req, res) => {
   }
 });
 
+// Issue a short-lived stream token for a file (used by mobile/native video players
+// that cannot send cookies or Authorization headers).
+router.get("/stream-token/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Verify the requesting user owns or has access to the file
+    const isOwner = file.owner.toString() === req.user.id;
+    const isShared = file.shared && file.shared.includes(req.user.id);
+    if (!isOwner && !isShared) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Sign a minimal token scoped to this file + user
+    const streamToken = jwt.sign(
+      { userId: req.user.id, fileId: req.params.fileId, purpose: "stream" },
+      JWT_SECRET,
+      { expiresIn: STREAM_TOKEN_TTL },
+    );
+
+    res.json({ token: streamToken, expiresIn: STREAM_TOKEN_TTL });
+  } catch (error) {
+    logger.logError(error, { operation: "stream-token", userId: req.user.id });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Stream file with Range request support (for progressive PDF loading etc.)
 router.get("/stream/:fileId", async (req, res) => {
   try {
+    // Accept a short-lived ?token= query param for mobile/native video players that
+    // cannot send cookies cross-origin. The authenticateToken middleware already ran,
+    // so req.user is set from the cookie; we additionally accept the stream token
+    // as an alternative for mobile where cookies are blocked.
+    if (req.query.token) {
+      try {
+        const decoded = jwt.verify(req.query.token, JWT_SECRET);
+        if (
+          decoded.purpose !== "stream" ||
+          decoded.fileId !== req.params.fileId
+        ) {
+          return res.status(403).json({ error: "Invalid stream token" });
+        }
+        // Token is valid — use it as the authoritative user even on mobile
+        req.user = req.user || { id: decoded.userId };
+      } catch {
+        return res
+          .status(403)
+          .json({ error: "Expired or invalid stream token" });
+      }
+    }
+
     const file = await File.findById(req.params.fileId);
     if (!file) {
       return res.status(404).json({ error: "File not found" });
