@@ -1464,6 +1464,7 @@ router.post(
       }
 
       // Add chunk to session with optimized performance
+      let uploadedCount;
       try {
         const addResult = await session.addChunk({
           index: chunkIndex,
@@ -1474,8 +1475,8 @@ router.post(
           uploadedAt: new Date(),
         });
 
-        // No need for post-verification query - trust the atomic operation
-        // If addResult.success is true, the chunk was added or already existed
+        // uploadedCount comes directly from the atomic $inc — no extra query needed
+        uploadedCount = addResult.uploadedCount;
       } catch (dbError) {
         logger.error(
           `Failed to add chunk ${chunkIndex} to session: ${dbError.message}`,
@@ -1529,18 +1530,6 @@ router.post(
         }
       }
 
-      // Use aggregation for efficient progress calculation without fetching full array
-      const progressData = await UploadSession.aggregate([
-        { $match: { _id: session._id } },
-        {
-          $project: {
-            uploadedCount: { $size: "$uploadedChunks" },
-            totalChunks: 1,
-          },
-        },
-      ]);
-
-      const uploadedCount = progressData[0]?.uploadedCount || 0;
       const progress = (uploadedCount / session.totalChunks) * 100;
 
       // Calculate processing time

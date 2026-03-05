@@ -85,7 +85,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
 
   return new Promise((resolve, reject) => {
     const writeStream = fs.createWriteStream(outputPath, {
-      highWaterMark: 64 * 1024, // 64KB buffer
+      highWaterMark: 512 * 1024, // 512KB buffer — 8× fewer I/O syscalls
     });
     let currentChunk = 0;
     let totalBytesWritten = 0;
@@ -119,7 +119,7 @@ const combineChunks = async (tempDir, totalChunks, outputPath) => {
       const chunkStats = fs.statSync(chunkPath);
 
       const readStream = fs.createReadStream(chunkPath, {
-        highWaterMark: 64 * 1024, // 64KB buffer
+        highWaterMark: 512 * 1024, // 512KB buffer — 8× fewer I/O syscalls
       });
 
       let chunkBytesRead = 0;

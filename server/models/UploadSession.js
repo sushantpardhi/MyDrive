@@ -108,6 +108,11 @@ const UploadSessionSchema = new mongoose.Schema({
     },
     averageSpeed: Number, // bytes per second
   },
+  // Denormalized counter for O(1) progress reads — avoids aggregate query per chunk
+  uploadedCount: {
+    type: Number,
+    default: 0,
+  },
 });
 
 // Index for cleanup of expired sessions
@@ -139,30 +144,41 @@ UploadSessionSchema.methods.addChunk = async function (chunkData) {
 
   while (retryCount < maxRetries) {
     try {
-      // Single atomic operation - no pre-checks, no sorting (happens at read time)
-      // MongoDB efficiently handles duplicates via the query condition
+      // Single atomic operation - push chunk + increment counter in one write
       const result = await this.constructor.findOneAndUpdate(
         {
           _id: this._id,
           "uploadedChunks.index": { $ne: chunkData.index }, // Only add if not exists
         },
         {
-          $push: { uploadedChunks: chunkData }, // No $sort - major performance boost
+          $push: { uploadedChunks: chunkData },
+          $inc: { uploadedCount: 1 }, // Atomically increment counter — no extra query needed
         },
         {
-          new: false, // Don't return document - huge performance gain
-          projection: { _id: 1 }, // Minimal data transfer
+          new: true, // Return updated doc to read new counter
+          projection: { uploadedCount: 1, totalChunks: 1 }, // Fetch only what we need
           maxTimeMS: 3000,
-        }
+        },
       );
 
       if (result) {
-        // Successfully added
-        return { success: true, existed: false };
+        // Successfully added — return the counter so the route doesn't need to aggregate
+        return {
+          success: true,
+          existed: false,
+          uploadedCount: result.uploadedCount,
+        };
       }
 
-      // No result = chunk already exists (OK, not an error)
-      return { success: true, existed: true };
+      // No result = chunk already exists — fetch current count cheaply
+      const countData = await this.constructor.findById(this._id, {
+        uploadedCount: 1,
+      });
+      return {
+        success: true,
+        existed: true,
+        uploadedCount: countData?.uploadedCount ?? 0,
+      };
     } catch (error) {
       lastError = error;
 
@@ -185,7 +201,7 @@ UploadSessionSchema.methods.addChunk = async function (chunkData) {
       } else {
         // Non-retryable error
         throw new Error(
-          `Non-retryable error adding chunk ${chunkData.index}: ${error.message}`
+          `Non-retryable error adding chunk ${chunkData.index}: ${error.message}`,
         );
       }
     }
@@ -193,7 +209,7 @@ UploadSessionSchema.methods.addChunk = async function (chunkData) {
 
   // All retries exhausted
   throw new Error(
-    `Failed to add chunk ${chunkData.index} after ${maxRetries} retries`
+    `Failed to add chunk ${chunkData.index} after ${maxRetries} retries`,
   );
 };
 
@@ -207,7 +223,7 @@ UploadSessionSchema.methods.addChunks = async function (chunksData) {
       // Get current chunk indices to avoid duplicates
       const existingIndices = new Set(this.uploadedChunks.map((c) => c.index));
       const newChunks = chunksData.filter(
-        (chunk) => !existingIndices.has(chunk.index)
+        (chunk) => !existingIndices.has(chunk.index),
       );
 
       if (newChunks.length === 0) {
@@ -227,7 +243,7 @@ UploadSessionSchema.methods.addChunks = async function (chunksData) {
         {
           new: true,
           runValidators: true,
-        }
+        },
       );
 
       if (result) {
@@ -247,7 +263,7 @@ UploadSessionSchema.methods.addChunks = async function (chunksData) {
       }
 
       throw new Error(
-        `Failed to add chunks after ${retryCount} retries: ${error.message}`
+        `Failed to add chunks after ${retryCount} retries: ${error.message}`,
       );
     }
   }
@@ -263,7 +279,7 @@ UploadSessionSchema.methods.isComplete = function () {
 // Method to get missing chunks
 UploadSessionSchema.methods.getMissingChunks = function () {
   const uploadedIndices = new Set(
-    this.uploadedChunks.map((chunk) => chunk.index)
+    this.uploadedChunks.map((chunk) => chunk.index),
   );
   const missingChunks = [];
 
