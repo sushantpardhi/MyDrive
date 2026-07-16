@@ -197,6 +197,8 @@ class RedisQueue {
         status: "PENDING",
         progress: "0",
         message: "Queued",
+        userId: job.userId,
+        itemCount: String(job.items.length),
       });
       // Set expiry for status key (e.g., 24 hours) to prevent clutter
       await this.client.expire(`zip:job:${job.jobId}`, 86400);

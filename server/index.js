@@ -14,11 +14,11 @@ const logger = require("./utils/logger");
 
 // Import and validate environment variables
 const {
-  // validateRequiredEnvVars,
+  validateRequiredEnvVars,
   getConfigSummary,
 } = require("./utils/envValidator");
 try {
-  // validateRequiredEnvVars();
+  validateRequiredEnvVars();
 } catch (error) {
   logger.error("Environment validation failed", { error: error.message });
   process.exit(1);

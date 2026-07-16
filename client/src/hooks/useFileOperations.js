@@ -69,8 +69,11 @@ export const useFileOperations = (
         // Determine which files should use chunked upload (files > 5MB)
         const chunkedThreshold = 5 * 1024 * 1024; // 5MB
 
-        // Start uploads for all files
-        const uploadPromises = files.map(async (file) => {
+        // Max concurrent uploads at a time
+        const MAX_CONCURRENT_UPLOADS = 5;
+
+        // Create upload task for each file (executed later with concurrency limit)
+        const uploadTasks = files.map((file) => async () => {
           const fileId = `${Date.now()}-${Math.random()
             .toString(36)
             .substr(2, 9)}`;
@@ -247,7 +250,31 @@ export const useFileOperations = (
           }
         });
 
-        const results = await Promise.allSettled(uploadPromises);
+        // Run upload tasks with concurrency limit (max 5 at a time)
+        const runWithConcurrency = async (tasks, limit) => {
+          const results = [];
+          const executing = new Set();
+
+          for (const task of tasks) {
+            const promise = task().then(
+              (value) => ({ status: "fulfilled", value }),
+              (reason) => ({ status: "rejected", reason }),
+            );
+            results.push(promise);
+            executing.add(promise);
+
+            const cleanup = () => executing.delete(promise);
+            promise.then(cleanup, cleanup);
+
+            if (executing.size >= limit) {
+              await Promise.race(executing);
+            }
+          }
+
+          return Promise.all(results);
+        };
+
+        const results = await runWithConcurrency(uploadTasks, MAX_CONCURRENT_UPLOADS);
 
         results.forEach((result) => {
           if (result.status === "fulfilled" && result.value) {

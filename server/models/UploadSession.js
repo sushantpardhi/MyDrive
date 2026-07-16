@@ -70,6 +70,7 @@ const UploadSessionSchema = new mongoose.Schema({
       "initiated",
       "uploading",
       "paused",
+      "finalizing",
       "completed",
       "failed",
       "cancelled",

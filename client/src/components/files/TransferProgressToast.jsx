@@ -87,7 +87,7 @@ const TransferProgressToast = ({
     }
   }, [onCancelDownload, onRemoveDownload, onStopUpload]);
 
-  if (!isOpen) return null;
+  // (Early return moved below hooks to satisfy React rules)
 
   const completedCount = allTransferItems.filter(
     ([, transfer]) => transfer.status === "completed"
@@ -279,48 +279,9 @@ const TransferProgressToast = ({
     return "";
   };
 
-  // If no transfers, show idle state
-  if (!hasTransfers) {
-    return (
-      <div
-        className={`${styles.toast} ${styles.idle} ${
-          collapsed ? styles.collapsed : ""
-        } ${isMobile ? styles.mobile : ""} ${isCompact ? styles.compact : ""}`}
-      >
-        <div className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.headerIconWrapper}>
-              <ArrowUpDown size={isMobile ? 14 : 16} />
-            </div>
-            <div className={styles.headerText}>
-              <h4>Transfers</h4>
-              <div className={styles.overallStats}>
-                <span className={styles.statusText}>No active transfers</span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.headerActions}>
-            <button
-              onClick={() => setCollapsed((c) => !c)}
-              className={styles.collapseButton}
-              aria-label={collapsed ? "Expand" : "Collapse"}
-            >
-              {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </div>
-        </div>
-        {!collapsed && (
-          <div className={styles.content}>
-            <div className={styles.emptyState}>
-              <ArrowUpDown size={isMobile ? 28 : 32} className={styles.emptyIcon} />
-              <p className={styles.emptyText}>
-                {isMobile ? "Start a transfer to see progress" : "Upload or download files to see progress here"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  // If no transfers, don't render (visibility now controlled by isOpen prop)
+  if (!isOpen || !hasTransfers) {
+    return null;
   }
 
   // Get header title based on state

@@ -39,6 +39,10 @@ const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const STREAM_TOKEN_TTL = 5 * 60; // 5 minutes — enough for the player to establish the stream
 
+const hasSharedAccess = (sharedList, userId) =>
+  Array.isArray(sharedList) &&
+  sharedList.some((sharedId) => sharedId.toString() === userId);
+
 const router = express.Router();
 
 // Environment configuration
@@ -165,6 +169,13 @@ router.get("/verify-download/:fileId", async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
 
+    const hasAccess =
+      file.owner.toString() === req.user.id ||
+      hasSharedAccess(file.shared, req.user.id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     // Return file metadata for frontend to initiate download
     res.json({
       id: file._id,
@@ -195,7 +206,7 @@ router.get("/stream-token/:fileId", async (req, res) => {
 
     // Verify the requesting user owns or has access to the file
     const isOwner = file.owner.toString() === req.user.id;
-    const isShared = file.shared && file.shared.includes(req.user.id);
+    const isShared = hasSharedAccess(file.shared, req.user.id);
     if (!isOwner && !isShared) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -672,6 +683,17 @@ router.get(
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
+
+      const ownerId =
+        typeof file.owner?._id?.toString === "function"
+          ? file.owner._id.toString()
+          : file.owner.toString();
+      const hasAccess =
+        ownerId === req.user.id || hasSharedAccess(file.shared, req.user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
       res.json(file);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -712,7 +734,7 @@ router.post(
       }
 
       // Add user to shared array if not already shared
-      if (!item.shared.includes(userToShareWith._id)) {
+      if (!hasSharedAccess(item.shared, userToShareWith._id.toString())) {
         item.shared.push(userToShareWith._id);
         await item.save();
 
@@ -1078,7 +1100,7 @@ router.post("/:id/copy", async (req, res) => {
     // Check if user has access to the source file
     const hasAccess =
       sourceFile.owner.toString() === req.user.id ||
-      sourceFile.shared.includes(req.user.id);
+      hasSharedAccess(sourceFile.shared, req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -1122,7 +1144,7 @@ router.post("/:id/copy", async (req, res) => {
 
       const hasTargetAccess =
         targetFolder.owner.toString() === req.user.id ||
-        targetFolder.shared.includes(req.user.id);
+        hasSharedAccess(targetFolder.shared, req.user.id);
       if (!hasTargetAccess) {
         return res
           .status(403)
@@ -1306,6 +1328,14 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       });
     }
 
+    const expectedTotalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+    if (totalChunks !== expectedTotalChunks) {
+      return res.status(400).json({
+        error: "totalChunks does not match fileSize and configured chunk size",
+        expectedTotalChunks,
+      });
+    }
+
     // Get user to check storage limits
     const user = await User.findById(req.user.id);
     if (!user) {
@@ -1337,7 +1367,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       // Check if user has access to the folder
       if (
         folder.owner.toString() !== req.user.id &&
-        !folder.shared.includes(req.user.id)
+        !hasSharedAccess(folder.shared, req.user.id)
       ) {
         return res
           .status(403)
@@ -1467,6 +1497,30 @@ router.post(
         return res.status(400).json({ error: "Chunk size mismatch" });
       }
 
+      const expectedStartByte = chunkIndex * session.chunkSize;
+      const expectedChunkSize = Math.min(
+        session.chunkSize,
+        session.fileSize - expectedStartByte,
+      );
+      const expectedEndByte = expectedStartByte + expectedChunkSize - 1;
+
+      if (
+        isNaN(startByte) ||
+        isNaN(endByte) ||
+        startByte !== expectedStartByte ||
+        endByte !== expectedEndByte ||
+        chunkSize !== expectedChunkSize
+      ) {
+        return res.status(400).json({
+          error: "Invalid chunk byte range",
+          expected: {
+            start: expectedStartByte,
+            end: expectedEndByte,
+            size: expectedChunkSize,
+          },
+        });
+      }
+
       // Check if chunk already exists to avoid duplicates
       const existingChunk = session.uploadedChunks.find(
         (c) => c.index === chunkIndex,
@@ -1493,6 +1547,27 @@ router.post(
           chunkFile.buffer,
         );
       } catch (storageError) {
+        if (storageError.code === "EEXIST") {
+          const latestSession = await UploadSession.findById(session._id, {
+            uploadedCount: 1,
+            totalChunks: 1,
+          });
+          const uploadedCount = latestSession?.uploadedCount ?? 0;
+          const progress =
+            latestSession && latestSession.totalChunks > 0
+              ? (uploadedCount / latestSession.totalChunks) * 100
+              : 0;
+
+          return res.json({
+            message: "Chunk already uploaded",
+            chunkIndex,
+            progress: Math.round(progress * 100) / 100,
+            uploadedChunks: uploadedCount,
+            totalChunks: session.totalChunks,
+            isComplete: uploadedCount === session.totalChunks,
+          });
+        }
+
         logger.logError(storageError, `Failed to store chunk ${chunkIndex}`);
         return res.status(500).json({ error: "Failed to store chunk" });
       }
@@ -1624,16 +1699,52 @@ router.post(
 router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
   try {
     const { uploadId } = req.params;
-    const { fileName, totalChunks, chunks } = req.body;
+    const { fileName } = req.body;
 
-    // Find upload session
-    const session = await UploadSession.findOne({
-      uploadId,
-      owner: req.user.id,
-    });
+    // Acquire an atomic finalization lock to avoid duplicate completion.
+    let session = await UploadSession.findOneAndUpdate(
+      {
+        uploadId,
+        owner: req.user.id,
+        status: { $in: ["initiated", "uploading", "paused", "failed"] },
+      },
+      {
+        $set: { status: "finalizing" },
+      },
+      { new: true },
+    );
 
     if (!session) {
-      return res.status(404).json({ error: "Upload session not found" });
+      const existingSession = await UploadSession.findOne({
+        uploadId,
+        owner: req.user.id,
+      });
+
+      if (!existingSession) {
+        return res.status(404).json({ error: "Upload session not found" });
+      }
+
+      if (existingSession.status === "finalizing") {
+        return res.status(409).json({
+          error: "Upload completion already in progress",
+          retryable: true,
+        });
+      }
+
+      if (existingSession.status === "completed" && existingSession.finalFileId) {
+        const existingFile = await File.findById(existingSession.finalFileId);
+        if (existingFile) {
+          return res.json({
+            message: "File already uploaded",
+            file: existingFile,
+          });
+        }
+      }
+
+      return res.status(409).json({
+        error: "Upload session is not in a completable state",
+        status: existingSession.status,
+      });
     }
 
     // Validate all chunks are uploaded
@@ -1737,10 +1848,11 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       }
 
       // Update session
-      session.status = "completed";
-      session.completedAt = new Date();
-      session.finalFileId = file._id;
-      await session.save();
+      await UploadSession.findByIdAndUpdate(session._id, {
+        status: "completed",
+        completedAt: new Date(),
+        finalFileId: file._id,
+      });
 
       // Invalidate user cache on successful upload
       redisCache.invalidateUserCache(req.user.id);
@@ -1763,8 +1875,9 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
         fs.unlinkSync(finalFilePath);
       }
 
-      session.status = "failed";
-      await session.save();
+      await UploadSession.findByIdAndUpdate(session._id, {
+        status: "failed",
+      });
 
       throw combineError;
     }
@@ -2161,7 +2274,7 @@ router.post("/chunked-download/initiate", async (req, res) => {
     // Check if user has access to the file
     const hasAccess =
       file.owner.toString() === req.user.id ||
-      file.shared.includes(req.user.id);
+      hasSharedAccess(file.shared, req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }

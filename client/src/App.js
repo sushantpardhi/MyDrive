@@ -190,7 +190,10 @@ const AppLayout = () => {
       {/* Global Transfer Progress Toast - Hidden on admin dashboard and profile pages */}
       {!hideTransferModal && (
         <TransferProgressToast
-          isOpen={true}
+          isOpen={
+            Object.keys(uploadProgress || {}).length > 0 ||
+            Object.keys(downloadProgress || {}).length > 0
+          }
           uploadProgress={uploadProgress}
           downloadProgress={downloadProgress}
           onClose={resetProgress}

@@ -276,6 +276,18 @@ const PreviewModal = () => {
   // Quick actions menu state
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Touch gesture state for pinch-to-zoom
+  const [touchState, setTouchState] = useState({
+    initialDistance: null,
+    initialZoom: null,
+    lastTouchX: null,
+    lastTouchY: null,
+  });
+  const imageContainerRef = useRef(null);
+
   // Get file extension and type
   const getFileType = (filename) => {
     if (!filename) return "unknown";
@@ -943,6 +955,14 @@ const PreviewModal = () => {
     };
   }, [previewModalOpen, previewFile]);
 
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // EPUB rendering effect
   useEffect(() => {
     if (epubBook && epubViewerRef.current) {
@@ -1037,6 +1057,71 @@ const PreviewModal = () => {
     setIsDragging(false);
   };
 
+  // Touch gesture handlers for pinch-to-zoom and drag
+  const getTouchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      // Pinch start
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      setTouchState({
+        initialDistance: distance,
+        initialZoom: imageZoom,
+        lastTouchX: null,
+        lastTouchY: null,
+      });
+    } else if (e.touches.length === 1) {
+      // Single finger drag
+      setTouchState((prev) => ({
+        ...prev,
+        lastTouchX: e.touches[0].clientX,
+        lastTouchY: e.touches[0].clientY,
+      }));
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && touchState.initialDistance) {
+      // Pinch zoom
+      e.preventDefault();
+      const currentDistance = getTouchDistance(e.touches);
+      const scale = currentDistance / touchState.initialDistance;
+      const newZoom = Math.min(Math.max(touchState.initialZoom * scale, 25), 500);
+      setImageZoom(Math.round(newZoom));
+    } else if (e.touches.length === 1 && touchState.lastTouchX !== null) {
+      // Single finger pan (only when zoomed in)
+      if (imageZoom > 100) {
+        const deltaX = e.touches[0].clientX - touchState.lastTouchX;
+        const deltaY = e.touches[0].clientY - touchState.lastTouchY;
+        setImagePan((prev) => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY,
+        }));
+        setTouchState((prev) => ({
+          ...prev,
+          lastTouchX: e.touches[0].clientX,
+          lastTouchY: e.touches[0].clientY,
+        }));
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      setTouchState({
+        initialDistance: null,
+        initialZoom: null,
+        lastTouchX: null,
+        lastTouchY: null,
+      });
+    }
+  };
+
   // EPUB navigation
   const handleEpubPrev = () => {
     if (epubRendition) {
@@ -1090,9 +1175,9 @@ const PreviewModal = () => {
     }
   }, [previewFile, fileContent, fileUrl, pdfData]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (skip on mobile devices)
   useEffect(() => {
-    if (!previewModalOpen) return;
+    if (!previewModalOpen || isMobile) return;
 
     const handleKeyDown = (e) => {
       // Show keyboard help
@@ -1225,6 +1310,7 @@ const PreviewModal = () => {
     numPages,
     excelSheets.length,
     epubRendition,
+    isMobile,
     showKeyboardHelp,
     handlePrint,
     handleDownload,
@@ -1358,14 +1444,16 @@ const PreviewModal = () => {
             </div>
           </div>
           <div className={styles.headerActions}>
-            {/* Keyboard shortcuts button */}
-            <button
-              onClick={toggleKeyboardHelp}
-              className={styles.iconButton}
-              title="Keyboard Shortcuts (?)"
-            >
-              <Keyboard size={20} />
-            </button>
+            {/* Keyboard shortcuts button - hidden on mobile */}
+            {!isMobile && (
+              <button
+                onClick={toggleKeyboardHelp}
+                className={styles.iconButton}
+                title="Keyboard Shortcuts (?)"
+              >
+                <Keyboard size={20} />
+              </button>
+            )}
             {/* Type-specific controls */}
             {fileType === "image" && (
               <>
@@ -1521,19 +1609,20 @@ const PreviewModal = () => {
               </>
             )}
 
-            {/* Print button for supported file types */}
-            {(fileType === "pdf" ||
-              fileType === "image" ||
-              fileType === "text" ||
-              fileType === "markdown") && (
-              <button
-                onClick={handlePrint}
-                className={styles.iconButton}
-                title="Print (Ctrl+P)"
-              >
-                <Printer size={20} />
-              </button>
-            )}
+            {/* Print button for supported file types - hidden on mobile */}
+            {!isMobile &&
+              (fileType === "pdf" ||
+                fileType === "image" ||
+                fileType === "text" ||
+                fileType === "markdown") && (
+                <button
+                  onClick={handlePrint}
+                  className={styles.iconButton}
+                  title="Print (Ctrl+P)"
+                >
+                  <Printer size={20} />
+                </button>
+              )}
 
             <button
               onClick={toggleFullScreen}
@@ -1597,7 +1686,14 @@ const PreviewModal = () => {
             !error &&
             fileType === "image" &&
             (blurUrl || lowQualityUrl || originalUrl) && (
-              <div className={styles.imagePreview}>
+              <div
+                className={styles.imagePreview}
+                ref={imageContainerRef}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                style={{ touchAction: "none" }}
+              >
                 <ProgressiveImage
                   thumbnailUrl={null}
                   blurUrl={blurUrl}
@@ -1611,8 +1707,10 @@ const PreviewModal = () => {
                   style={{
                     transform: `scale(${
                       imageZoom / 100
-                    }) rotate(${imageRotation}deg)`,
-                    transition: "transform 0.2s ease",
+                    }) rotate(${imageRotation}deg) translate(${imagePan.x}px, ${imagePan.y}px)`,
+                    transition: isDragging || touchState.initialDistance
+                      ? "none"
+                      : "transform 0.2s ease",
                   }}
                 />
               </div>
@@ -2140,8 +2238,8 @@ const PreviewModal = () => {
           </div>
         )}
 
-        {/* Keyboard Shortcuts Help */}
-        {showKeyboardHelp && (
+        {/* Keyboard Shortcuts Help - hidden on mobile */}
+        {!isMobile && showKeyboardHelp && (
           <div
             className={styles.keyboardHelpOverlay}
             onClick={toggleKeyboardHelp}

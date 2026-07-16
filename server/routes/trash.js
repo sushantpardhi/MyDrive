@@ -36,22 +36,27 @@ router.delete("/empty", async (req, res) => {
         }
       }
 
-      // Delete thumbnail if exists
-      const thumbnailPath = path.join(
-        __dirname,
-        "..",
-        "uploads",
-        "thumbnails",
-        userId,
-        `${file._id}-thumb.jpg`,
-      );
-      if (fs.existsSync(thumbnailPath)) {
-        try {
-          fs.unlinkSync(thumbnailPath);
-        } catch (err) {
-          // Ignore thumbnail deletion errors
+      // Delete worker-processed files if they exist (thumbnail, blur, low-quality)
+      const fileName = path.basename(file.path, path.extname(file.path));
+      const userDir = path.dirname(file.path);
+      const processedDir = path.join(userDir, "processed");
+
+      const processedFiles = [
+        `${fileName}_thumbnail.webp`,
+        `${fileName}_blur.webp`,
+        `${fileName}_low-quality.webp`,
+      ];
+
+      processedFiles.forEach((pFile) => {
+        const filePath = path.join(processedDir, pFile);
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            // Ignore processed file deletion errors
+          }
         }
-      }
+      });
 
       freedSpace += file.size;
       await File.findByIdAndDelete(file._id);
@@ -59,22 +64,6 @@ router.delete("/empty", async (req, res) => {
     }
 
     // 4. Delete folders
-    // For folders, we need to be careful. Ideally, if a folder is in trash, its contents are also in trash (handled by moveToTrash logic).
-    // But if we just delete the folder doc, we might leave orphaned files if they weren't marked correctly?
-    // The markFolderTrashState in folders.js marks descendants.
-    // So all descendants should be trash: true.
-    // However, the `trashedFiles` query above `File.find({ owner: userId, trash: true })` should catch all files even those inside trashed folders.
-    // So we don't need recursive deletion logic here IF the data is consistent.
-    // BUT, `deleteFilesRecursively` in folders.js exists for permanent delete.
-    // Let's look at `deleteFilesRecursively` in `server/routes/folders.js` (imported from shareHelpers?). No, it's imported from shareHelpers in folders.js?
-    // Wait, lines 8-12 of folders.js:
-    // } = require("../utils/shareHelpers");
-    // Let's verify what `deleteFilesRecursively` does.
-    // If I delete a file via `trashedFiles` loop, I am good.
-    // The only thing is empty folders or folders containing subfolders.
-    // `trashedFolders` will get all folders.
-    // If I delete all `trashedFiles` and `trashedFolders`, I should be good.
-
     for (const folder of trashedFolders) {
       await Folder.findByIdAndDelete(folder._id);
       deletedFoldersCount++;
