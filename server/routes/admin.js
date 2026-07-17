@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs").promises;
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const File = require("../models/File");
