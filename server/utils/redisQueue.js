@@ -190,6 +190,7 @@ class RedisQueue {
         userId: jobData.userId,
         outputDir: path.join(getBaseDir(), "temp"),
         timestamp: Date.now(),
+        retryCount: 0,
       };
 
       // Set initial status

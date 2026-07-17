@@ -1,4 +1,5 @@
 const logger = require("../utils/logger");
+const crypto = require("crypto");
 
 /**
  * Middleware to log all incoming HTTP requests
@@ -6,6 +7,10 @@ const logger = require("../utils/logger");
  */
 const requestLogger = (req, res, next) => {
   const startTime = Date.now();
+  const requestId = req.get("x-request-id") || crypto.randomUUID();
+  req.requestId = requestId;
+  req.id = requestId;
+  res.setHeader("x-request-id", requestId);
 
   // Log response when finished - only errors and slow requests
   res.on("finish", () => {
@@ -18,7 +23,7 @@ const requestLogger = (req, res, next) => {
           res.statusCode
         } - ${duration}ms - User: ${req.user?.id || "anonymous"} - IP: ${
           req.ip
-        }`
+        } - RequestID: ${requestId}`
       );
     } else if (duration > 5000) {
       logger.warn(
@@ -26,7 +31,7 @@ const requestLogger = (req, res, next) => {
           res.statusCode
         } - ${duration}ms - User: ${req.user?.id || "anonymous"} - IP: ${
           req.ip
-        }`
+        } - RequestID: ${requestId}`
       );
     }
   });
@@ -41,7 +46,7 @@ const errorLogger = (err, req, res, next) => {
   logger.error(
     `Error on ${req.method} ${req.originalUrl} - User: ${
       req.user?.id || "anonymous"
-    } - ${err.message}`
+    } - RequestID: ${req.requestId || "unknown"} - ${err.message}`
   );
 
   if (err.stack) {

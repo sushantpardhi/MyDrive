@@ -19,6 +19,7 @@ router.use(requireRole("admin"));
  * Get system-wide statistics
  */
 router.get("/stats", async (req, res) => {
+  const startedAt = Date.now();
   try {
     const { startDate, endDate, role } = req.query;
 
@@ -476,13 +477,22 @@ router.get("/stats", async (req, res) => {
       avgFileSizeByType: avgFileSizeByType,
     };
 
+    const durationMs = Date.now() - startedAt;
+
     logger.info("System stats fetched successfully", {
       adminId: req.user.id,
+      requestId: req.requestId,
+      durationMs,
       totalUsers,
       totalFiles,
     });
 
-    res.json(stats);
+    res.json({
+      ...stats,
+      requestId: req.requestId || null,
+      generatedAt: new Date().toISOString(),
+      durationMs,
+    });
   } catch (error) {
     logger.error("Error fetching system stats", {
       adminId: req.user.id,

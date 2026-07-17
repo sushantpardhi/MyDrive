@@ -129,6 +129,7 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
     const skip = (page - 1) * limit;
     const sortBy = req.query.sortBy || "createdAt";
     const sortOrder = req.query.sortOrder || "desc";
+    let currentFolder = null;
 
     // Check if user has access to the parent folder (if not root)
     let isSharedFolder = false;
@@ -137,6 +138,7 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
       if (!parentFolder) {
         return res.status(404).json({ error: "Folder not found" });
       }
+      currentFolder = parentFolder;
 
       // Check if user owns the folder or it's shared with them
       const hasAccess =
@@ -165,6 +167,7 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         if (!trashedFolder) {
           return res.status(404).json({ error: "Folder not found" });
         }
+        currentFolder = trashedFolder;
 
         // When inside Trash, scope results to the selected folder
         query = { parent: folderId, trash: true, owner: req.user.id };
@@ -186,8 +189,10 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
     }
 
     // Get total counts
-    const totalFolders = await Folder.countDocuments(query);
-    const totalFiles = await File.countDocuments(query);
+    const [totalFolders, totalFiles] = await Promise.all([
+      Folder.countDocuments(query),
+      File.countDocuments(query),
+    ]);
 
     // Build sort options
     const order = sortOrder === "asc" ? 1 : -1;
@@ -218,7 +223,8 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         .populate("owner", "name email")
         .sort(sortOptions)
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
 
       // If we have room for files after folders
       const remainingLimit = limit - folders.length;
@@ -226,7 +232,8 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         files = await File.find(query)
           .populate("owner", "name email")
           .sort(sortOptions)
-          .limit(remainingLimit);
+          .limit(remainingLimit)
+          .lean();
       }
     } else {
       // We've passed all folders, only get files
@@ -235,11 +242,16 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         .populate("owner", "name email")
         .sort(sortOptions)
         .skip(fileSkip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
+    }
+
+    if (!currentFolder && folderId) {
+      currentFolder = await Folder.findById(folderId).lean();
     }
 
     res.json({
-      folder: folderId ? await Folder.findById(folderId) : null, // Send current folder metadata
+      folder: currentFolder, // Send current folder metadata
       folders,
       files,
       pagination: {

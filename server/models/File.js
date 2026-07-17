@@ -44,6 +44,8 @@ FileSchema.index({ name: "text" });
 FileSchema.index({ owner: 1, trash: 1, createdAt: -1 });
 FileSchema.index({ owner: 1, trash: 1, type: 1 });
 FileSchema.index({ owner: 1, trash: 1, size: 1 });
+FileSchema.index({ shared: 1, trash: 1, createdAt: -1 });
+FileSchema.index({ shared: 1, parent: 1, trash: 1, createdAt: -1 });
 
 // Pre-save middleware to update timestamp
 FileSchema.pre("save", function (next) {

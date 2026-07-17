@@ -41,11 +41,15 @@ func NewRedisClient(addr string, db int) *RedisClient {
 	return &RedisClient{client: client}
 }
 
-func (rc *RedisClient) FetchJob(ctx context.Context, queueName string) (*Job, error) {
+func (rc *RedisClient) FetchJob(ctx context.Context, queueNames ...string) (*Job, error) {
+	if len(queueNames) == 0 {
+		return nil, errors.New("no queue names provided")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, RedisFetchTimeout)
 	defer cancel()
 
-	results, err := rc.client.BRPop(ctx, RedisFetchTimeout, queueName).Result()
+	results, err := rc.client.BRPop(ctx, RedisFetchTimeout, queueNames...).Result()
 	if err != nil {
 		if err == redis.Nil || errors.Is(err, context.DeadlineExceeded) {
 			return nil, errors.New("timeout")
