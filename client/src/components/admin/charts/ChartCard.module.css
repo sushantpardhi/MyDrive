@@ -36,6 +36,59 @@
   position: relative;
 }
 
+.tableContainer {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tableHeadRow {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.tableHeaderLeft {
+  text-align: left;
+  padding: 8px;
+  color: var(--text-secondary);
+}
+
+.tableHeaderRight {
+  text-align: right;
+  padding: 8px;
+  color: var(--text-secondary);
+}
+
+.tableCell {
+  padding: 8px;
+}
+
+.tableCellRight {
+  text-align: right;
+  padding: 8px;
+}
+
+.tableCellWithDot {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tableDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
 /* Tablet and Desktop */
 @media (min-width: 769px) {
   /* Removed padding overrides as parent grid item handles padding */

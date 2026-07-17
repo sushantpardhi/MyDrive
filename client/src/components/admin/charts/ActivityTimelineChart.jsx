@@ -15,13 +15,25 @@ import {
   AreaChart,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import styles from "./ChartCard.module.css";
 
 const ActivityTimelineChart = ({ activityTimelineData }) => {
   const [graphType, setGraphType] = useState("area");
+  const chartData = Array.isArray(activityTimelineData)
+    ? activityTimelineData
+    : [];
 
-  if (!activityTimelineData || activityTimelineData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Activity Timeline"
+        message="No activity timeline data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["area", "line", "bar", "table"]}
+      />
+    );
   }
 
   const renderChartContent = () => {
@@ -29,7 +41,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
       case "line":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={activityTimelineData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="date"
@@ -72,7 +84,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
       case "bar":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={activityTimelineData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="date"
@@ -110,61 +122,29 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Date
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Uploads
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     New Users
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {activityTimelineData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td style={{ padding: "8px" }}>{entry.date}</td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCell}>{entry.date}</td>
+                    <td className={styles.tableCellRight}>
                       {entry.uploads}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.registrations}
                     </td>
                   </tr>
@@ -182,7 +162,7 @@ const ActivityTimelineChart = ({ activityTimelineData }) => {
         // effectively representing "Area" for the main metric.
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={activityTimelineData}>
+            <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="date"

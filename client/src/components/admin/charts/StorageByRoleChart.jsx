@@ -13,6 +13,7 @@ import {
   Cell,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import { formatFileSize } from "../../../utils/formatters";
 import styles from "./ChartCard.module.css";
 
@@ -25,16 +26,31 @@ const COLORS = {
 
 const StorageByRoleChart = ({ storageByRoleData }) => {
   const [graphType, setGraphType] = useState("bar");
+  const chartData = Array.isArray(storageByRoleData) ? storageByRoleData : [];
+  const getRoleColor = (role) => {
+    const normalizedRole = String(role || "").toLowerCase();
+    return COLORS[normalizedRole] || "#8b5cf6";
+  };
 
-  if (!storageByRoleData || storageByRoleData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Storage Usage by Role"
+        message="No storage-by-role data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["bar", "pie", "donut", "table"]}
+      />
+    );
   }
 
   // Calculate total for percentages
-  const totalStorage = storageByRoleData.reduce(
+  const totalStorage = chartData.reduce(
     (acc, curr) => acc + curr.storage,
     0,
   );
+  const getPercent = (value) =>
+    totalStorage > 0 ? ((value / totalStorage) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -44,7 +60,7 @@ const StorageByRoleChart = ({ storageByRoleData }) => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={storageByRoleData}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={graphType === "donut" ? 60 : 0}
@@ -55,20 +71,13 @@ const StorageByRoleChart = ({ storageByRoleData }) => {
                 stroke="none"
                 isAnimationActive={false}
               >
-                {storageByRoleData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      COLORS[entry.role.toLowerCase()] ||
-                      COLORS[entry.role] ||
-                      "#8b5cf6"
-                    }
-                  />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getRoleColor(entry.role)} />
                 ))}
               </Pie>
               <Tooltip
                 formatter={(value, name) => [
-                  `${formatFileSize(value)} (${((value / totalStorage) * 100).toFixed(1)}%)`,
+                  `${formatFileSize(value)} (${getPercent(value)}%)`,
                   name,
                 ]}
               />
@@ -79,91 +88,42 @@ const StorageByRoleChart = ({ storageByRoleData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Role
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Storage
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Files
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {storageByRoleData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: COLORS[entry.role] || "#8b5cf6",
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: getRoleColor(entry.role) }}
                       ></span>
                       {entry.role}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {formatFileSize(entry.storage)}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.files}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.storage / totalStorage) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.storage)}%
                     </td>
                   </tr>
                 ))}
@@ -176,7 +136,7 @@ const StorageByRoleChart = ({ storageByRoleData }) => {
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={storageByRoleData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="role"
@@ -200,15 +160,8 @@ const StorageByRoleChart = ({ storageByRoleData }) => {
               />
               <Legend wrapperStyle={{ paddingTop: "10px", fontSize: "12px" }} />
               <Bar dataKey="storage" radius={[8, 8, 0, 0]} name="Total Storage">
-                {storageByRoleData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      COLORS[entry.role.toLowerCase()] ||
-                      COLORS[entry.role] ||
-                      "#8b5cf6"
-                    }
-                  />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getRoleColor(entry.role)} />
                 ))}
               </Bar>
             </BarChart>

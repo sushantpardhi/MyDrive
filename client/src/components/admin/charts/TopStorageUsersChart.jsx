@@ -13,6 +13,7 @@ import {
   Legend,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import { formatFileSize } from "../../../utils/formatters";
 import styles from "./ChartCard.module.css";
 
@@ -28,16 +29,27 @@ const COLORS = [
 
 const TopStorageUsersChart = ({ storageByUserData }) => {
   const [graphType, setGraphType] = useState("bar");
+  const chartData = Array.isArray(storageByUserData) ? storageByUserData : [];
 
-  if (!storageByUserData || storageByUserData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Top Storage Users"
+        message="No storage user data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["bar", "pie", "donut", "table"]}
+      />
+    );
   }
 
   // Calculate total for percentages
-  const totalStorage = storageByUserData.reduce(
+  const totalStorage = chartData.reduce(
     (acc, curr) => acc + curr.storage,
     0,
   );
+  const getPercent = (value) =>
+    totalStorage > 0 ? ((value / totalStorage) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -47,7 +59,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={storageByUserData}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={graphType === "donut" ? 60 : 0}
@@ -58,7 +70,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
                 stroke="none"
                 isAnimationActive={false}
               >
-                {storageByUserData.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -67,7 +79,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
               </Pie>
               <Tooltip
                 formatter={(value, name) => [
-                  `${formatFileSize(value)} (${((value / totalStorage) * 100).toFixed(1)}%)`,
+                  `${formatFileSize(value)} (${getPercent(value)}%)`,
                   name,
                 ]}
               />
@@ -78,91 +90,42 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     User
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Storage
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Files
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {storageByUserData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: COLORS[index % COLORS.length],
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       ></span>
                       {entry.name}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {formatFileSize(entry.storage)}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.files}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.storage / totalStorage) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.storage)}%
                     </td>
                   </tr>
                 ))}
@@ -175,7 +138,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={storageByUserData} layout="vertical">
+            <BarChart data={chartData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 type="number"
@@ -205,7 +168,7 @@ const TopStorageUsersChart = ({ storageByUserData }) => {
                 }}
               />
               <Bar dataKey="storage" fill="#8b5cf6" radius={[0, 8, 8, 0]}>
-                {storageByUserData.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}

@@ -13,14 +13,26 @@ import {
   Area,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import { formatFileSize } from "../../../utils/formatters";
 import styles from "./ChartCard.module.css";
 
 const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
   const [graphType, setGraphType] = useState("bar");
+  const chartData = Array.isArray(averageFileSizeData)
+    ? averageFileSizeData
+    : [];
 
-  if (!averageFileSizeData || averageFileSizeData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Average File Size by Type"
+        message="No average file size data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["bar", "line", "area", "table"]}
+      />
+    );
   }
 
   const renderChartContent = () => {
@@ -28,7 +40,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
       case "line":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={averageFileSizeData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="type"
@@ -67,7 +79,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
       case "area":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={averageFileSizeData}>
+            <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="type"
@@ -105,49 +117,23 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Type
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Avg Size
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {averageFileSizeData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td style={{ padding: "8px" }}>{entry.type}</td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCell}>{entry.type}</td>
+                    <td className={styles.tableCellRight}>
                       {formatFileSize(entry.avgSize)}
                     </td>
                   </tr>
@@ -161,7 +147,7 @@ const AverageFileSizeByTypeChart = ({ averageFileSizeData }) => {
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={averageFileSizeData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="type"

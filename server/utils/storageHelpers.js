@@ -314,6 +314,60 @@ async function getDirectorySize(dirPath) {
   return totalSize;
 }
 
+/**
+ * Get filesystem capacity stats for the volume containing dirPath
+ * @param {String} dirPath - Path on the target volume
+ * @returns {Promise<{total: number, used: number, free: number} | null>}
+ */
+async function getFilesystemStats(dirPath) {
+  const resolvedPath = path.resolve(dirPath || ".");
+
+  const findExistingPath = async (targetPath) => {
+    let current = targetPath;
+
+    while (true) {
+      try {
+        await fs.promises.access(current, fs.constants.F_OK);
+        return current;
+      } catch (error) {
+        const parent = path.dirname(current);
+        if (parent === current) {
+          return null;
+        }
+        current = parent;
+      }
+    }
+  };
+
+  try {
+    const existingPath = await findExistingPath(resolvedPath);
+    if (!existingPath || typeof fs.promises.statfs !== "function") {
+      return null;
+    }
+
+    const stats = await fs.promises.statfs(existingPath);
+    const blockSize = Number(stats.bsize || 0);
+    const totalBlocks = Number(stats.blocks || 0);
+    const freeBlocks = Number(stats.bfree || 0);
+
+    if (!blockSize || !totalBlocks) {
+      return null;
+    }
+
+    const total = blockSize * totalBlocks;
+    const free = blockSize * freeBlocks;
+    const used = Math.max(total - free, 0);
+
+    return { total, used, free };
+  } catch (error) {
+    logger.warn("Unable to read filesystem stats", {
+      dirPath: resolvedPath,
+      error: error.message,
+    });
+    return null;
+  }
+}
+
 module.exports = {
   checkStorageAvailability,
   getNotificationThreshold,
@@ -324,4 +378,5 @@ module.exports = {
   validateStorageForUpload,
   NOTIFICATION_THRESHOLDS,
   getDirectorySize,
+  getFilesystemStats,
 };

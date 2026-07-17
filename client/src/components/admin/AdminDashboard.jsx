@@ -9,6 +9,7 @@ import {
   Settings,
   Layout,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import { useAdmin } from "../../contexts";
 import { useAuth } from "../../contexts";
@@ -83,21 +84,36 @@ const ResizeHandle = React.forwardRef(({ handleAxis, ...props }, ref) => {
 
 const ResponsiveGridLayout = withWidth(Responsive);
 
-// Widget Configuration with default sizes
-const WIDGET_CONFIG = {
-  storageCapacity: { w: 2, h: 2, minW: 1, minH: 2 },
-  userDistribution: { w: 2, h: 2, minW: 1, minH: 2 },
-  topFileTypes: { w: 2, h: 3, minW: 2, minH: 3 },
-  storageTrend: { w: 4, h: 3, minW: 2, minH: 2 },
-  topStorageUsers: { w: 2, h: 3, minW: 2, minH: 3 },
-  fileSizeDistribution: { w: 2, h: 3, minW: 2, minH: 2 },
-  activityTimeline: { w: 4, h: 3, minW: 2, minH: 2 },
-  storageByFileType: { w: 2, h: 3, minW: 2, minH: 3 },
-  userGrowthTrend: { w: 4, h: 3, minW: 2, minH: 2 },
-  uploadPatternsByHour: { w: 4, h: 3, minW: 2, minH: 3 },
-  storageByRole: { w: 2, h: 2, minW: 1, minH: 2 },
-  trashStatistics: { w: 2, h: 2, minW: 1, minH: 2 },
-  avgFileSizeByType: { w: 2, h: 3, minW: 2, minH: 3 },
+// Uniform default widget size used by default/reset layouts
+const DEFAULT_WIDGET_LAYOUT = { w: 2, h: 2, minW: 2, minH: 2 };
+
+const normalizeLayoutItem = ({ i, x, y, w, h, minW, minH }) => ({
+  i,
+  x,
+  y,
+  w,
+  h,
+  minW,
+  minH,
+});
+
+const normalizeLayouts = (value = {}) => {
+  const normalized = {};
+
+  Object.entries(value).forEach(([breakpoint, items]) => {
+    normalized[breakpoint] = Array.isArray(items)
+      ? items.map(normalizeLayoutItem)
+      : [];
+  });
+
+  return normalized;
+};
+
+const areLayoutsEqual = (first, second) => {
+  return (
+    JSON.stringify(normalizeLayouts(first)) ===
+    JSON.stringify(normalizeLayouts(second))
+  );
 };
 
 // Import all chart components
@@ -133,6 +149,7 @@ const AdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [resettingLayout, setResettingLayout] = useState(false);
 
   const [layouts, setLayouts] = useState({ lg: [] });
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
@@ -184,6 +201,21 @@ const AdminDashboard = () => {
     return dashboardPreferences?.visibleWidgets || DEFAULT_VISIBLE_WIDGETS;
   }, [dashboardPreferences]);
 
+  const generateDefaultLayout = (widgetIds) => {
+    return widgetIds.map((widgetId, index) => {
+      const config = DEFAULT_WIDGET_LAYOUT;
+      return {
+        i: widgetId,
+        x: (index * 2) % 4,
+        y: Math.floor(index / 2) * 2,
+        w: config.w,
+        h: config.h,
+        minW: config.minW,
+        minH: config.minH,
+      };
+    });
+  };
+
   // Generate initial layout based on visible widgets
   useEffect(() => {
     // Current layout from state or default
@@ -214,15 +246,15 @@ const AdminDashboard = () => {
         });
 
         const addedItems = missingWidgets.map((widgetId, index) => {
-          const config = WIDGET_CONFIG[widgetId] || { w: 2, h: 2 };
+          const config = DEFAULT_WIDGET_LAYOUT;
           return {
             i: widgetId,
             x: (index * 2) % 4,
             y: maxY + Math.floor(index / 2) * 2, // Append at bottom
             w: config.w,
             h: config.h,
-            minW: config.minW || 2,
-            minH: config.minH || 2,
+            minW: config.minW,
+            minH: config.minH,
           };
         });
 
@@ -230,24 +262,17 @@ const AdminDashboard = () => {
       }
 
       // Update state if different
-      if (JSON.stringify(newLayout) !== JSON.stringify(currentLayout)) {
+      if (
+        !areLayoutsEqual({ lg: newLayout }, { lg: currentLayout })
+      ) {
         setLayouts((prev) => ({ ...prev, lg: newLayout }));
       }
     } else {
       // No saved layout, generate default for all visible widgets
-      const generatedLayout = visibleWidgets.map((widgetId, index) => {
-        const config = WIDGET_CONFIG[widgetId] || { w: 2, h: 2 };
-        return {
-          i: widgetId,
-          x: (index * 2) % 4,
-          y: Math.floor(index / 2) * 2,
-          w: config.w,
-          h: config.h,
-          minW: config.minW || 2,
-          minH: config.minH || 2,
-        };
-      });
-      if (JSON.stringify(generatedLayout) !== JSON.stringify(layouts.lg)) {
+      const generatedLayout = generateDefaultLayout(visibleWidgets);
+      if (
+        !areLayoutsEqual({ lg: generatedLayout }, { lg: layouts.lg })
+      ) {
         setLayouts((prev) => ({ ...prev, lg: generatedLayout }));
       }
     }
@@ -255,7 +280,13 @@ const AdminDashboard = () => {
 
   const onLayoutChange = (currentLayout, allLayouts) => {
     // Update local state with ALL layouts to preserve state across breakpoints
-    setLayouts(allLayouts);
+    setLayouts((prev) => {
+      if (areLayoutsEqual(prev, allLayouts)) {
+        return prev;
+      }
+
+      return normalizeLayouts(allLayouts);
+    });
   };
 
   const handleLayoutSave = async (layoutToSave) => {
@@ -283,6 +314,44 @@ const AdminDashboard = () => {
       visibleWidgets,
       widgetOrder: simplifiedLayout,
     });
+  };
+
+  const handleResetLayout = async () => {
+    const confirmed = window.confirm(
+      "Reset dashboard layout to default positions and sizes?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const defaultLayout = generateDefaultLayout(visibleWidgets);
+    const simplifiedLayout = defaultLayout.map(({ i, x, y, w, h }) => ({
+      i,
+      x,
+      y,
+      w,
+      h,
+    }));
+
+    setLayouts({ lg: defaultLayout });
+
+    try {
+      setResettingLayout(true);
+      await saveDashboardPreferences({
+        visibleWidgets,
+        widgetOrder: simplifiedLayout,
+      });
+      logger.info("Dashboard layout reset to default", {
+        widgets: visibleWidgets.length,
+      });
+    } catch (error) {
+      logger.error("Failed to reset dashboard layout", {
+        error: error?.message,
+      });
+    } finally {
+      setResettingLayout(false);
+    }
   };
 
   // Helper to check if a widget is visible
@@ -580,6 +649,15 @@ const AdminDashboard = () => {
             Customize
           </button>
           <button
+            className={styles.actionBtn}
+            onClick={handleResetLayout}
+            disabled={resettingLayout}
+            title="Reset all graph positions to default"
+          >
+            <RotateCcw size={18} />
+            {resettingLayout ? "Resetting" : "Reset Layout"}
+          </button>
+          <button
             className={styles.refreshButton}
             onClick={handleRefresh}
             disabled={refreshing}
@@ -672,7 +750,7 @@ const AdminDashboard = () => {
           layouts={activeLayouts}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
-          rowHeight={100}
+          rowHeight={110}
           isDraggable={isEditing}
           isResizable={isEditing}
           draggableHandle=".drag-handle"

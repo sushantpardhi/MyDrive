@@ -7,7 +7,11 @@ const Folder = require("../models/Folder");
 const UploadSession = require("../models/UploadSession");
 const logger = require("../utils/logger");
 const { requireRole } = require("../middleware/roleAuth");
-const { formatBytes, getDirectorySize } = require("../utils/storageHelpers");
+const {
+  formatBytes,
+  getDirectorySize,
+  getFilesystemStats,
+} = require("../utils/storageHelpers");
 const { getUserUploadDir } = require("../utils/fileHelpers");
 const redisCache = require("../utils/redisCache");
 
@@ -583,6 +587,13 @@ router.get("/stats", async (req, res) => {
       { $limit: 10 },
     ]);
 
+    const uploadDirPath = process.env.UPLOAD_DIR || "/mnt/drive-storage";
+    const serverStorageUsed = await getDirectorySize(uploadDirPath);
+    const filesystemStats =
+      typeof getFilesystemStats === "function"
+        ? await getFilesystemStats(uploadDirPath)
+        : null;
+
     const stats = {
       users: {
         total: totalUsers,
@@ -601,9 +612,10 @@ router.get("/stats", async (req, res) => {
       },
       storage: {
         totalUsed: storageStats[0]?.totalStorage || 0,
-        serverStorageUsed: await getDirectorySize(
-          process.env.UPLOAD_DIR || "/mnt/drive-storage",
-        ),
+        serverStorageUsed,
+        serverTotalCapacity: filesystemStats?.total || null,
+        serverFreeCapacity: filesystemStats?.free || null,
+        serverDiskUsed: filesystemStats?.used || null,
         averageFileSize: storageStats[0]?.avgFileSize || 0,
         largestFile: storageStats[0]?.maxFileSize || 0,
         smallestFile: storageStats[0]?.minFileSize || 0,

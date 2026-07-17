@@ -13,6 +13,7 @@ import {
   Legend,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import { formatFileSize } from "../../../utils/formatters";
 import styles from "./ChartCard.module.css";
 
@@ -29,16 +30,29 @@ const COLORS = [
 
 const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
   const [graphType, setGraphType] = useState("bar");
+  const chartData = Array.isArray(storageByFileTypeData)
+    ? storageByFileTypeData
+    : [];
 
-  if (!storageByFileTypeData || storageByFileTypeData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Storage by File Type"
+        message="No storage-by-type data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["bar", "pie", "donut", "table"]}
+      />
+    );
   }
 
   // Calculate total for percentages
-  const totalSize = storageByFileTypeData.reduce(
+  const totalSize = chartData.reduce(
     (acc, curr) => acc + curr.size,
     0,
   );
+  const getPercent = (value) =>
+    totalSize > 0 ? ((value / totalSize) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -48,7 +62,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={storageByFileTypeData}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={graphType === "donut" ? 60 : 0}
@@ -59,7 +73,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
                 stroke="none"
                 isAnimationActive={false}
               >
-                {storageByFileTypeData.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -68,7 +82,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
               </Pie>
               <Tooltip
                 formatter={(value, name) => [
-                  `${formatFileSize(value)} (${((value / totalSize) * 100).toFixed(1)}%)`,
+                  `${formatFileSize(value)} (${getPercent(value)}%)`,
                   name,
                 ]}
               />
@@ -79,91 +93,42 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Type
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Files
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Size
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {storageByFileTypeData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: COLORS[index % COLORS.length],
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       ></span>
                       {entry.type}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.count}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {formatFileSize(entry.size)}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.size / totalSize) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.size)}%
                     </td>
                   </tr>
                 ))}
@@ -176,7 +141,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={storageByFileTypeData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="type"
@@ -205,7 +170,7 @@ const StorageByFileTypeChart = ({ storageByFileTypeData }) => {
                 }}
               />
               <Bar dataKey="size" fill="#f59e0b" radius={[8, 8, 0, 0]}>
-                {storageByFileTypeData.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
