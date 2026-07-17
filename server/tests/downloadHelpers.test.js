@@ -110,6 +110,7 @@ describe("DownloadHelpers", () => {
 
     expect(selection.totalFiles).toBe(2);
     expect(selection.files).toHaveLength(2);
+    expect(selection.totalSize).toBe(20);
     expect(selection.folderNames).toEqual(["Root"]);
     expect(DownloadHelpers.generateZipFilename(["file-1"], [], [])).toMatch(/^file-/);
     expect(DownloadHelpers.generateZipFilename([], ["root-folder"], ["My Folder"])).toBe("My Folder.zip");

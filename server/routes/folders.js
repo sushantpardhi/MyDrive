@@ -79,10 +79,13 @@ router.get("/verify-download/:folderId", async (req, res) => {
 
     // Count files recursively
     async function countFolderContents(folderId) {
-      const files = await File.find({ parent: folderId, isDeleted: false });
+      const files = await File.find({
+        parent: folderId,
+        trash: { $ne: true },
+      });
       const subfolders = await Folder.find({
         parent: folderId,
-        isDeleted: false,
+        trash: { $ne: true },
       });
 
       let totalFiles = files.length;

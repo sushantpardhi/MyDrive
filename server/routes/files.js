@@ -43,6 +43,36 @@ const hasSharedAccess = (sharedList, userId) =>
   Array.isArray(sharedList) &&
   sharedList.some((sharedId) => sharedId.toString() === userId);
 
+const hasFileDownloadAccess = (file, userId) => {
+  if (!file || !userId || file.trash) {
+    return false;
+  }
+
+  return (
+    file.owner.toString() === userId ||
+    hasSharedAccess(file.shared, userId)
+  );
+};
+
+const getDownloadMimeType = (file) => {
+  const ext = path.extname(file.name || "").toLowerCase();
+  const mimeTypes = {
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogg": "video/ogg",
+    ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo",
+    ".mkv": "video/x-matroska",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".flac": "audio/flac",
+    ".m4a": "audio/mp4",
+    ".pdf": "application/pdf",
+  };
+
+  return mimeTypes[ext] || file.type || file.mimeType || "application/octet-stream";
+};
+
 const router = express.Router();
 
 // Environment configuration
@@ -227,6 +257,21 @@ router.get("/stream-token/:fileId", async (req, res) => {
 
 // Stream file with Range request support (for progressive PDF loading etc.)
 router.get("/stream/:fileId", async (req, res) => {
+  let fileStream = null;
+  let isAborted = false;
+
+  const handleDisconnect = () => {
+    if (isAborted) return;
+    isAborted = true;
+
+    if (fileStream && !fileStream.destroyed) {
+      fileStream.destroy();
+    }
+  };
+
+  req.on("close", handleDisconnect);
+  req.on("aborted", handleDisconnect);
+
   try {
     // Accept a short-lived ?token= query param for mobile/native video players that
     // cannot send cookies cross-origin. The authenticateToken middleware already ran,
@@ -241,8 +286,8 @@ router.get("/stream/:fileId", async (req, res) => {
         ) {
           return res.status(403).json({ error: "Invalid stream token" });
         }
-        // Token is valid — use it as the authoritative user even on mobile
-        req.user = req.user || { id: decoded.userId };
+        // Token is valid — use it as the authoritative user even on mobile.
+        req.user = { id: decoded.userId };
       } catch {
         return res
           .status(403)
@@ -255,6 +300,10 @@ router.get("/stream/:fileId", async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
 
+    if (!hasFileDownloadAccess(file, req.user.id)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     // Verify file exists on disk
     if (!fs.existsSync(file.path)) {
       return res.status(404).json({ error: "File not found on disk" });
@@ -262,7 +311,7 @@ router.get("/stream/:fileId", async (req, res) => {
 
     const stat = fs.statSync(file.path);
     const fileSize = stat.size;
-    const mimeType = file.type || "application/octet-stream";
+    const mimeType = getDownloadMimeType(file);
     const range = req.headers.range;
 
     if (range) {
@@ -280,7 +329,7 @@ router.get("/stream/:fileId", async (req, res) => {
       }
 
       const chunkSize = end - start + 1;
-      const stream = fs.createReadStream(file.path, { start, end });
+      fileStream = fs.createReadStream(file.path, { start, end });
 
       res.status(206).set({
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -290,7 +339,7 @@ router.get("/stream/:fileId", async (req, res) => {
         "Cache-Control": "public, max-age=31536000",
       });
 
-      stream.pipe(res);
+      fileStream.pipe(res);
     } else {
       // No Range header — return full file with Accept-Ranges hint
       res.set({
@@ -300,8 +349,24 @@ router.get("/stream/:fileId", async (req, res) => {
         "Cache-Control": "public, max-age=31536000",
       });
 
-      fs.createReadStream(file.path).pipe(res);
+      fileStream = fs.createReadStream(file.path);
+      fileStream.pipe(res);
     }
+
+    fileStream.on("error", (err) => {
+      if (!isAborted) {
+        logger.logError(err, {
+          operation: "stream",
+          userId: req.user.id,
+          ip: req.ip,
+          additionalInfo: req.params.fileId,
+        });
+
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error streaming file" });
+        }
+      }
+    });
   } catch (error) {
     logger.logError(error, {
       operation: "stream",
@@ -320,6 +385,7 @@ router.get("/stream/:fileId", async (req, res) => {
 router.get("/download/:fileId", async (req, res) => {
   const startTime = Date.now();
   let fileStream = null;
+  let conversionStream = null;
   let isAborted = false;
 
   // Handle client disconnect
@@ -337,6 +403,10 @@ router.get("/download/:fileId", async (req, res) => {
     if (fileStream && !fileStream.destroyed) {
       fileStream.destroy();
     }
+
+    if (conversionStream && !conversionStream.destroyed) {
+      conversionStream.destroy();
+    }
   };
 
   req.on("close", handleDisconnect);
@@ -351,38 +421,40 @@ router.get("/download/:fileId", async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
 
+    if (!hasFileDownloadAccess(file, req.user.id)) {
+      logger.warn("Download failed - access denied", {
+        fileId: req.params.fileId,
+        userId: req.user.id,
+        ip: req.ip,
+      });
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+
     // Check if conversion to JPEG is requested (for HEIC/HEIF files)
     const convertToJpeg = req.query.convert === "true";
     const ext = path.extname(file.name).toLowerCase();
     const isHeicFormat = [".heic", ".heif"].includes(ext);
 
     if (convertToJpeg && isHeicFormat) {
-      // Convert HEIC/HEIF to JPEG on the server
+      // Convert HEIC/HEIF to JPEG as a stream to avoid buffering large files.
       try {
-        const buffer = await sharp(file.path).jpeg({ quality: 90 }).toBuffer();
-
-        if (isAborted) {
-          logger.info("Download cancelled during HEIC conversion", {
-            fileId: req.params.fileId,
-            userId: req.user.id,
-          });
-          return;
-        }
-
-        res.set({
-          "Content-Type": "image/jpeg",
-          "Content-Length": buffer.length,
-          "Cache-Control": "public, max-age=31536000",
-        });
-
-        logger.logFileOperation("download-converted", file, req.user.id, {
-          fileSize: buffer.length,
-          mimeType: "image/jpeg",
-          duration: Date.now() - startTime,
-          ip: req.ip,
-        });
-
-        res.send(buffer);
+        await streamConvertedFileWithDisconnectHandling(
+          res,
+          file,
+          (sourceStream, transformStream) => {
+            fileStream = sourceStream;
+            conversionStream = transformStream;
+          },
+          () => isAborted,
+          logger,
+          req.user.id,
+          req.ip,
+          startTime,
+        );
       } catch (conversionError) {
         if (isAborted) return;
 
@@ -396,7 +468,9 @@ router.get("/download/:fileId", async (req, res) => {
           await streamFileWithDisconnectHandling(
             res,
             file,
-            isAborted,
+            (stream) => {
+              fileStream = stream;
+            },
             () => isAborted,
             logger,
             req.user.id,
@@ -410,7 +484,9 @@ router.get("/download/:fileId", async (req, res) => {
       await streamFileWithDisconnectHandling(
         res,
         file,
-        fileStream,
+        (stream) => {
+          fileStream = stream;
+        },
         () => isAborted,
         logger,
         req.user.id,
@@ -438,7 +514,7 @@ router.get("/download/:fileId", async (req, res) => {
 async function streamFileWithDisconnectHandling(
   res,
   file,
-  streamRef,
+  setStreamRef,
   isAbortedFn,
   logger,
   userId,
@@ -452,11 +528,11 @@ async function streamFileWithDisconnectHandling(
     }
 
     const stream = fs.createReadStream(file.path);
-    streamRef = stream;
+    setStreamRef(stream);
 
     // Set headers
     res.set({
-      "Content-Type": file.mimeType || "application/octet-stream",
+      "Content-Type": getDownloadMimeType(file),
       "Content-Length": file.size,
       "Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"`,
     });
@@ -487,6 +563,110 @@ async function streamFileWithDisconnectHandling(
     stream.on("close", resolve);
 
     stream.pipe(res);
+  });
+}
+
+async function streamConvertedFileWithDisconnectHandling(
+  res,
+  file,
+  setStreamRefs,
+  isAbortedFn,
+  logger,
+  userId,
+  ip,
+  startTime,
+) {
+  return new Promise((resolve, reject) => {
+    if (isAbortedFn()) {
+      resolve();
+      return;
+    }
+
+    const sourceStream = fs.createReadStream(file.path);
+    const transformStream = sharp().jpeg({ quality: 90 });
+    const convertedName = `${path.parse(file.name).name}.jpg`;
+    let convertedBytes = 0;
+    let settled = false;
+
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
+      resolve(convertedBytes);
+    };
+
+    const rejectOnce = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const handleError = (error, operation) => {
+      if (isAbortedFn()) {
+        resolveOnce();
+        return;
+      }
+
+      logger.logError(error, {
+        operation,
+        userId,
+        additionalInfo: file.name,
+      });
+
+      if (!sourceStream.destroyed) {
+        sourceStream.destroy();
+      }
+      if (!transformStream.destroyed) {
+        transformStream.destroy(error);
+      }
+
+      rejectOnce(error);
+    };
+
+    setStreamRefs(sourceStream, transformStream);
+
+    res.set({
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=31536000",
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(convertedName)}"`,
+    });
+
+    transformStream.on("data", (chunk) => {
+      convertedBytes += chunk.length;
+    });
+
+    sourceStream.on("error", (error) => {
+      handleError(error, "HEIC-read-stream");
+    });
+
+    transformStream.on("error", (error) => {
+      handleError(error, "HEIC-conversion-stream");
+    });
+
+    res.on("finish", () => {
+      if (!isAbortedFn()) {
+        logger.logFileOperation("download-converted", file, userId, {
+          fileSize: convertedBytes,
+          mimeType: "image/jpeg",
+          duration: Date.now() - startTime,
+          ip,
+        });
+      }
+      resolveOnce();
+    });
+
+    sourceStream.on("close", () => {
+      if (isAbortedFn()) {
+        resolveOnce();
+      }
+    });
+
+    transformStream.on("close", () => {
+      if (isAbortedFn()) {
+        resolveOnce();
+      }
+    });
+
+    sourceStream.pipe(transformStream).pipe(res);
   });
 }
 
@@ -2736,122 +2916,6 @@ router.get("/chunked-download/sessions", async (req, res) => {
 });
 
 // ========== FILE STREAMING (Range Request Support) ==========
-
-/**
- * Stream file with HTTP Range request support
- * GET /files/stream/:fileId
- * Supports 206 Partial Content for video/audio seeking
- */
-router.get("/stream/:fileId", async (req, res) => {
-  let fileStream = null;
-  let isAborted = false;
-
-  const handleDisconnect = () => {
-    if (isAborted) return;
-    isAborted = true;
-    if (fileStream && !fileStream.destroyed) {
-      fileStream.destroy();
-    }
-  };
-
-  req.on("close", handleDisconnect);
-  req.on("aborted", handleDisconnect);
-
-  try {
-    const file = await File.findById(req.params.fileId);
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
-    }
-
-    // Verify file exists on disk
-    if (!fs.existsSync(file.path)) {
-      return res.status(404).json({ error: "File not found on disk" });
-    }
-
-    const stat = fs.statSync(file.path);
-    const fileSize = stat.size;
-
-    // Determine content type from extension
-    const ext = path.extname(file.name).toLowerCase();
-    const mimeTypes = {
-      ".mp4": "video/mp4",
-      ".webm": "video/webm",
-      ".ogg": "video/ogg",
-      ".mov": "video/quicktime",
-      ".avi": "video/x-msvideo",
-      ".mkv": "video/x-matroska",
-      ".mp3": "audio/mpeg",
-      ".wav": "audio/wav",
-      ".flac": "audio/flac",
-      ".m4a": "audio/mp4",
-      ".pdf": "application/pdf",
-    };
-    const contentType =
-      mimeTypes[ext] || file.type || "application/octet-stream";
-
-    const range = req.headers.range;
-
-    if (range) {
-      // Parse Range header
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-
-      // Validate range
-      if (start >= fileSize || end >= fileSize || start > end) {
-        res.status(416).set({
-          "Content-Range": `bytes */${fileSize}`,
-        });
-        return res.end();
-      }
-
-      const chunkSize = end - start + 1;
-
-      res.status(206).set({
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunkSize,
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600",
-      });
-
-      fileStream = fs.createReadStream(file.path, { start, end });
-    } else {
-      // No Range header — stream entire file
-      res.status(200).set({
-        "Content-Length": fileSize,
-        "Content-Type": contentType,
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=3600",
-      });
-
-      fileStream = fs.createReadStream(file.path);
-    }
-
-    fileStream.on("error", (err) => {
-      if (!isAborted) {
-        logger.logError(err, "Error streaming file", {
-          fileId: req.params.fileId,
-          userId: req.user.id,
-        });
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Error streaming file" });
-        }
-      }
-    });
-
-    fileStream.pipe(res);
-  } catch (error) {
-    if (isAborted) return;
-    logger.logError(error, "Error in stream route", {
-      fileId: req.params.fileId,
-      userId: req.user.id,
-    });
-    if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-});
 
 /**
  * Get file metadata (lightweight, no content streaming)
