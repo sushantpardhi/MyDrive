@@ -1,5 +1,7 @@
 const express = require("express");
 const request = require("supertest");
+const mockSavedUploadSessions = [];
+
 const mockFileModel = {
   findById: jest.fn(),
   find: jest.fn(),
@@ -89,7 +91,6 @@ jest.mock("../models/User", () => ({
   findById: jest.fn(),
   findByIdAndUpdate: jest.fn(),
 }));
-jest.mock("../models/UploadSession", () => ({}));
 jest.mock("../models/DownloadSession", () => ({
   generateDownloadId: jest.fn(() => "download-1"),
   findOne: jest.fn(),
@@ -143,6 +144,22 @@ jest.mock("../utils/logger", () => ({
 
 const jwt = require("jsonwebtoken");
 const sharp = require("sharp");
+const User = require("../models/User");
+
+jest.mock("../models/UploadSession", () => {
+  const UploadSession = jest.fn(function UploadSession(data) {
+    Object.assign(this, data);
+    this.save = jest.fn().mockImplementation(async () => {
+      mockSavedUploadSessions.push(this);
+      return this;
+    });
+  });
+
+  UploadSession.findOne = jest.fn();
+  UploadSession.findByIdAndUpdate = jest.fn();
+
+  return UploadSession;
+});
 
 const buildApp = () => {
   const app = express();
@@ -159,6 +176,12 @@ const buildApp = () => {
 describe("file download routes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSavedUploadSessions.length = 0;
+    User.findById.mockResolvedValue({
+      _id: "user-1",
+      storageLimit: 1024 * 1024 * 1024,
+      storageUsed: 0,
+    });
   });
 
   it("blocks direct file download when the user lacks access", async () => {
@@ -249,5 +272,29 @@ describe("file download routes", () => {
     expect(response.headers["content-type"]).toContain("image/jpeg");
     expect(sharp).toHaveBeenCalledWith();
     expect(sharp.mock.results[0].value.toBuffer).not.toHaveBeenCalled();
+  });
+
+  it("accepts chunked upload initiation when the client uses a larger valid chunk size", async () => {
+    const fileSize = 500 * 1024 * 1024;
+    const clientChunkSize = 5 * 1024 * 1024;
+
+    const app = buildApp();
+    const response = await request(app)
+      .post("/api/files/chunked-upload/initiate")
+      .set("x-test-user", JSON.stringify({ id: "user-1", role: "user" }))
+      .send({
+        fileName: "500MB-CZIPtestfile.org.zip",
+        fileSize,
+        fileType: "application/zip",
+        totalChunks: Math.ceil(fileSize / clientChunkSize),
+        parentFolder: "root",
+        chunkSize: clientChunkSize,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.session.chunkSize).toBe(clientChunkSize);
+    expect(response.body.session.totalChunks).toBe(100);
+    expect(mockSavedUploadSessions).toHaveLength(1);
+    expect(mockSavedUploadSessions[0].chunkSize).toBe(clientChunkSize);
   });
 });

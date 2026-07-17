@@ -1508,7 +1508,22 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       });
     }
 
-    const expectedTotalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+    const requestedChunkSize = chunkSize
+      ? parseInt(chunkSize, 10)
+      : CHUNK_SIZE;
+
+    if (
+      !Number.isInteger(requestedChunkSize) ||
+      requestedChunkSize <= 0 ||
+      requestedChunkSize > MAX_CHUNK_SIZE
+    ) {
+      return res.status(400).json({
+        error: "Invalid chunkSize",
+        maxChunkSize: MAX_CHUNK_SIZE,
+      });
+    }
+
+    const expectedTotalChunks = Math.ceil(fileSize / requestedChunkSize);
     if (totalChunks !== expectedTotalChunks) {
       return res.status(400).json({
         error: "totalChunks does not match fileSize and configured chunk size",
@@ -1565,7 +1580,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       fileSize,
       fileType: fileType || "application/octet-stream",
       totalChunks,
-      chunkSize: CHUNK_SIZE,
+      chunkSize: requestedChunkSize,
       parentFolder: parentFolder === "root" ? null : parentFolder,
       owner: req.user.id,
       tempDirectory: tempDir,
