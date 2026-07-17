@@ -2,10 +2,22 @@ const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 
 // Guest session configuration (can be overridden via env)
-const GUEST_SESSION_DURATION = parseInt(process.env.GUEST_SESSION_DURATION);
-const GUEST_SESSION_EXTENSION = parseInt(process.env.GUEST_SESSION_EXTENSION);
-const GUEST_MAX_EXTENSIONS = parseInt(process.env.GUEST_MAX_EXTENSIONS);
-const GUEST_STORAGE_LIMIT = parseInt(process.env.GUEST_STORAGE_LIMIT);
+const GUEST_SESSION_DURATION = parseInt(
+  process.env.GUEST_SESSION_DURATION || "86400000",
+  10,
+);
+const GUEST_SESSION_EXTENSION = parseInt(
+  process.env.GUEST_SESSION_EXTENSION || "1800000",
+  10,
+);
+const GUEST_MAX_EXTENSIONS = parseInt(
+  process.env.GUEST_MAX_EXTENSIONS || "3",
+  10,
+);
+const GUEST_STORAGE_LIMIT = parseInt(
+  process.env.GUEST_STORAGE_LIMIT || `${500 * 1024 * 1024}`,
+  10,
+);
 
 const GuestSessionSchema = new mongoose.Schema({
   userId: {

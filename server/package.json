@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "sh -c 'pid=$(lsof -ti:8080); if [ -n \"$pid\" ]; then echo \"[dev] Freeing port 8080 (PID: $pid)\"; kill $pid; fi; nodemon index.js'"
   },
   "keywords": [],
   "author": "",

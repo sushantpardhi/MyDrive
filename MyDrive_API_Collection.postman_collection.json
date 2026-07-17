@@ -1,0 +1,1364 @@
+{
+  "info": {
+    "_postman_id": "mydrive-api-collection",
+    "name": "MyDrive API Collection",
+    "description": "Complete API collection for MyDrive - A cloud storage application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"theme\": \"light\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh-token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Guest Auth",
+      "item": [
+        {
+          "name": "Create Guest Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"previousSessionId\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/guest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "guest"]
+            }
+          }
+        },
+        {
+          "name": "Resume Guest Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{guest_session_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/guest/resume",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "guest", "resume"]
+            }
+          }
+        },
+        {
+          "name": "Get Guest Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/guest/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "guest", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "parent",
+                  "value": "root",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Verify File Download",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/verify-download/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "verify-download", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Stream Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/stream-token/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "stream-token", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Stream File",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/stream/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "stream", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Download File",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/download/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "download", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get File Thumbnail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/thumbnail/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "thumbnail", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Blur Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/blur/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "blur", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Low Quality Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/low-quality/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "low-quality", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Search/List Files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files?query=&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Share File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/share",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "share"]
+            }
+          }
+        },
+        {
+          "name": "Unshare File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/share/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "share", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}?permanent=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}"],
+              "query": [
+                {
+                  "key": "permanent",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/restore",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Rename File",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"new_filename.txt\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/rename",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "rename"]
+            }
+          }
+        },
+        {
+          "name": "Update File Tags",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\"tag1\", \"tag2\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Lock File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/lock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "lock"]
+            }
+          }
+        },
+        {
+          "name": "Unlock File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "unlock"]
+            }
+          }
+        },
+        {
+          "name": "Copy File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": \"root\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/copy",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "copy"]
+            }
+          }
+        },
+        {
+          "name": "Move File",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": \"{{folder_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}/move",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}", "move"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chunked Upload",
+      "item": [
+        {
+          "name": "Initialize Chunked Upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"large_file.zip\",\n  \"fileSize\": 1073741824,\n  \"parent\": \"root\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/chunked-upload/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "chunked-upload", "init"]
+            }
+          }
+        },
+        {
+          "name": "Upload Chunk",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chunk",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "chunkIndex",
+                  "value": "0",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/chunked-upload/{{session_id}}/chunk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "chunked-upload", "{{session_id}}", "chunk"]
+            }
+          }
+        },
+        {
+          "name": "Finalize Chunked Upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/chunked-upload/{{session_id}}/finalize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "chunked-upload", "{{session_id}}", "finalize"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Folders",
+      "item": [
+        {
+          "name": "Create Folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Folder\",\n  \"parent\": \"root\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders"]
+            }
+          }
+        },
+        {
+          "name": "Get Folder Contents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Folder Download",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/verify-download/{{folder_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "verify-download", "{{folder_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Folder Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "details"]
+            }
+          }
+        },
+        {
+          "name": "Get Folder Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Share Folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/share",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "share"]
+            }
+          }
+        },
+        {
+          "name": "Unshare Folder",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/share/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "share", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Folder",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}?permanent=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}"],
+              "query": [
+                {
+                  "key": "permanent",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore Folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/restore",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Rename Folder",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Renamed Folder\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/rename",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "rename"]
+            }
+          }
+        },
+        {
+          "name": "Move Folder",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": \"{{target_folder_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/move",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "move"]
+            }
+          }
+        },
+        {
+          "name": "Lock Folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/lock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "lock"]
+            }
+          }
+        },
+        {
+          "name": "Unlock Folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/folders/{{folder_id}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "folders", "{{folder_id}}", "unlock"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"settings\": {\n    \"theme\": \"dark\"\n  },\n  \"preferences\": {}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Tags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/tags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Create Tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Important\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/tags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Delete Tag",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "tags", "{{tag_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Storage Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/storage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "storage"]
+            }
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/search?query=john",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "john"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"current_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/verify-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "verify-password"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"old_password\",\n  \"newPassword\": \"new_password_at_least_8_chars\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Get Account Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"your_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/account",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "account"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shared Items",
+      "item": [
+        {
+          "name": "Get Shared Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/shared?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shared"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Shared Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/shared/search?query=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shared", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trash",
+      "item": [
+        {
+          "name": "Empty Trash",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/trash/empty",
+              "host": ["{{base_url}}"],
+              "path": ["api", "trash", "empty"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Create Admin User (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"securepassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/internal/create-admin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "internal", "create-admin"]
+            },
+            "description": "Create an admin user - INTERNAL ONLY (localhost only). No authentication required but only accessible from localhost (127.0.0.1)"
+          }
+        },
+        {
+          "name": "Promote User to Admin (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"newRole\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/internal/promote-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "internal", "promote-user"]
+            },
+            "description": "Promote an existing user to admin - INTERNAL ONLY (localhost only). No authentication required but only accessible from localhost (127.0.0.1)"
+          }
+        },
+        {
+          "name": "Get System Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/stats?startDate=&endDate=&role=all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "stats"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": ""
+                },
+                {
+                  "key": "endDate",
+                  "value": ""
+                },
+                {
+                  "key": "role",
+                  "value": "all"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?page=1&limit=50&role=&search=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "role",
+                  "value": ""
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}/role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}", "role"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zip Downloads",
+      "item": [
+        {
+          "name": "Request Zip Download",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileIds\": [\"file_id_1\", \"file_id_2\"],\n  \"folderIds\": [\"folder_id_1\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/downloads/zip",
+              "host": ["{{base_url}}"],
+              "path": ["api", "downloads", "zip"]
+            }
+          }
+        },
+        {
+          "name": "Get Zip Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/downloads/zip/{{job_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "downloads", "zip", "{{job_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Download Completed Zip",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/downloads/zip/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "downloads", "zip", "{{job_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "file_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "folder_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tag_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guest_session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "target_folder_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

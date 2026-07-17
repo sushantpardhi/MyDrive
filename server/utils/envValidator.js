@@ -82,6 +82,10 @@ const validateRequiredEnvVars = () => {
     "MAX_CHUNK_SIZE",
     "UPLOAD_TIMEOUT",
     "SESSION_LOOKUP_TIMEOUT",
+    "GUEST_SESSION_DURATION",
+    "GUEST_SESSION_EXTENSION",
+    "GUEST_MAX_EXTENSIONS",
+    "GUEST_STORAGE_LIMIT",
   ];
 
   numericVars.forEach((key) => {
