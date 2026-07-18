@@ -229,7 +229,7 @@ export const AdminProvider = ({ children }) => {
           userId: params.userId,
           mimeType: params.mimeType,
           search: params.search,
-          sortBy: params.sortBy || "uploadedAt",
+          sortBy: params.sortBy || "createdAt",
           sortOrder: params.sortOrder || "desc",
         };
 

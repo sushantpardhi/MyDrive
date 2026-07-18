@@ -144,7 +144,7 @@ const FileManagement = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [mimeTypeFilter, setMimeTypeFilter] = useState("");
-  const [sortBy, setSortBy] = useState("uploadedAt");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
   const [selectedFile, setSelectedFile] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -428,7 +428,7 @@ const FileManagement = () => {
                 loadFiles({ page: 1, sortBy: e.target.value });
               }}
             >
-              <option value="uploadedAt">Date Uploaded</option>
+              <option value="createdAt">Date Uploaded</option>
               <option value="name">Name</option>
               <option value="size">Size</option>
             </select>

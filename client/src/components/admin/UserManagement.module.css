@@ -57,6 +57,14 @@
   font-weight: 400;
 }
 
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
 .headerActions {
   display: flex;
   gap: 0.5rem;
