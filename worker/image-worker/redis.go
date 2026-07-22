@@ -17,6 +17,7 @@ const (
 	QueueNameFailed   = "image:failed"
 	QueueNameDone     = "image:done"
 	RedisFetchTimeout = 5 * time.Second
+	QueueKeyTTL       = 7 * 24 * time.Hour
 )
 
 type RedisClient struct {
@@ -80,6 +81,10 @@ func (rc *RedisClient) PushToQueue(ctx context.Context, queueName string, job *J
 		return fmt.Errorf("failed to push to queue %s: %v", queueName, err)
 	}
 
+	if err := rc.client.Expire(ctx, queueName, QueueKeyTTL).Err(); err != nil {
+		return fmt.Errorf("failed to set ttl on queue %s: %v", queueName, err)
+	}
+
 	return nil
 }
 
@@ -93,6 +98,10 @@ func (rc *RedisClient) MoveToSuccess(ctx context.Context, job *Job) error {
 		return fmt.Errorf("failed to push to done queue: %v", err)
 	}
 
+	if err := rc.client.Expire(ctx, QueueNameDone, QueueKeyTTL).Err(); err != nil {
+		return fmt.Errorf("failed to set ttl on done queue: %v", err)
+	}
+
 	return nil
 }
 
@@ -104,6 +113,10 @@ func (rc *RedisClient) MoveToFailed(ctx context.Context, job *Job) error {
 
 	if err := rc.client.LPush(ctx, QueueNameFailed, string(jobJSON)).Err(); err != nil {
 		return fmt.Errorf("failed to push to failed queue: %v", err)
+	}
+
+	if err := rc.client.Expire(ctx, QueueNameFailed, QueueKeyTTL).Err(); err != nil {
+		return fmt.Errorf("failed to set ttl on failed queue: %v", err)
 	}
 
 	return nil

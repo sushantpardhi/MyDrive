@@ -7,6 +7,11 @@ export const useUploadProgress = () => {
   const progressDataRef = useRef({});
   const chunkServicesRef = useRef({}); // Store chunk service instances
 
+  const hasPendingUploads = (uploads) =>
+    Object.values(uploads).some((upload) =>
+      ["queued", "uploading", "paused", "cancelling"].includes(upload.status),
+    );
+
   const registerChunkService = useCallback((fileId, chunkService) => {
     chunkServicesRef.current[fileId] = chunkService;
   }, []);
@@ -15,6 +20,33 @@ export const useUploadProgress = () => {
     delete chunkServicesRef.current[fileId];
   }, []);
 
+  const queueUpload = useCallback(
+    (fileId, fileName, fileSize, isChunked = false, totalChunks = 0) => {
+      setUploadProgress((prev) => ({
+        ...prev,
+        [fileId]: {
+          fileName,
+          fileSize,
+          uploadedBytes: 0,
+          progress: 0,
+          speed: 0,
+          startTime: Date.now(),
+          status: "queued",
+          type: "upload",
+          isChunked,
+          totalChunks,
+          uploadedChunks: 0,
+          chunkStatus: isChunked ? new Array(totalChunks).fill("pending") : [],
+          retryAttempts: 0,
+          failedChunks: [],
+        },
+      }));
+
+      setUploading(true);
+    },
+    []
+  );
+
   const startUpload = useCallback(
     (fileId, fileName, fileSize, isChunked = false, totalChunks = 0) => {
       const startTime = Date.now();
@@ -22,6 +54,7 @@ export const useUploadProgress = () => {
       setUploadProgress((prev) => ({
         ...prev,
         [fileId]: {
+          ...(prev[fileId] || {}),
           fileName,
           fileSize,
           uploadedBytes: 0,
@@ -186,9 +219,7 @@ export const useUploadProgress = () => {
 
       // Check if any uploads are still active
       setUploadProgress((current) => {
-        const hasActiveUploads = Object.values(current).some(
-          (upload) => upload.status === "uploading"
-        );
+        const hasActiveUploads = hasPendingUploads(current);
 
         if (!hasActiveUploads) {
           setUploading(false);
@@ -260,10 +291,7 @@ export const useUploadProgress = () => {
 
       // Check if any uploads are still active
       setUploadProgress((current) => {
-        const hasActiveUploads = Object.values(current).some(
-          (upload) =>
-            upload.status === "uploading" || upload.status === "cancelling"
-        );
+        const hasActiveUploads = hasPendingUploads(current);
 
         if (!hasActiveUploads) {
           setUploading(false);
@@ -434,10 +462,7 @@ export const useUploadProgress = () => {
 
     // Check if any uploads are still active
     setUploadProgress((current) => {
-      const hasActiveUploads = Object.values(current).some(
-        (upload) =>
-          upload.status === "uploading" || upload.status === "cancelling"
-      );
+      const hasActiveUploads = hasPendingUploads(current);
 
       if (!hasActiveUploads) {
         setUploading(false);
@@ -456,6 +481,7 @@ export const useUploadProgress = () => {
   return {
     uploading,
     uploadProgress,
+    queueUpload,
     startUpload,
     updateProgress,
     updateChunkProgress,

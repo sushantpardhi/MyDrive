@@ -75,6 +75,7 @@ export const TransferProvider = ({ children }) => {
     // Upload methods and state
     uploadProgress: uploadProgressHook.uploadProgress,
     uploading: uploadProgressHook.uploading,
+    queueUpload: uploadProgressHook.queueUpload,
     startUpload: uploadProgressHook.startUpload,
     updateProgress: uploadProgressHook.updateProgress,
     completeUpload: completeUploadWithRefresh, // Use wrapped version that refreshes storage

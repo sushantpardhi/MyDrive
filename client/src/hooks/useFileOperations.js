@@ -69,24 +69,17 @@ export const useFileOperations = (
         // Determine which files should use chunked upload (files > 5MB)
         const chunkedThreshold = 5 * 1024 * 1024; // 5MB
 
-        // Max concurrent uploads at a time
-        // Set to 10 to balance throughput with rate limiting
-        // With 500 uploads/15min limit on server, 10 concurrent is safe
-        const MAX_CONCURRENT_UPLOADS = 10;
-
-        // Create upload task for each file (executed later with concurrency limit)
-        const uploadTasks = files.map((file) => async () => {
-          const fileId = `${Date.now()}-${Math.random()
+        const uploadPlans = files.map((file, index) => {
+          const fileId = `upload-${Date.now()}-${index}-${Math.random()
             .toString(36)
-            .substr(2, 9)}`;
-
+            .slice(2, 8)}`;
           const shouldUseChunked = useChunked && file.size > chunkedThreshold;
           const totalChunks = shouldUseChunked
             ? Math.ceil(file.size / CHUNK_SIZE)
             : 0;
 
-          if (uploadProgressHook) {
-            uploadProgressHook.startUpload(
+          if (uploadProgressHook?.queueUpload) {
+            uploadProgressHook.queueUpload(
               fileId,
               file.name,
               file.size,
@@ -95,46 +88,74 @@ export const useFileOperations = (
             );
           }
 
-          try {
-            let response;
-            let uploadAttempt = 0;
-            const maxUploadAttempts = 2; // Retry once on failure
+          return {
+            file,
+            fileId,
+            shouldUseChunked,
+            totalChunks,
+          };
+        });
 
-            const performUpload = async () => {
-            if (shouldUseChunked) {
-              // Use chunked upload service
-              const chunkService = createChunkedUploadService(
-                api,
-                // Overall progress callback
-                (
-                  uploadFileId,
-                  uploadedBytes,
-                  totalBytes,
-                  uploadedChunks,
-                  totalChunksCount,
-                ) => {
-                  if (uploadProgressHook) {
-                    uploadProgressHook.updateProgress(
+        // Max concurrent uploads at a time
+        // Set to 10 to balance throughput with rate limiting
+        // With 500 uploads/15min limit on server, 10 concurrent is safe
+        const MAX_CONCURRENT_UPLOADS = 10;
+
+        // Create upload task for each file (executed later with concurrency limit)
+        const uploadTasks = uploadPlans.map(
+          ({ file, fileId, shouldUseChunked, totalChunks }) =>
+            async () => {
+
+              if (uploadProgressHook) {
+                uploadProgressHook.startUpload(
+                  fileId,
+                  file.name,
+                  file.size,
+                  shouldUseChunked,
+                  totalChunks,
+                );
+              }
+
+              try {
+                let response;
+                let uploadAttempt = 0;
+                const maxUploadAttempts = 2; // Retry once on failure
+
+                const performUpload = async () => {
+                if (shouldUseChunked) {
+                  // Use chunked upload service
+                  const chunkService = createChunkedUploadService(
+                    api,
+                    // Overall progress callback
+                    (
                       uploadFileId,
                       uploadedBytes,
                       totalBytes,
                       uploadedChunks,
                       totalChunksCount,
-                    );
-                  }
-                },
-                // Chunk progress callback
-                (uploadFileId, chunkIndex, chunkStatus, retryAttempt) => {
-                  if (uploadProgressHook) {
-                    uploadProgressHook.updateChunkProgress(
-                      uploadFileId,
-                      chunkIndex,
-                      chunkStatus,
-                      retryAttempt,
-                    );
-                  }
-                },
-              );
+                    ) => {
+                      if (uploadProgressHook) {
+                        uploadProgressHook.updateProgress(
+                          uploadFileId,
+                          uploadedBytes,
+                          totalBytes,
+                          uploadedChunks,
+                          totalChunksCount,
+                        );
+                      }
+                    },
+                    // Chunk progress callback
+                    (uploadFileId, chunkIndex, chunkStatus, retryAttempt) => {
+                      if (uploadProgressHook) {
+                        uploadProgressHook.updateChunkProgress(
+                          uploadFileId,
+                          chunkIndex,
+                          chunkStatus,
+                          retryAttempt,
+                        );
+                      }
+                    },
+                  );
 
               // Register chunk service for pause/resume/cancel operations
               if (
@@ -197,8 +218,8 @@ export const useFileOperations = (
               }
             }
 
-            return response;
-            }; // End of performUpload function
+              return response;
+              }; // End of performUpload function
 
             // Retry logic for upload failures
             while (uploadAttempt < maxUploadAttempts) {
@@ -217,17 +238,17 @@ export const useFileOperations = (
               }
             }
 
-            const fileData = response.data;
+                const fileData = response.data;
 
-            // Immediately notify about completed file
-            if (onFileComplete) {
-              onFileComplete(fileData);
-            }
+                // Immediately notify about completed file
+                if (onFileComplete) {
+                  onFileComplete(fileData);
+                }
 
-            return fileData;
-          } catch (error) {
-            // Check if error is from paused upload
-            const isPausedError = error.message === "Upload paused by user";
+                return fileData;
+              } catch (error) {
+                // Check if error is from paused upload
+                const isPausedError = error.message === "Upload paused by user";
 
             if (uploadProgressHook) {
               // Don't mark as failed if paused
@@ -271,9 +292,10 @@ export const useFileOperations = (
               }
             }
 
-            return null;
-          }
-        });
+                return null;
+              }
+            },
+        );
 
         // Run upload tasks with concurrency limit using proper semaphore pattern
         const runWithConcurrency = async (tasks, limit) => {
