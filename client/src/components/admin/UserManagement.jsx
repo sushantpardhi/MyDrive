@@ -24,6 +24,27 @@ import logger from "../../utils/logger";
 import styles from "./UserManagement.module.css";
 
 const UserManagement = () => {
+  const BYTES_IN_UNIT = {
+    MB: 1024 * 1024,
+    GB: 1024 * 1024 * 1024,
+    TB: 1024 * 1024 * 1024 * 1024,
+  };
+
+  const STORAGE_QUOTA_OPTIONS = [
+    { key: "5GB", label: "5 GB", bytes: 5 * 1024 * 1024 * 1024 },
+    { key: "10GB", label: "10 GB", bytes: 10 * 1024 * 1024 * 1024 },
+    { key: "20GB", label: "20 GB", bytes: 20 * 1024 * 1024 * 1024 },
+    { key: "50GB", label: "50 GB", bytes: 50 * 1024 * 1024 * 1024 },
+    { key: "100GB", label: "100 GB", bytes: 100 * 1024 * 1024 * 1024 },
+  ];
+
+  const ROLE_DEFAULT_STORAGE_LIMITS = {
+    admin: -1,
+    family: -1,
+    user: 5 * 1024 * 1024 * 1024,
+    guest: 500 * 1024 * 1024,
+  };
+
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const {
@@ -32,6 +53,7 @@ const UserManagement = () => {
     loading,
     fetchUsers,
     updateUserRole,
+    updateUserStorageLimit,
     deleteUser,
   } = useAdmin();
 
@@ -42,7 +64,12 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showStorageModal, setShowStorageModal] = useState(false);
   const [newRole, setNewRole] = useState("");
+  const [selectedQuotaOption, setSelectedQuotaOption] = useState("10GB");
+  const [isUnlimitedStorage, setIsUnlimitedStorage] = useState(false);
+  const [storageLimitAmount, setStorageLimitAmount] = useState("");
+  const [storageLimitUnit, setStorageLimitUnit] = useState("GB");
   const [isExporting, setIsExporting] = useState(false);
 
   // Calculate statistics from current users data
@@ -148,6 +175,55 @@ const UserManagement = () => {
     setShowRoleModal(true);
   };
 
+  const handleStorageLimitChange = (user) => {
+    if (!user) return;
+
+    const currentLimit = user.storageLimit;
+
+    if (currentLimit === -1) {
+      setIsUnlimitedStorage(true);
+      setSelectedQuotaOption("10GB");
+      setStorageLimitUnit("GB");
+      setStorageLimitAmount("10");
+      setShowStorageModal(true);
+      return;
+    }
+
+    setIsUnlimitedStorage(false);
+
+    const matchingPreset = STORAGE_QUOTA_OPTIONS.find(
+      (option) => option.bytes === currentLimit,
+    );
+
+    if (matchingPreset) {
+      setSelectedQuotaOption(matchingPreset.key);
+      setStorageLimitUnit("GB");
+      setStorageLimitAmount((matchingPreset.bytes / BYTES_IN_UNIT.GB).toString());
+      setShowStorageModal(true);
+      return;
+    }
+
+    if (Number.isFinite(currentLimit) && currentLimit > 0) {
+      setSelectedQuotaOption("custom");
+      if (currentLimit >= BYTES_IN_UNIT.TB) {
+        setStorageLimitUnit("TB");
+        setStorageLimitAmount((currentLimit / BYTES_IN_UNIT.TB).toFixed(2));
+      } else if (currentLimit >= BYTES_IN_UNIT.GB) {
+        setStorageLimitUnit("GB");
+        setStorageLimitAmount((currentLimit / BYTES_IN_UNIT.GB).toFixed(2));
+      } else {
+        setStorageLimitUnit("MB");
+        setStorageLimitAmount((currentLimit / BYTES_IN_UNIT.MB).toFixed(2));
+      }
+    } else {
+      setSelectedQuotaOption("10GB");
+      setStorageLimitUnit("GB");
+      setStorageLimitAmount("10");
+    }
+
+    setShowStorageModal(true);
+  };
+
   const confirmRoleChange = async () => {
     if (!selectedUser || !newRole) return;
 
@@ -163,6 +239,53 @@ const UserManagement = () => {
         userId: selectedUser._id,
       });
       alert(error.response?.data?.error || "Failed to update user role");
+    }
+  };
+
+  const confirmStorageLimitChange = async () => {
+    if (!selectedUser) return;
+
+    let storageLimitBytes;
+
+    if (isUnlimitedStorage) {
+      storageLimitBytes = -1;
+    } else if (selectedQuotaOption === "custom") {
+      const amountNumber = Number(storageLimitAmount);
+      if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+        alert("Please enter a valid storage amount greater than 0");
+        return;
+      }
+      storageLimitBytes = Math.round(amountNumber * BYTES_IN_UNIT[storageLimitUnit]);
+    } else {
+      const selectedPreset = STORAGE_QUOTA_OPTIONS.find(
+        (option) => option.key === selectedQuotaOption,
+      );
+      if (!selectedPreset) {
+        alert("Please select a valid storage quota");
+        return;
+      }
+      storageLimitBytes = selectedPreset.bytes;
+    }
+
+    try {
+      await updateUserStorageLimit(selectedUser._id, storageLimitBytes);
+      setShowStorageModal(false);
+      setSelectedUser(null);
+      setSelectedQuotaOption("10GB");
+      setIsUnlimitedStorage(false);
+      setStorageLimitAmount("");
+      setStorageLimitUnit("GB");
+      logger.info("User storage limit updated", {
+        userId: selectedUser._id,
+        storageLimitBytes,
+      });
+    } catch (error) {
+      logger.error("Failed to update user storage limit", {
+        error: error.message,
+        userId: selectedUser._id,
+        storageLimitBytes,
+      });
+      alert(error.response?.data?.error || "Failed to update storage limit");
     }
   };
 
@@ -204,6 +327,20 @@ const UserManagement = () => {
       default:
         return "";
     }
+  };
+
+  const getQuotaStatus = (user) => {
+    const defaultLimit = ROLE_DEFAULT_STORAGE_LIMITS[user.role];
+
+    if (defaultLimit !== undefined && user.storageLimit === defaultLimit) {
+      return { label: "Default", className: styles.quotaDefault };
+    }
+
+    if (user.storageLimit === -1) {
+      return { label: "Unlimited", className: styles.quotaUnlimited };
+    }
+
+    return { label: "Custom", className: styles.quotaCustom };
   };
 
   return (
@@ -407,6 +544,7 @@ const UserManagement = () => {
                   <tr>
                     <th>User</th>
                     <th>Role</th>
+                    <th>Quota Plan</th>
                     <th>Storage Used</th>
                     <th>Files</th>
                     <th>Member Since</th>
@@ -439,6 +577,13 @@ const UserManagement = () => {
                           )}`}
                         >
                           {user.role}
+                        </span>
+                      </td>
+                      <td data-label="Quota Plan">
+                        <span
+                          className={`${styles.quotaBadge} ${getQuotaStatus(user).className}`}
+                        >
+                          {getQuotaStatus(user).label}
                         </span>
                       </td>
                       <td data-label="Storage Used">
@@ -479,6 +624,26 @@ const UserManagement = () => {
                             }
                           >
                             <Edit2 size={16} />
+                          </button>
+                          <button
+                            className={styles.actionButton}
+                            onClick={() => {
+                              setSelectedUser(user);
+                              handleStorageLimitChange(user);
+                            }}
+                            title={
+                              user.role === "guest"
+                                ? "Guest storage cannot be changed"
+                                : "Update Storage Limit"
+                            }
+                            disabled={user.role === "guest"}
+                            style={
+                              user.role === "guest"
+                                ? { opacity: 0.5, cursor: "not-allowed" }
+                                : {}
+                            }
+                          >
+                            <HardDrive size={16} />
                           </button>
                           {user._id !== currentUser.id && (
                             <button
@@ -626,6 +791,141 @@ const UserManagement = () => {
                 disabled={!newRole || newRole === selectedUser.role}
               >
                 Update Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Storage Limit Modal */}
+      {showStorageModal && selectedUser && (
+        <div
+          className={styles.modal}
+          onClick={() => {
+            setShowStorageModal(false);
+            setSelectedQuotaOption("10GB");
+            setIsUnlimitedStorage(false);
+            setStorageLimitAmount("");
+            setStorageLimitUnit("GB");
+          }}
+        >
+          <div
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className={styles.modalTitle}>Update Storage Limit</h2>
+            <p className={styles.modalDescription}>
+              Set a new storage limit for <strong>{selectedUser.name}</strong>
+            </p>
+
+            <div className={styles.formRow}>
+              <label className={styles.formLabel}>Predefined Quotas</label>
+              <div className={styles.quotaOptionsGrid}>
+                {STORAGE_QUOTA_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    className={`${styles.quotaOptionButton} ${
+                      selectedQuotaOption === option.key && !isUnlimitedStorage
+                        ? styles.quotaOptionActive
+                        : ""
+                    }`}
+                    onClick={() => {
+                      setIsUnlimitedStorage(false);
+                      setSelectedQuotaOption(option.key);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.quotaOptionButton} ${
+                    selectedQuotaOption === "custom" && !isUnlimitedStorage
+                      ? styles.quotaOptionActive
+                      : ""
+                  }`}
+                  onClick={() => {
+                    setIsUnlimitedStorage(false);
+                    setSelectedQuotaOption("custom");
+                    if (!storageLimitAmount) {
+                      setStorageLimitAmount("10");
+                    }
+                  }}
+                >
+                  Custom
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <label className={styles.formLabel} htmlFor="storage-limit-input">
+                Storage Amount
+              </label>
+              <div className={styles.storageInputGroup}>
+                <input
+                  id="storage-limit-input"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  className={styles.storageInput}
+                  value={storageLimitAmount}
+                  onChange={(e) => setStorageLimitAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  disabled={selectedQuotaOption !== "custom" || isUnlimitedStorage}
+                />
+                <select
+                  className={styles.storageUnitSelect}
+                  value={storageLimitUnit}
+                  onChange={(e) => setStorageLimitUnit(e.target.value)}
+                  disabled={selectedQuotaOption !== "custom" || isUnlimitedStorage}
+                >
+                  <option value="MB">MB</option>
+                  <option value="GB">GB</option>
+                  <option value="TB">TB</option>
+                </select>
+              </div>
+
+              <label className={styles.unlimitedCheckboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={isUnlimitedStorage}
+                  onChange={(e) => setIsUnlimitedStorage(e.target.checked)}
+                />
+                Set Unlimited
+              </label>
+
+              <p className={styles.helperText}>
+                Current limit: {" "}
+                {selectedUser.storageLimit === -1
+                  ? "Unlimited"
+                  : formatFileSize(selectedUser.storageLimit)}
+              </p>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalButtonSecondary}
+                onClick={() => {
+                  setShowStorageModal(false);
+                  setSelectedQuotaOption("10GB");
+                  setIsUnlimitedStorage(false);
+                  setStorageLimitAmount("");
+                  setStorageLimitUnit("GB");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.modalButtonPrimary}
+                onClick={confirmStorageLimitChange}
+                disabled={
+                  !isUnlimitedStorage &&
+                  selectedQuotaOption === "custom" &&
+                  (!storageLimitAmount || Number(storageLimitAmount) <= 0)
+                }
+              >
+                Update Storage
               </button>
             </div>
           </div>

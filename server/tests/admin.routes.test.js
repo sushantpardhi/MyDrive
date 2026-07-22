@@ -346,6 +346,66 @@ describe("admin routes", () => {
     expect(updateResponse.body.user.role).toBe("family");
 
     await request(app)
+      .put("/api/admin/users/user-1/storage-limit")
+      .send({ storageLimitBytes: "invalid" })
+      .expect(400);
+
+    User.findById.mockReset();
+    User.findById.mockReturnValueOnce({ select: jest.fn().mockResolvedValue(null) });
+    await request(app)
+      .put("/api/admin/users/missing-user/storage-limit")
+      .send({ storageLimitBytes: 10 * 1024 * 1024 * 1024 })
+      .expect(404);
+
+    User.findById.mockReset();
+    User.findById.mockReturnValueOnce({ select: jest.fn().mockResolvedValue(createUserDoc({ role: "guest" })) });
+    const guestStorageUpdateResponse = await request(app)
+      .put("/api/admin/users/user-guest/storage-limit")
+      .send({ storageLimitBytes: 10 * 1024 * 1024 * 1024 })
+      .expect(200);
+    expect(guestStorageUpdateResponse.body.user.storageLimit).toBe(
+      10 * 1024 * 1024 * 1024,
+    );
+
+    User.findById.mockReset();
+    User.findById.mockReturnValueOnce({
+      select: jest.fn().mockResolvedValue(
+        createUserDoc({
+          _id: "user-limit-1",
+          role: "user",
+          storageUsed: 1 * 1024 * 1024 * 1024,
+          storageLimit: 5 * 1024 * 1024 * 1024,
+        }),
+      ),
+    });
+    const reducedStorageResponse = await request(app)
+      .put("/api/admin/users/user-limit-1/storage-limit")
+      .send({ storageLimitBytes: 4 * 1024 * 1024 * 1024 })
+      .expect(200);
+    expect(reducedStorageResponse.body.user.storageLimit).toBe(
+      4 * 1024 * 1024 * 1024,
+    );
+
+    User.findById.mockReset();
+    User.findById.mockReturnValueOnce({
+      select: jest.fn().mockResolvedValue(
+        createUserDoc({
+          _id: "user-limit-2",
+          role: "user",
+          storageUsed: 2 * 1024 * 1024 * 1024,
+          storageLimit: 5 * 1024 * 1024 * 1024,
+        }),
+      ),
+    });
+    const storageUpdateResponse = await request(app)
+      .put("/api/admin/users/user-limit-2/storage-limit")
+      .send({ storageLimitBytes: 12 * 1024 * 1024 * 1024 })
+      .expect(200);
+    expect(storageUpdateResponse.body.user.storageLimit).toBe(
+      12 * 1024 * 1024 * 1024,
+    );
+
+    await request(app)
       .delete("/api/admin/users/admin-1")
       .expect(400);
 

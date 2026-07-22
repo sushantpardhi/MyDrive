@@ -927,8 +927,11 @@ router.post(
           });
       }
 
-      // Invalidate user cache on file share
-      redisCache.invalidateUserCache(req.user.id);
+      // Invalidate cache for both the owner and the newly shared user
+      redisCache.invalidateUsersCache([
+        req.user.id,
+        userToShareWith._id.toString(),
+      ]);
 
       res.json({
         message: "File shared successfully",
@@ -963,8 +966,8 @@ router.delete("/:id/share/:userId", async (req, res) => {
     );
     await item.save();
 
-    // Invalidate user cache on file unshare
-    redisCache.invalidateUserCache(req.user.id);
+    // Invalidate cache for both the owner and the removed shared user
+    redisCache.invalidateUsersCache([req.user.id, userId]);
 
     res.json({
       message: "User removed from shared list",

@@ -428,8 +428,11 @@ router.post(
           });
       }
 
-      // Invalidate user cache on bulk share
-      redisCache.invalidateUserCache(req.user.id);
+      // Invalidate cache for both the owner and the shared-with user
+      redisCache.invalidateUsersCache([
+        req.user.id,
+        userToShareWith._id.toString(),
+      ]);
 
       res.json({
         message: `${sharedItems.length} items shared successfully`,

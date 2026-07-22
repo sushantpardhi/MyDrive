@@ -107,39 +107,62 @@ class RedisCache {
    * @param {string} userId - ID of the user whose cache should be cleared
    */
   async invalidateUserCache(userId) {
+    return this.invalidateUsersCache([userId]);
+  }
+
+  /**
+   * Invalidate cached data for multiple users
+   * @param {string[]} userIds - IDs of users whose cache should be cleared
+   */
+  async invalidateUsersCache(userIds) {
     if (!this.isConnected || !this.client) {
       return false;
     }
 
+    const normalizedUserIds = [
+      ...new Set(
+        (Array.isArray(userIds) ? userIds : [userIds])
+          .filter(Boolean)
+          .map((userId) => userId.toString()),
+      ),
+    ];
+
+    if (normalizedUserIds.length === 0) {
+      return true;
+    }
+
     try {
-      const matchPattern = `cache:${userId}:*`;
-      let cursor = "0"; // v4 expects string cursor
       let deletedCount = 0;
 
-      do {
-        // Use SCAN to safely find keys matching the pattern without blocking Redis
-        const result = await this.client.scan(cursor, {
-          MATCH: matchPattern,
-          COUNT: 100,
-        });
+      for (const userId of normalizedUserIds) {
+        const matchPattern = `cache:${userId}:*`;
+        let cursor = "0"; // v4 expects string cursor
 
-        cursor = result.cursor.toString();
-        const keys = result.keys;
+        do {
+          // Use SCAN to safely find keys matching the pattern without blocking Redis
+          const result = await this.client.scan(cursor, {
+            MATCH: matchPattern,
+            COUNT: 100,
+          });
 
-        if (keys.length > 0) {
-          await this.client.unlink(keys); // Unlink is non-blocking (faster than DEL)
-          deletedCount += keys.length;
-        }
-      } while (cursor !== "0");
+          cursor = result.cursor.toString();
+          const keys = result.keys;
+
+          if (keys.length > 0) {
+            await this.client.unlink(keys); // Unlink is non-blocking (faster than DEL)
+            deletedCount += keys.length;
+          }
+        } while (cursor !== "0");
+      }
 
       logger.info("User cache invalidated", {
-        userId,
+        userIds: normalizedUserIds,
         deletedKeys: deletedCount,
       });
       return true;
     } catch (error) {
       logger.error("Redis Cache Invalidation Error", {
-        userId,
+        userIds: normalizedUserIds,
         error: error.message,
       });
       return false;

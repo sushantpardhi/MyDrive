@@ -887,6 +887,70 @@ router.put("/users/:userId/role", async (req, res) => {
 });
 
 /**
+ * PUT /api/admin/users/:userId/storage-limit
+ * Set user's storage limit
+ */
+router.put("/users/:userId/storage-limit", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { storageLimitBytes } = req.body;
+
+    if (!Number.isInteger(storageLimitBytes)) {
+      return res.status(400).json({
+        error: "storageLimitBytes must be an integer value in bytes",
+      });
+    }
+
+    const MAX_STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024 * 1024; // 10TB
+
+    if (
+      storageLimitBytes !== -1 &&
+      (storageLimitBytes <= 0 || storageLimitBytes > MAX_STORAGE_LIMIT_BYTES)
+    ) {
+      return res.status(400).json({
+        error: "storageLimitBytes must be -1 (unlimited) or between 1 byte and 10TB",
+      });
+    }
+
+    logger.info("Admin updating user storage limit", {
+      adminId: req.user.id,
+      targetUserId: userId,
+      storageLimitBytes,
+    });
+
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentLimit = user.storageLimit;
+
+    user.storageLimit = storageLimitBytes;
+    await user.save();
+
+    logger.info("User storage limit updated successfully", {
+      adminId: req.user.id,
+      targetUserId: userId,
+      oldStorageLimit: currentLimit,
+      newStorageLimit: user.storageLimit,
+    });
+
+    res.json({
+      message: "User storage limit updated successfully",
+      user: user.toObject(),
+    });
+  } catch (error) {
+    logger.error("Error updating user storage limit", {
+      adminId: req.user.id,
+      targetUserId: req.params.userId,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to update user storage limit" });
+  }
+});
+
+/**
  * DELETE /api/admin/users/:userId
  * Delete a user and all their files
  */

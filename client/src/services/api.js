@@ -523,6 +523,10 @@ const api = {
     getUserDetails: (userId) => axios.get(`${API_URL}/admin/users/${userId}`),
     updateUserRole: (userId, role) =>
       axios.put(`${API_URL}/admin/users/${userId}/role`, { role }),
+    updateUserStorageLimit: (userId, storageLimitBytes) =>
+      axios.put(`${API_URL}/admin/users/${userId}/storage-limit`, {
+        storageLimitBytes,
+      }),
     deleteUser: (userId) => axios.delete(`${API_URL}/admin/users/${userId}`),
 
     // File management

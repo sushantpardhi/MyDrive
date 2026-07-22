@@ -174,6 +174,49 @@ export const AdminProvider = ({ children }) => {
   }, []);
 
   /**
+   * Update user storage limit
+   */
+  const updateUserStorageLimit = useCallback(async (userId, storageLimitBytes) => {
+    try {
+      setLoading(true);
+      setError(null);
+      logger.info("Updating user storage limit", { userId, storageLimitBytes });
+
+      const response = await api.admin.updateUserStorageLimit(
+        userId,
+        storageLimitBytes,
+      );
+
+      // Update user in local state
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? response.data.user : user,
+        ),
+      );
+
+      logger.info("User storage limit updated successfully", {
+        userId,
+        storageLimitBytes,
+      });
+
+      return response.data;
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.error || "Failed to update user storage limit";
+      logger.error("Error updating user storage limit", {
+        userId,
+        storageLimitBytes,
+        error: errorMessage,
+        status: err.response?.status,
+      });
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Delete user
    */
   const deleteUser = useCallback(async (userId) => {
@@ -449,6 +492,7 @@ export const AdminProvider = ({ children }) => {
     fetchUsers,
     fetchUserDetails,
     updateUserRole,
+    updateUserStorageLimit,
     deleteUser,
     fetchFiles,
     deleteFile,
