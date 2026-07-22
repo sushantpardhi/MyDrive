@@ -121,6 +121,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const lastLoadedFolderRef = useRef(null); // Track the last folder that was loaded to prevent duplicate loads
   const lastLoadedTypeRef = useRef(null); // Track the last drive type to ensure type switches trigger reload
   const lastReloadTriggerRef = useRef(0); // Track the last reload trigger value
+  const currentFolderIdRef = useRef(currentFolderId);
 
   // State for tracking initialization
   const [isInitialized, setIsInitialized] = useState(false);
@@ -419,6 +420,11 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
 
   // Reset initialization when type changes to prevent stale folder loading
   useEffect(() => {
+    currentFolderIdRef.current = currentFolderId;
+  }, [currentFolderId]);
+
+  // Reset initialization when type changes to prevent stale folder loading
+  useEffect(() => {
     if (currentTypeRef.current !== type) {
       logger.debug("DriveView: Type changed, resetting initialization", {
         oldType: currentTypeRef.current,
@@ -584,6 +590,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
   const handleFileUpload = async (e) => {
     const uploadedFiles = Array.from(e.target.files || []);
     if (!uploadedFiles.length) return;
+    const uploadStartedFolderId = currentFolderId;
 
     // Check if current folder is locked
     if (currentFolder?.isLocked) {
@@ -597,7 +604,10 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       null,
       true,
       (completedFile) => {
-        // Add each file to UI as it completes
+        // Only inject completed uploads into the folder where the upload started.
+        if (currentFolderIdRef.current !== uploadStartedFolderId) {
+          return;
+        }
         setFiles((prev) => [...prev, completedFile]);
       },
     );
@@ -807,6 +817,7 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
       const droppedFiles = Array.from(e.dataTransfer.files);
       if (droppedFiles.length > 0) {
         toast.info(`Uploading ${droppedFiles.length} file(s)...`);
+        const uploadStartedFolderId = currentFolderId;
         const targetFolder =
           currentFolderId === "root" ? null : currentFolderId;
         const newFiles = await uploadFiles(
@@ -814,7 +825,9 @@ const DriveView = ({ type = "drive", onMenuClick }) => {
           targetFolder,
           true,
           (completedFile) => {
-            // Add each file to UI as it completes
+            if (currentFolderIdRef.current !== uploadStartedFolderId) {
+              return;
+            }
             setFiles((prev) => [...prev, completedFile]);
           },
         );
