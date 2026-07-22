@@ -10,7 +10,7 @@ const Folder = require("../models/Folder"); // Ensure Folder is imported
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
 const DownloadSession = require("../models/DownloadSession");
-const { ensureUserDir, getUserFilePath } = require("../utils/fileHelpers");
+const { ensureUserDir, getUserFilePath, validateFileMagicBytes } = require("../utils/fileHelpers");
 const emailService = require("../utils/emailService");
 const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
 const {
@@ -34,10 +34,45 @@ const { checkLockStatus } = require("../utils/lockHelpers");
 const { cacheMiddleware } = require("../middleware/cache");
 const redisCache = require("../utils/redisCache");
 const jwt = require("jsonwebtoken");
+const {
+  uploadLimiter,
+  downloadLimiter,
+  chunkUploadLimiter,
+  shareLimiter,
+} = require("../middleware/rateLimiter");
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const STREAM_TOKEN_TTL = 5 * 60; // 5 minutes — enough for the player to establish the stream
+
+/**
+ * Calculate optimal chunk size based on file size and available memory
+ * Balances between fewer HTTP requests (larger chunks) and memory efficiency
+ */
+const calculateOptimalChunkSize = (fileSize) => {
+  const MIN_CHUNK = 1 * 1024 * 1024; // 1MB minimum
+  const MAX_CHUNK = 50 * 1024 * 1024; // 50MB maximum
+  const TARGET_CHUNKS = 10; // Aim for ~10 chunks per file
+
+  // Calculate ideal chunk size to achieve TARGET_CHUNKS
+  let optimalChunk = Math.ceil(fileSize / TARGET_CHUNKS);
+
+  // Small files (<100MB) benefit from larger chunks (less HTTP overhead)
+  if (fileSize < 100 * 1024 * 1024) {
+    optimalChunk = Math.min(10 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+  // Medium files (100MB-1GB) use medium chunks (good balance)
+  else if (fileSize < 1024 * 1024 * 1024) {
+    optimalChunk = Math.min(5 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+  // Large files (>1GB) use smaller chunks for better resumability
+  else {
+    optimalChunk = Math.min(2 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+
+  // Clamp to server limits
+  return Math.min(optimalChunk, MAX_CHUNK_SIZE);
+};
 
 const hasSharedAccess = (sharedList, userId) =>
   Array.isArray(sharedList) &&
@@ -100,8 +135,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Upload file
-router.post("/upload", upload.single("file"), async (req, res) => {
+// Upload file (with rate limiting)
+router.post("/upload", uploadLimiter, upload.single("file"), async (req, res) => {
   const startTime = Date.now();
   try {
     // Get user to check storage limits
@@ -123,6 +158,29 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         fileSize: req.file.size,
       });
       return res.status(413).json(storageError);
+    }
+
+    // Validate file type using magic bytes (security)
+    const validationResult = await validateFileMagicBytes(
+      req.file.path,
+      req.file.mimetype
+    );
+    
+    if (!validationResult.valid) {
+      // Delete the uploaded file since it failed validation
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      logger.warn("Upload rejected - File validation failed", {
+        userId: req.user.id,
+        fileName: req.file.originalname,
+        reason: validationResult.reason,
+        detectedType: validationResult.detectedType,
+      });
+      return res.status(400).json({
+        error: "File validation failed",
+        details: validationResult.reason,
+      });
     }
 
     const { parent } = req.body;
@@ -191,7 +249,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 // Verify file download permissions and return metadata
 router.get("/verify-download/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       logger.warn(
         `Download verification failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`,
@@ -229,7 +287,7 @@ router.get("/verify-download/:fileId", async (req, res) => {
 // that cannot send cookies or Authorization headers).
 router.get("/stream-token/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -295,7 +353,7 @@ router.get("/stream/:fileId", async (req, res) => {
       }
     }
 
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -381,8 +439,8 @@ router.get("/stream/:fileId", async (req, res) => {
   }
 });
 
-// Download file with proper client disconnect handling
-router.get("/download/:fileId", async (req, res) => {
+// Download file with proper client disconnect handling (with rate limiting)
+router.get("/download/:fileId", downloadLimiter, async (req, res) => {
   const startTime = Date.now();
   let fileStream = null;
   let conversionStream = null;
@@ -413,7 +471,7 @@ router.get("/download/:fileId", async (req, res) => {
   req.on("aborted", handleDisconnect);
 
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       logger.warn(
         `Download failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`,
@@ -673,7 +731,7 @@ async function streamConvertedFileWithDisconnectHandling(
 // Get thumbnail for preview (from worker-processed images)
 router.get("/thumbnail/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -759,7 +817,7 @@ router.get("/thumbnail/:fileId", async (req, res) => {
 // Get blur image for progressive loading
 router.get("/blur/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -805,7 +863,7 @@ router.get("/blur/:fileId", async (req, res) => {
 // Get low-quality image for progressive loading
 router.get("/low-quality/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -881,10 +939,11 @@ router.get(
   },
 );
 
-// Share file - Updated to accept email instead of userId
+// Share file - Updated to accept email instead of userId (with rate limiting)
 router.post(
   "/:id/share",
   requireNonTemporaryGuestFor("Sharing files"),
+  shareLimiter,
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -919,7 +978,7 @@ router.post(
         await item.save();
 
         // Send email notification to the user (non-blocking)
-        const owner = await User.findById(req.user.id);
+        const owner = await User.findById(req.user.id).lean();
         emailService
           .sendFileSharedEmail(userToShareWith, owner, item.name, "file")
           .catch(() => {
@@ -1301,7 +1360,7 @@ router.post("/:id/copy", async (req, res) => {
     }
 
     // Get user to check storage limits
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -1515,6 +1574,10 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       ? parseInt(chunkSize, 10)
       : CHUNK_SIZE;
 
+    // Calculate optimal chunk size for this file
+    const optimalChunkSize = calculateOptimalChunkSize(fileSize);
+
+    // Validate client's requested chunk size against server limits
     if (
       !Number.isInteger(requestedChunkSize) ||
       requestedChunkSize <= 0 ||
@@ -1523,19 +1586,38 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       return res.status(400).json({
         error: "Invalid chunkSize",
         maxChunkSize: MAX_CHUNK_SIZE,
+        suggestedChunkSize: optimalChunkSize,
       });
     }
 
-    const expectedTotalChunks = Math.ceil(fileSize / requestedChunkSize);
+    // Use optimal chunk size instead of client's request if significantly different
+    // Allows 25% variance from optimal (client may have better network knowledge)
+    let finalChunkSize = requestedChunkSize;
+    const variance = Math.abs(requestedChunkSize - optimalChunkSize) / optimalChunkSize;
+    
+    if (variance > 0.25) {
+      // Log when we override client's choice
+      logger.info("Overriding client chunk size", {
+        fileName,
+        fileSize,
+        clientChunkSize: requestedChunkSize,
+        optimalChunkSize,
+        variance: (variance * 100).toFixed(1) + "%",
+      });
+      finalChunkSize = optimalChunkSize;
+    }
+
+    const expectedTotalChunks = Math.ceil(fileSize / finalChunkSize);
     if (totalChunks !== expectedTotalChunks) {
       return res.status(400).json({
-        error: "totalChunks does not match fileSize and configured chunk size",
+        error: "totalChunks does not match fileSize and optimal chunk size",
         expectedTotalChunks,
+        suggestedChunkSize: finalChunkSize,
       });
     }
 
     // Get user to check storage limits
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -1583,7 +1665,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       fileSize,
       fileType: fileType || "application/octet-stream",
       totalChunks,
-      chunkSize: requestedChunkSize,
+      chunkSize: finalChunkSize,
       parentFolder: parentFolder === "root" ? null : parentFolder,
       owner: req.user.id,
       tempDirectory: tempDir,
@@ -1603,7 +1685,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
         fileName,
         fileSize,
         totalChunks,
-        chunkSize: uploadSession.chunkSize,
+        chunkSize: finalChunkSize,
       },
     });
   } catch (error) {
@@ -2017,7 +2099,7 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       });
 
       // Get updated user to send notification
-      const user = await User.findById(req.user.id);
+      const user = await User.findById(req.user.id).lean();
 
       // Send storage notification if threshold crossed (async, don't block response)
       handlePostUploadNotification(user, session.fileSize).catch((error) => {

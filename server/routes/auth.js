@@ -10,6 +10,7 @@ const {
   generateRefreshToken,
   revokeAllUserTokens,
 } = require("../utils/refreshTokenHelpers");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 const JWT_SECRET =
@@ -115,6 +116,7 @@ router.get("/me", authenticateToken, async (req, res) => {
 // Register route
 router.post(
   "/register",
+  authLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -241,6 +243,7 @@ router.post(
 // Login route
 router.post(
   "/login",
+  authLimiter,
   [
     body("email").isEmail().withMessage("Valid email is required"),
     body("password").notEmpty().withMessage("Password is required"),

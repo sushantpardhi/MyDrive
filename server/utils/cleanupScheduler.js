@@ -305,6 +305,106 @@ const initializeCleanupScheduler = () => {
       logger.logError(error, { operation: "scheduled-trash-cleanup" });
     }
   });
+
+  // Run orphaned temp directory cleanup every 6 hours (0 */6 * * *)
+  cron.schedule("0 */6 * * *", async () => {
+    const startTime = Date.now();
+    try {
+      logger.info("Starting cleanup of orphaned temp upload directories");
+      
+      const { getBaseDir } = require("./fileHelpers");
+      const tempBaseDir = path.join(getBaseDir(), "temp");
+      
+      if (!fs.existsSync(tempBaseDir)) {
+        logger.debug("Temp directory does not exist, skipping cleanup");
+        return;
+      }
+
+      let orphanedDirsRemoved = 0;
+      let totalBytesFreed = 0;
+      const userDirs = fs.readdirSync(tempBaseDir, { withFileTypes: true });
+
+      for (const userDirEntry of userDirs) {
+        if (!userDirEntry.isDirectory()) continue;
+        
+        const userDirPath = path.join(tempBaseDir, userDirEntry.name);
+        const uploadDirs = fs.readdirSync(userDirPath, { withFileTypes: true });
+
+        for (const uploadDirEntry of uploadDirs) {
+          if (!uploadDirEntry.isDirectory()) continue;
+
+          const uploadDirPath = path.join(userDirPath, uploadDirEntry.name);
+          const uploadId = uploadDirEntry.name;
+
+          try {
+            // Check if session exists in database
+            const session = await UploadSession.findOne({ uploadId }).select("_id expiresAt");
+            
+            // Remove if session doesn't exist or has expired
+            if (!session || (session.expiresAt && session.expiresAt < new Date())) {
+              // Calculate size before deleting
+              const dirSize = await getDirectorySize(uploadDirPath);
+              
+              fs.rmSync(uploadDirPath, { recursive: true, force: true });
+              orphanedDirsRemoved++;
+              totalBytesFreed += dirSize;
+
+              if (!session) {
+                logger.debug(`Removed orphaned upload temp dir: ${uploadId} (no session)`);
+              } else {
+                logger.debug(`Removed expired upload temp dir: ${uploadId}`);
+              }
+            }
+          } catch (err) {
+            logger.warn(`Failed to cleanup upload dir ${uploadId}: ${err.message}`);
+          }
+        }
+
+        // Clean up empty user directory
+        try {
+          const remaining = fs.readdirSync(userDirPath);
+          if (remaining.length === 0) {
+            fs.rmdirSync(userDirPath);
+          }
+        } catch (err) {
+          // Directory not empty, that's fine
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      if (orphanedDirsRemoved > 0) {
+        logger.logCleanup("orphaned-temp-cleanup", {
+          orphanedDirsRemoved,
+          totalBytesFreed,
+          duration,
+        });
+      }
+    } catch (error) {
+      logger.logError(error, { operation: "scheduled-temp-cleanup" });
+    }
+  });
+};
+
+/**
+ * Helper function to calculate directory size
+ */
+const getDirectorySize = async (dirPath) => {
+  let totalSize = 0;
+  try {
+    const files = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const file of files) {
+      const filePath = path.join(dirPath, file.name);
+      if (file.isDirectory()) {
+        totalSize += await getDirectorySize(filePath);
+      } else {
+        const stat = fs.statSync(filePath);
+        totalSize += stat.size;
+      }
+    }
+  } catch (err) {
+    logger.debug(`Error calculating dir size: ${err.message}`);
+  }
+  return totalSize;
 };
 
 /**

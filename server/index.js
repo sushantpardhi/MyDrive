@@ -83,7 +83,32 @@ app.use(
   }),
 ); // Security headers
 app.use(mongoSanitize()); // Prevent MongoDB injection
-app.use(compression()); // Response compression
+
+// Optimized compression middleware
+// Compress JSON responses and metadata but skip large file transfers
+app.use(compression({
+  // Only compress responses larger than 1KB
+  threshold: 1024,
+  // Compression level 6 is good balance of speed vs compression ratio
+  level: 6,
+  // Filter to avoid compressing already-compressed content
+  filter: (req, res) => {
+    // Don't compress download endpoints (files are often already compressed)
+    if (req.path.includes('/download') || req.path.includes('/stream') || req.path.includes('/chunk')) {
+      return false;
+    }
+    // Don't compress if response has no-compression directive
+    if (res.getHeader('content-encoding')) {
+      return false;
+    }
+    // Compress JSON, JavaScript, HTML, CSS, and metadata responses
+    const contentType = res.getHeader('content-type');
+    if (!contentType) {
+      return compression.filter(req, res);
+    }
+    return /json|javascript|text|xml|css|metadata/.test(contentType);
+  }
+}));
 
 // Rate limiting for API endpoints
 const apiLimiter = rateLimit({

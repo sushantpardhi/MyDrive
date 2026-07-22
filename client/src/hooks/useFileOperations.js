@@ -70,7 +70,9 @@ export const useFileOperations = (
         const chunkedThreshold = 5 * 1024 * 1024; // 5MB
 
         // Max concurrent uploads at a time
-        const MAX_CONCURRENT_UPLOADS = 5;
+        // Set to 10 to balance throughput with rate limiting
+        // With 500 uploads/15min limit on server, 10 concurrent is safe
+        const MAX_CONCURRENT_UPLOADS = 10;
 
         // Create upload task for each file (executed later with concurrency limit)
         const uploadTasks = files.map((file) => async () => {
@@ -95,7 +97,10 @@ export const useFileOperations = (
 
           try {
             let response;
+            let uploadAttempt = 0;
+            const maxUploadAttempts = 2; // Retry once on failure
 
+            const performUpload = async () => {
             if (shouldUseChunked) {
               // Use chunked upload service
               const chunkService = createChunkedUploadService(
@@ -192,6 +197,26 @@ export const useFileOperations = (
               }
             }
 
+            return response;
+            }; // End of performUpload function
+
+            // Retry logic for upload failures
+            while (uploadAttempt < maxUploadAttempts) {
+              try {
+                response = await performUpload();
+                break; // Success, exit retry loop
+              } catch (uploadError) {
+                uploadAttempt++;
+                if (uploadAttempt >= maxUploadAttempts) {
+                  throw uploadError; // Max attempts reached, propagate error
+                }
+                // Wait before retrying (exponential backoff: 500ms, 1000ms)
+                const retryDelay = 500 * Math.pow(2, uploadAttempt - 1);
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+                logger.warn(`Upload retry ${uploadAttempt} for ${file.name}`);
+              }
+            }
+
             const fileData = response.data;
 
             // Immediately notify about completed file
@@ -250,25 +275,41 @@ export const useFileOperations = (
           }
         });
 
-        // Run upload tasks with concurrency limit (max 5 at a time)
+        // Run upload tasks with concurrency limit using proper semaphore pattern
         const runWithConcurrency = async (tasks, limit) => {
           const results = [];
-          const executing = new Set();
+          const executing = [];
+          let activeCount = 0;
 
           for (const task of tasks) {
-            const promise = task().then(
-              (value) => ({ status: "fulfilled", value }),
-              (reason) => ({ status: "rejected", reason }),
-            );
+            const promise = Promise.resolve()
+              .then(async () => {
+                // Wait if we're at the limit
+                while (activeCount >= limit) {
+                  await Promise.race(executing);
+                }
+                activeCount++;
+              })
+              .then(() => task())
+              .then(
+                (value) => ({ status: "fulfilled", value }),
+                (reason) => ({
+                  status: "rejected",
+                  reason,
+                  message: reason?.message || String(reason),
+                }),
+              )
+              .finally(() => {
+                activeCount--;
+                // Remove completed promise from tracking
+                const index = executing.indexOf(promise);
+                if (index > -1) {
+                  executing.splice(index, 1);
+                }
+              });
+
             results.push(promise);
-            executing.add(promise);
-
-            const cleanup = () => executing.delete(promise);
-            promise.then(cleanup, cleanup);
-
-            if (executing.size >= limit) {
-              await Promise.race(executing);
-            }
+            executing.push(promise);
           }
 
           return Promise.all(results);
@@ -276,9 +317,14 @@ export const useFileOperations = (
 
         const results = await runWithConcurrency(uploadTasks, MAX_CONCURRENT_UPLOADS);
 
-        results.forEach((result) => {
+        results.forEach((result, index) => {
           if (result.status === "fulfilled" && result.value) {
             uploadedFiles.push(result.value);
+          } else if (result.status === "rejected") {
+            // Log rejection details for debugging
+            const fileName = files[index]?.name || `File ${index}`;
+            const errorMsg = result.reason?.message || result.message || "Unknown error";
+            logger.debug(`Upload failed for ${fileName}: ${errorMsg}`);
           }
         });
 

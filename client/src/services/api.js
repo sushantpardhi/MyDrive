@@ -163,6 +163,9 @@ const api = {
 
     const config = {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000, // 120 second timeout for regular uploads (2 min) — allows slower networks
+      maxContentLength: 1024 * 1024 * 1024, // 1GB
+      maxBodyLength: 1024 * 1024 * 1024, // 1GB
     };
 
     if (onUploadProgress) {
@@ -413,7 +416,7 @@ const api = {
 
     const config = {
       headers: { "Content-Type": "multipart/form-data" },
-      timeout: 30000, // Optimized 30 second timeout for parallel uploads
+      timeout: 90000, // 90 second timeout per chunk (1.5 min) — accounts for slow networks and parallel uploads
       maxContentLength: 20 * 1024 * 1024, // 20MB max chunk size for larger chunks
       maxBodyLength: 20 * 1024 * 1024, // 20MB max body size
       maxRedirects: 0, // Disable redirects for performance
