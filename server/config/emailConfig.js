@@ -54,7 +54,7 @@ const verifyEmailConfig = async () => {
     await transporter.verify();
     const duration = Date.now() - startTime;
     logger.info(
-      `✅ Email service configured - Provider: ${
+      `Email service configured - Provider: ${
         process.env.EMAIL_SERVICE || "gmail"
       } - Verified in ${duration}ms`
     );

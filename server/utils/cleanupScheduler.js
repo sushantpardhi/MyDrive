@@ -175,7 +175,7 @@ const cleanupExpiredGuestSessions = async () => {
  * Initialize cleanup scheduler
  */
 const initializeCleanupScheduler = () => {
-  logger.info("🗑️  Cleanup scheduler initialized - Running every hour");
+  logger.info("Cleanup scheduler initialized - Running every hour");
 
   // Run guest session cleanup every 5 minutes (*/5 * * * *)
   cron.schedule("*/5 * * * *", async () => {

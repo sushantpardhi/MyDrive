@@ -100,7 +100,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     });
     res.status(500).json({ error: error.message });
   } finally {
-    logger.logPerformance("profile-fetch", Date.now() - startTime);
+    // logger.logPerformance("profile-fetch", Date.now() - startTime);
   }
 });
 
