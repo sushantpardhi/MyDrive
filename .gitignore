@@ -99,3 +99,13 @@ Desktop.ini
 api-keys.json
 secrets.json
 DriveData/
+
+# ================================
+# AGENTS FILES
+# ================================
+.zed/
+.cursor/
+.codebase-memory/
+.claude/
+AGENTS.md
+.github/instructions
