@@ -12,9 +12,12 @@ const {
 } = require("../utils/refreshTokenHelpers");
 
 const router = express.Router();
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 
 // Logout route (invalidate refresh token)
 router.post("/logout", async (req, res) => {
