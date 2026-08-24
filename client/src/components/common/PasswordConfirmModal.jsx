@@ -22,22 +22,32 @@ const PasswordConfirmModal = ({ isOpen, onClose, onConfirm, message }) => {
     try {
       logger.info("Attempting password verification for permanent deletion");
       await onConfirm(password);
+      logger.info("Password verification successful, closing modal");
       setPassword("");
+      setError("");
       onClose();
     } catch (err) {
       const errorMsg =
-        err.response?.data?.error || "Incorrect password. Please try again.";
+        err.response?.data?.error || err.message || "Incorrect password. Please try again.";
       setError(errorMsg);
       logger.error("Password confirmation failed", {
         error: errorMsg,
         statusCode: err.response?.status,
+        fullError: err.message,
       });
+      // DO NOT close modal on error - user should see the error message and try again
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
+    // If there's an error, don't allow closing by clicking overlay
+    // User must either try again or explicitly click Cancel button
+    if (error) {
+      logger.warn("Attempted to close modal while error message is displayed");
+      return;
+    }
     setPassword("");
     setError("");
     onClose();
@@ -71,11 +81,11 @@ const PasswordConfirmModal = ({ isOpen, onClose, onConfirm, message }) => {
           </p>
 
           <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.inputWrapper}>
+            <div className={`${styles.inputWrapper} ${error ? styles.inputError : ""}`}>
               <Lock className={styles.inputIcon} size={18} />
               <input
                 type="password"
-                className={styles.input}
+                className={`${styles.input} ${error ? styles.inputErrorBorder : ""}`}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => {

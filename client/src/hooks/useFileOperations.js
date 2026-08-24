@@ -847,9 +847,10 @@ export const useFileOperations = (
         return false;
       }
 
+      let password = "";
       try {
-        // The passwordVerifyFn should handle showing the modal and return a promise
-        await passwordVerifyFn(confirmMessage);
+        // The passwordVerifyFn should handle showing the modal and return the password
+        password = await passwordVerifyFn(confirmMessage);
       } catch (error) {
         // User cancelled or password verification failed
         logger.info("Password verification cancelled or failed for emptyTrash");
@@ -857,14 +858,15 @@ export const useFileOperations = (
       }
 
       try {
-        await api.emptyTrash();
+        await api.emptyTrash(password);
         logger.info("Refreshing storage after emptying trash");
         refreshStorage();
         toast.success("Trash emptied successfully");
         return true;
       } catch (error) {
-        toast.error("Failed to empty trash");
-        console.error(error);
+        const errorMsg = error.response?.data?.error || "Failed to empty trash";
+        toast.error(errorMsg);
+        logger.error("Error emptying trash", { error: errorMsg });
         return false;
       }
     },

@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit");
 
 /**
  * Rate limiter for upload endpoints
@@ -10,7 +11,7 @@ const uploadLimiter = rateLimit({
   max: 500, // 500 uploads per user (5.5 per second, safe for 15 concurrent)
   keyGenerator: (req) => {
     // Use user ID as key if authenticated, otherwise use IP
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req);
   },
   message: "Too many uploads initiated, please try again later",
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
@@ -31,7 +32,7 @@ const downloadLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 50, // 50 downloads per minute per user
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req);
   },
   message: "Too many downloads, please try again later",
   standardHeaders: true,
@@ -52,7 +53,7 @@ const chunkUploadLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 1000, // 1000 chunk uploads per user
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req);
   },
   message: "Too many chunk uploads, please try again later",
   standardHeaders: true,
@@ -72,7 +73,7 @@ const chunkUploadLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts per IP
-  keyGenerator: (req) => req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req),
   message: "Too many login attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
@@ -87,7 +88,7 @@ const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // 100 requests per minute
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req);
   },
   message: "Too many requests, please try again later",
   standardHeaders: true,
@@ -102,7 +103,7 @@ const shareLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 20, // 20 share actions
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req);
   },
   message: "Too many share requests, please try again later",
   standardHeaders: true,

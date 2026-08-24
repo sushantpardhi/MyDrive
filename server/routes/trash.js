@@ -4,6 +4,7 @@ const Folder = require("../models/Folder");
 const User = require("../models/User");
 const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcryptjs");
 const router = express.Router();
 const logger = require("../utils/logger");
 const redisCache = require("../utils/redisCache");
@@ -12,6 +13,31 @@ const redisCache = require("../utils/redisCache");
 router.delete("/empty", async (req, res) => {
   try {
     const userId = req.user.id;
+    const { password } = req.body;
+
+    // Password is required for security
+    if (!password) {
+      logger.warn("Empty trash attempted without password", { userId });
+      return res.status(400).json({ error: "Password is required" });
+    }
+
+    // Get user and verify password
+    const user = await User.findById(userId);
+    if (!user) {
+      logger.error("User not found for trash deletion", { userId });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      logger.warn("Empty trash - Incorrect password", {
+        userId,
+        email: user.email,
+        ip: req.ip,
+      });
+      return res.status(401).json({ error: "Incorrect password" });
+    }
 
     // 1. Find all trashed files owned by user
     const trashedFiles = await File.find({ owner: userId, trash: true });
@@ -78,6 +104,7 @@ router.delete("/empty", async (req, res) => {
 
     logger.info("Trash emptied successfully", {
       userId,
+      email: user.email,
       deletedFiles: deletedFilesCount,
       deletedFolders: deletedFoldersCount,
       freedSpace,

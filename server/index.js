@@ -178,6 +178,10 @@ app.get("/health", async (req, res) => {
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/auth/guest", guestRouter);
+
+// Internal admin routes (localhost only, no auth required for initial setup)
+app.use("/api/admin/internal", require("./routes/internalAdmin"));
+
 app.use("/api/files", authenticateToken, filesRouter);
 app.use("/api/folders", authenticateToken, foldersRouter);
 app.use("/api/users", authenticateToken, usersRouter);

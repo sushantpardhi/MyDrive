@@ -29,17 +29,23 @@ export const usePasswordConfirmation = () => {
       try {
         logger.info("Verifying password for permanent deletion");
         // Verify password with backend
-        await api.verifyPassword(password);
+        const response = await api.verifyPassword(password);
 
         logger.info("Password verified successfully");
-        // Password is correct, resolve the promise
+        // Password is correct, resolve the promise with the password
         if (resolvePromise) {
-          resolvePromise();
+          resolvePromise(password);
           setResolvePromise(null);
           setRejectPromise(null);
         }
+        return response;
       } catch (error) {
-        // Re-throw error to be handled by the modal component
+        logger.warn("Password verification failed", {
+          error: error.response?.data?.error || error.message,
+          statusCode: error.response?.status,
+        });
+        // Re-throw error to be handled by the modal component (modal will display error)
+        // DO NOT reject the promise here - user should be able to try again
         throw error;
       }
     },

@@ -282,9 +282,7 @@ const api = {
   searchUsers: (query) =>
     axios.get(`${API_URL}/users/search`, { params: { query } }),
 
-  // Verify password for permanent deletion
-  verifyPassword: (password) =>
-    axios.post(`${API_URL}/users/verify-password`, { password }),
+
 
   // Get shared items
   getSharedItems: (page = 1, limit = 50) =>
@@ -299,7 +297,10 @@ const api = {
   deleteItemPermanently: (type, id) =>
     axios.delete(`${API_URL}/${type}/${id}`, { params: { permanent: true } }),
 
-  emptyTrash: () => axios.delete(`${API_URL}/trash/empty`),
+  emptyTrash: (password) => axios.delete(`${API_URL}/trash/empty`, { data: { password } }),
+
+  verifyPassword: (password) =>
+    axios.post(`${API_URL}/users/verify-password`, { password }),
 
   // Search with advanced filters
   search: (query, page = 1, limit = 50, filters = {}, section = "drive") => {
