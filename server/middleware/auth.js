@@ -7,13 +7,19 @@ if (!JWT_SECRET) {
 }
 
 const authenticateToken = (req, res, next) => {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: "Server auth configuration error" });
+  }
+
   // Try to get token from cookies first
   let token = req.cookies?.accessToken;
 
   // Fallback to authorization header
   if (!token) {
-    const authHeader = req.headers["authorization"];
-    token = authHeader && authHeader.split(" ")[1];
+    const authHeader = req.headers["authorization"] || "";
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
   }
 
   if (!token) {

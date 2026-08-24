@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   Archive,
   Loader2,
+  Pause,
   Minimize2,
   Maximize2,
   XCircle,
@@ -53,6 +54,7 @@ const TransferProgressToast = ({
       ([, transfer]) =>
         transfer.status === "uploading" || 
         transfer.status === "downloading" ||
+          transfer.status === "queued" ||
         transfer.status === "preparing" ||
         transfer.status === "zipping" ||
         transfer.status === "paused"
@@ -87,7 +89,7 @@ const TransferProgressToast = ({
     }
   }, [onCancelDownload, onRemoveDownload, onStopUpload]);
 
-  if (!isOpen) return null;
+  // (Early return moved below hooks to satisfy React rules)
 
   const completedCount = allTransferItems.filter(
     ([, transfer]) => transfer.status === "completed"
@@ -97,6 +99,7 @@ const TransferProgressToast = ({
   ).length;
   const activeCount = allTransferItems.filter(
     ([, transfer]) =>
+      transfer.status === "queued" ||
       transfer.status === "uploading" ||
       transfer.status === "downloading" ||
       transfer.status === "preparing" ||
@@ -104,20 +107,7 @@ const TransferProgressToast = ({
   ).length;
   const totalCount = allTransferItems.length;
 
-  // Sort items: active first (uploading/downloading), then preparing, then completed, then failed
-  const sortedItems = [...allTransferItems].sort(([, a], [, b]) => {
-    const statusPriority = {
-      uploading: 0,
-      downloading: 0,
-      preparing: 1,
-      zipping: 1,
-      cancelling: 2,
-      completed: 3,
-      cancelled: 4,
-      error: 5,
-    };
-    return (statusPriority[a.status] ?? 6) - (statusPriority[b.status] ?? 6);
-  });
+  const orderedItems = allTransferItems;
 
   // Calculate overall statistics
   const overallStats = useMemo(() => {
@@ -184,6 +174,9 @@ const TransferProgressToast = ({
     const zippingCount = allTransfers.filter(
       ([, transfer]) => transfer.status === "zipping"
     ).length;
+    const queuedCount = allTransfers.filter(
+      ([, transfer]) => transfer.status === "queued"
+    ).length;
 
     return {
       totalBytes,
@@ -192,6 +185,7 @@ const TransferProgressToast = ({
       overallProgress,
       preparingCount,
       zippingCount,
+      queuedCount,
     };
   }, [allTransferItems, hasActiveTransfers]);
 
@@ -233,6 +227,8 @@ const TransferProgressToast = ({
         return <XCircle className={`${styles.statusIcon} ${styles.cancelledIcon}`} />;
       case "paused":
         return <Pause className={`${styles.statusIcon} ${styles.pausedIcon}`} />;
+      case "queued":
+        return <Upload className={`${styles.statusIcon} ${styles.activeIcon}`} />;
       case "preparing":
         return (
           <Loader2 className={`${styles.statusIcon} ${styles.spinning}`} />
@@ -276,51 +272,15 @@ const TransferProgressToast = ({
     if (status === "paused") {
       return "Paused";
     }
+    if (status === "queued") {
+      return "Queued";
+    }
     return "";
   };
 
-  // If no transfers, show idle state
-  if (!hasTransfers) {
-    return (
-      <div
-        className={`${styles.toast} ${styles.idle} ${
-          collapsed ? styles.collapsed : ""
-        } ${isMobile ? styles.mobile : ""} ${isCompact ? styles.compact : ""}`}
-      >
-        <div className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.headerIconWrapper}>
-              <ArrowUpDown size={isMobile ? 14 : 16} />
-            </div>
-            <div className={styles.headerText}>
-              <h4>Transfers</h4>
-              <div className={styles.overallStats}>
-                <span className={styles.statusText}>No active transfers</span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.headerActions}>
-            <button
-              onClick={() => setCollapsed((c) => !c)}
-              className={styles.collapseButton}
-              aria-label={collapsed ? "Expand" : "Collapse"}
-            >
-              {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </div>
-        </div>
-        {!collapsed && (
-          <div className={styles.content}>
-            <div className={styles.emptyState}>
-              <ArrowUpDown size={isMobile ? 28 : 32} className={styles.emptyIcon} />
-              <p className={styles.emptyText}>
-                {isMobile ? "Start a transfer to see progress" : "Upload or download files to see progress here"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  // If no transfers, don't render (visibility now controlled by isOpen prop)
+  if (!isOpen || !hasTransfers) {
+    return null;
   }
 
   // Get header title based on state
@@ -367,6 +327,13 @@ const TransferProgressToast = ({
                 activeStats.zippingCount > 0 && (
                   <span className={styles.zippingBadge}>
                     {activeStats.zippingCount} zipping
+                  </span>
+                )}
+              {hasActiveTransfers &&
+                activeStats &&
+                activeStats.queuedCount > 0 && (
+                  <span className={styles.preparingBadge}>
+                    {activeStats.queuedCount} queued
                   </span>
                 )}
             </div>
@@ -439,7 +406,7 @@ const TransferProgressToast = ({
         <>
           <div className={styles.content}>
             <div className={styles.uploadList}>
-              {sortedItems.map(([itemId, transfer]) => {
+              {orderedItems.map(([itemId, transfer]) => {
                 const bytesRemaining =
                   (transfer.fileSize || 0) - (transfer.uploadedBytes || 0);
                 const timeRemaining = formatTimeRemaining(
@@ -513,6 +480,9 @@ const TransferProgressToast = ({
                                 )}
                               </>
                             )}
+                            {transfer.status === "queued" && (
+                              <span className={styles.statusLabel}>Queued</span>
+                            )}
                             {transfer.status === "paused" && (
                               <span className={styles.pausedText}>Paused</span>
                             )}
@@ -556,6 +526,7 @@ const TransferProgressToast = ({
                           {/* Cancel button - for active transfers */}
                           {(transfer.status === "uploading" ||
                             transfer.status === "downloading" ||
+                            transfer.status === "queued" ||
                             transfer.status === "preparing" ||
                             transfer.status === "zipping" ||
                             transfer.status === "paused" ||

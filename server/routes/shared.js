@@ -13,6 +13,10 @@ const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
+const hasSharedAccess = (sharedList, userId) =>
+  Array.isArray(sharedList) &&
+  sharedList.some((sharedId) => sharedId.toString() === userId);
+
 // Get shared items (files and folders shared with the current user)
 router.get("/", async (req, res) => {
   try {
@@ -69,14 +73,16 @@ router.get("/", async (req, res) => {
         .populate("owner", "name email")
         .sort({ createdAt: -1 })
         .skip(folderSkip)
-        .limit(folderLimit);
+        .limit(folderLimit)
+        .lean();
 
       const remainingLimit = limit - folders.length;
       if (remainingLimit > 0) {
         files = await File.find(fileQuery)
           .populate("owner", "name email")
           .sort({ createdAt: -1 })
-          .limit(remainingLimit);
+          .limit(remainingLimit)
+          .lean();
       }
     } else {
       const fileSkip = skip - totalFolders;
@@ -84,7 +90,8 @@ router.get("/", async (req, res) => {
         .populate("owner", "name email")
         .sort({ createdAt: -1 })
         .skip(fileSkip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
     }
 
     res.json({
@@ -226,30 +233,36 @@ router.get("/search", async (req, res) => {
     const sortOptions = buildSortOptions(sortBy, sortOrder, hasTextSearch);
 
     // Get total counts
-    const totalFiles = await File.countDocuments(fileSearchQuery);
-    const totalFolders = folderSearchQuery
-      ? await Folder.countDocuments(folderSearchQuery)
-      : 0;
+    const [totalFiles, totalFolders] = await Promise.all([
+      File.countDocuments(fileSearchQuery),
+      folderSearchQuery ? Folder.countDocuments(folderSearchQuery) : 0,
+    ]);
 
     // Get paginated data
     let folders = [];
-    if (folderSearchQuery) {
+    if (folderSearchQuery && skip < totalFolders) {
       folders = await Folder.find(folderSearchQuery)
         .populate("owner", "name email")
         .sort(sortOptions)
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
     }
 
     const filesLimit = Math.max(0, limit - folders.length);
-    const filesSkip =
-      folders.length < limit ? 0 : Math.max(0, skip - totalFolders);
+    const filesSkip = folderSearchQuery
+      ? Math.max(0, skip - totalFolders)
+      : skip;
 
-    let files = await File.find(fileSearchQuery)
-      .populate("owner", "name email")
-      .sort(sortOptions)
-      .skip(filesSkip)
-      .limit(filesLimit > 0 ? filesLimit : limit);
+    let files = [];
+    if (filesLimit > 0) {
+      files = await File.find(fileSearchQuery)
+        .populate("owner", "name email")
+        .sort(sortOptions)
+        .skip(filesSkip)
+        .limit(filesLimit)
+        .lean();
+    }
 
     // Add search highlights and relevance scores
     if (query && query.trim()) {
@@ -386,7 +399,7 @@ router.post(
           }
 
           // Add user to shared array if not already shared
-          if (!item.shared.includes(userToShareWith._id)) {
+          if (!hasSharedAccess(item.shared, userToShareWith._id.toString())) {
             item.shared.push(userToShareWith._id);
             await item.save();
 
@@ -415,8 +428,11 @@ router.post(
           });
       }
 
-      // Invalidate user cache on bulk share
-      redisCache.invalidateUserCache(req.user.id);
+      // Invalidate cache for both the owner and the shared-with user
+      redisCache.invalidateUsersCache([
+        req.user.id,
+        userToShareWith._id.toString(),
+      ]);
 
       res.json({
         message: `${sharedItems.length} items shared successfully`,

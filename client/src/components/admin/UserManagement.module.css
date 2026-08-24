@@ -57,6 +57,14 @@
   font-weight: 400;
 }
 
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
 .headerActions {
   display: flex;
   gap: 0.5rem;
@@ -419,6 +427,31 @@
   color: #7b1fa2;
 }
 
+.quotaBadge {
+  display: inline-block;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.quotaDefault {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.quotaCustom {
+  background: #fff8e1;
+  color: #ef6c00;
+}
+
+.quotaUnlimited {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
 /* Storage Cell */
 .storageCell {
   display: flex;
@@ -602,6 +635,94 @@
 }
 
 .roleOptionDesc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.formLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quotaOptionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.quotaOptionButton {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quotaOptionButton:hover {
+  border-color: var(--accent-primary);
+}
+
+.quotaOptionActive {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-primary));
+  color: var(--accent-primary);
+}
+
+.storageInputGroup {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.storageInput,
+.storageUnitSelect {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.storageInput:focus,
+.storageUnitSelect:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.storageUnitSelect {
+  min-width: 82px;
+  cursor: pointer;
+}
+
+.unlimitedCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-top: 0.25rem;
+}
+
+.unlimitedCheckboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.helperText {
+  margin: 0;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
@@ -806,6 +927,14 @@
     gap: 0.75rem;
   }
 
+  .storageInputGroup {
+    grid-template-columns: 1fr;
+  }
+
+  .quotaOptionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .modalButtonSecondary,
   .modalButtonPrimary {
     width: 100%;
@@ -836,6 +965,10 @@
   .table {
     min-width: 600px;
     font-size: 0.8rem;
+  }
+
+  .quotaOptionsGrid {
+    grid-template-columns: 1fr;
   }
 
   .table th,

@@ -69,19 +69,17 @@ export const useFileOperations = (
         // Determine which files should use chunked upload (files > 5MB)
         const chunkedThreshold = 5 * 1024 * 1024; // 5MB
 
-        // Start uploads for all files
-        const uploadPromises = files.map(async (file) => {
-          const fileId = `${Date.now()}-${Math.random()
+        const uploadPlans = files.map((file, index) => {
+          const fileId = `upload-${Date.now()}-${index}-${Math.random()
             .toString(36)
-            .substr(2, 9)}`;
-
+            .slice(2, 8)}`;
           const shouldUseChunked = useChunked && file.size > chunkedThreshold;
           const totalChunks = shouldUseChunked
             ? Math.ceil(file.size / CHUNK_SIZE)
             : 0;
 
-          if (uploadProgressHook) {
-            uploadProgressHook.startUpload(
+          if (uploadProgressHook?.queueUpload) {
+            uploadProgressHook.queueUpload(
               fileId,
               file.name,
               file.size,
@@ -90,43 +88,74 @@ export const useFileOperations = (
             );
           }
 
-          try {
-            let response;
+          return {
+            file,
+            fileId,
+            shouldUseChunked,
+            totalChunks,
+          };
+        });
 
-            if (shouldUseChunked) {
-              // Use chunked upload service
-              const chunkService = createChunkedUploadService(
-                api,
-                // Overall progress callback
-                (
-                  uploadFileId,
-                  uploadedBytes,
-                  totalBytes,
-                  uploadedChunks,
-                  totalChunksCount,
-                ) => {
-                  if (uploadProgressHook) {
-                    uploadProgressHook.updateProgress(
+        // Max concurrent uploads at a time
+        // Set to 10 to balance throughput with rate limiting
+        // With 500 uploads/15min limit on server, 10 concurrent is safe
+        const MAX_CONCURRENT_UPLOADS = 10;
+
+        // Create upload task for each file (executed later with concurrency limit)
+        const uploadTasks = uploadPlans.map(
+          ({ file, fileId, shouldUseChunked, totalChunks }) =>
+            async () => {
+
+              if (uploadProgressHook) {
+                uploadProgressHook.startUpload(
+                  fileId,
+                  file.name,
+                  file.size,
+                  shouldUseChunked,
+                  totalChunks,
+                );
+              }
+
+              try {
+                let response;
+                let uploadAttempt = 0;
+                const maxUploadAttempts = 2; // Retry once on failure
+
+                const performUpload = async () => {
+                if (shouldUseChunked) {
+                  // Use chunked upload service
+                  const chunkService = createChunkedUploadService(
+                    api,
+                    // Overall progress callback
+                    (
                       uploadFileId,
                       uploadedBytes,
                       totalBytes,
                       uploadedChunks,
                       totalChunksCount,
-                    );
-                  }
-                },
-                // Chunk progress callback
-                (uploadFileId, chunkIndex, chunkStatus, retryAttempt) => {
-                  if (uploadProgressHook) {
-                    uploadProgressHook.updateChunkProgress(
-                      uploadFileId,
-                      chunkIndex,
-                      chunkStatus,
-                      retryAttempt,
-                    );
-                  }
-                },
-              );
+                    ) => {
+                      if (uploadProgressHook) {
+                        uploadProgressHook.updateProgress(
+                          uploadFileId,
+                          uploadedBytes,
+                          totalBytes,
+                          uploadedChunks,
+                          totalChunksCount,
+                        );
+                      }
+                    },
+                    // Chunk progress callback
+                    (uploadFileId, chunkIndex, chunkStatus, retryAttempt) => {
+                      if (uploadProgressHook) {
+                        uploadProgressHook.updateChunkProgress(
+                          uploadFileId,
+                          chunkIndex,
+                          chunkStatus,
+                          retryAttempt,
+                        );
+                      }
+                    },
+                  );
 
               // Register chunk service for pause/resume/cancel operations
               if (
@@ -189,17 +218,37 @@ export const useFileOperations = (
               }
             }
 
-            const fileData = response.data;
+              return response;
+              }; // End of performUpload function
 
-            // Immediately notify about completed file
-            if (onFileComplete) {
-              onFileComplete(fileData);
+            // Retry logic for upload failures
+            while (uploadAttempt < maxUploadAttempts) {
+              try {
+                response = await performUpload();
+                break; // Success, exit retry loop
+              } catch (uploadError) {
+                uploadAttempt++;
+                if (uploadAttempt >= maxUploadAttempts) {
+                  throw uploadError; // Max attempts reached, propagate error
+                }
+                // Wait before retrying (exponential backoff: 500ms, 1000ms)
+                const retryDelay = 500 * Math.pow(2, uploadAttempt - 1);
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+                logger.warn(`Upload retry ${uploadAttempt} for ${file.name}`);
+              }
             }
 
-            return fileData;
-          } catch (error) {
-            // Check if error is from paused upload
-            const isPausedError = error.message === "Upload paused by user";
+                const fileData = response.data;
+
+                // Immediately notify about completed file
+                if (onFileComplete) {
+                  onFileComplete(fileData);
+                }
+
+                return fileData;
+              } catch (error) {
+                // Check if error is from paused upload
+                const isPausedError = error.message === "Upload paused by user";
 
             if (uploadProgressHook) {
               // Don't mark as failed if paused
@@ -243,15 +292,61 @@ export const useFileOperations = (
               }
             }
 
-            return null;
+                return null;
+              }
+            },
+        );
+
+        // Run upload tasks with concurrency limit using proper semaphore pattern
+        const runWithConcurrency = async (tasks, limit) => {
+          const results = [];
+          const executing = [];
+          let activeCount = 0;
+
+          for (const task of tasks) {
+            const promise = Promise.resolve()
+              .then(async () => {
+                // Wait if we're at the limit
+                while (activeCount >= limit) {
+                  await Promise.race(executing);
+                }
+                activeCount++;
+              })
+              .then(() => task())
+              .then(
+                (value) => ({ status: "fulfilled", value }),
+                (reason) => ({
+                  status: "rejected",
+                  reason,
+                  message: reason?.message || String(reason),
+                }),
+              )
+              .finally(() => {
+                activeCount--;
+                // Remove completed promise from tracking
+                const index = executing.indexOf(promise);
+                if (index > -1) {
+                  executing.splice(index, 1);
+                }
+              });
+
+            results.push(promise);
+            executing.push(promise);
           }
-        });
 
-        const results = await Promise.allSettled(uploadPromises);
+          return Promise.all(results);
+        };
 
-        results.forEach((result) => {
+        const results = await runWithConcurrency(uploadTasks, MAX_CONCURRENT_UPLOADS);
+
+        results.forEach((result, index) => {
           if (result.status === "fulfilled" && result.value) {
             uploadedFiles.push(result.value);
+          } else if (result.status === "rejected") {
+            // Log rejection details for debugging
+            const fileName = files[index]?.name || `File ${index}`;
+            const errorMsg = result.reason?.message || result.message || "Unknown error";
+            logger.debug(`Upload failed for ${fileName}: ${errorMsg}`);
           }
         });
 
@@ -752,9 +847,10 @@ export const useFileOperations = (
         return false;
       }
 
+      let password = "";
       try {
-        // The passwordVerifyFn should handle showing the modal and return a promise
-        await passwordVerifyFn(confirmMessage);
+        // The passwordVerifyFn should handle showing the modal and return the password
+        password = await passwordVerifyFn(confirmMessage);
       } catch (error) {
         // User cancelled or password verification failed
         logger.info("Password verification cancelled or failed for emptyTrash");
@@ -762,14 +858,15 @@ export const useFileOperations = (
       }
 
       try {
-        await api.emptyTrash();
+        await api.emptyTrash(password);
         logger.info("Refreshing storage after emptying trash");
         refreshStorage();
         toast.success("Trash emptied successfully");
         return true;
       } catch (error) {
-        toast.error("Failed to empty trash");
-        console.error(error);
+        const errorMsg = error.response?.data?.error || "Failed to empty trash";
+        toast.error(errorMsg);
+        logger.error("Error emptying trash", { error: errorMsg });
         return false;
       }
     },

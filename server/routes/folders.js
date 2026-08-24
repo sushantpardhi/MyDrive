@@ -20,6 +20,10 @@ const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
+const hasSharedAccess = (sharedList, userId) =>
+  Array.isArray(sharedList) &&
+  sharedList.some((sharedId) => sharedId.toString() === userId);
+
 // Mark a folder and all its descendants (folders + files) as trashed/restored
 const markFolderTrashState = async (
   folderId,
@@ -66,12 +70,22 @@ router.get("/verify-download/:folderId", async (req, res) => {
       return res.status(404).json({ error: "Folder not found" });
     }
 
+    const hasAccess =
+      folder.owner.toString() === req.user.id ||
+      hasSharedAccess(folder.shared, req.user.id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     // Count files recursively
     async function countFolderContents(folderId) {
-      const files = await File.find({ parent: folderId, isDeleted: false });
+      const files = await File.find({
+        parent: folderId,
+        trash: { $ne: true },
+      });
       const subfolders = await Folder.find({
         parent: folderId,
-        isDeleted: false,
+        trash: { $ne: true },
       });
 
       let totalFiles = files.length;
@@ -118,6 +132,7 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
     const skip = (page - 1) * limit;
     const sortBy = req.query.sortBy || "createdAt";
     const sortOrder = req.query.sortOrder || "desc";
+    let currentFolder = null;
 
     // Check if user has access to the parent folder (if not root)
     let isSharedFolder = false;
@@ -126,18 +141,19 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
       if (!parentFolder) {
         return res.status(404).json({ error: "Folder not found" });
       }
+      currentFolder = parentFolder;
 
       // Check if user owns the folder or it's shared with them
       const hasAccess =
         parentFolder.owner.toString() === req.user.id ||
-        parentFolder.shared.includes(req.user.id);
+        hasSharedAccess(parentFolder.shared, req.user.id);
 
       if (!hasAccess) {
         return res.status(403).json({ error: "Access denied" });
       }
 
       // Track if this is a shared folder to adjust query
-      isSharedFolder = parentFolder.shared.includes(req.user.id);
+      isSharedFolder = hasSharedAccess(parentFolder.shared, req.user.id);
     }
 
     // Build the query based on whether it's trash, shared, or regular drive
@@ -154,6 +170,7 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         if (!trashedFolder) {
           return res.status(404).json({ error: "Folder not found" });
         }
+        currentFolder = trashedFolder;
 
         // When inside Trash, scope results to the selected folder
         query = { parent: folderId, trash: true, owner: req.user.id };
@@ -175,8 +192,10 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
     }
 
     // Get total counts
-    const totalFolders = await Folder.countDocuments(query);
-    const totalFiles = await File.countDocuments(query);
+    const [totalFolders, totalFiles] = await Promise.all([
+      Folder.countDocuments(query),
+      File.countDocuments(query),
+    ]);
 
     // Build sort options
     const order = sortOrder === "asc" ? 1 : -1;
@@ -207,7 +226,8 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         .populate("owner", "name email")
         .sort(sortOptions)
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
 
       // If we have room for files after folders
       const remainingLimit = limit - folders.length;
@@ -215,7 +235,8 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         files = await File.find(query)
           .populate("owner", "name email")
           .sort(sortOptions)
-          .limit(remainingLimit);
+          .limit(remainingLimit)
+          .lean();
       }
     } else {
       // We've passed all folders, only get files
@@ -224,11 +245,16 @@ router.get("/:folderId", cacheMiddleware({ ttl: 300 }), async (req, res) => {
         .populate("owner", "name email")
         .sort(sortOptions)
         .skip(fileSkip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
+    }
+
+    if (!currentFolder && folderId) {
+      currentFolder = await Folder.findById(folderId).lean();
     }
 
     res.json({
-      folder: folderId ? await Folder.findById(folderId) : null, // Send current folder metadata
+      folder: currentFolder, // Send current folder metadata
       folders,
       files,
       pagination: {
@@ -291,6 +317,17 @@ router.get(
       if (!folder) {
         return res.status(404).json({ error: "Folder not found" });
       }
+
+      const ownerId =
+        typeof folder.owner?._id?.toString === "function"
+          ? folder.owner._id.toString()
+          : folder.owner.toString();
+      const hasAccess =
+        ownerId === req.user.id || hasSharedAccess(folder.shared, req.user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
       res.json(folder);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -314,7 +351,7 @@ router.get(
       // Check if user has access
       const hasAccess =
         folder.owner.toString() === req.user.id ||
-        folder.shared.includes(req.user.id);
+        hasSharedAccess(folder.shared, req.user.id);
 
       if (!hasAccess) {
         return res.status(403).json({ error: "Access denied" });
@@ -398,7 +435,7 @@ router.post(
       }
 
       // Add user to shared array if not already shared
-      if (!item.shared.includes(userToShareWith._id)) {
+      if (!hasSharedAccess(item.shared, userToShareWith._id.toString())) {
         item.shared.push(userToShareWith._id);
         await item.save();
 
@@ -745,7 +782,7 @@ router.post("/:id/copy", async (req, res) => {
     // Check if user has access to the source folder
     const hasAccess =
       sourceFolder.owner.toString() === req.user.id ||
-      sourceFolder.shared.includes(req.user.id);
+      hasSharedAccess(sourceFolder.shared, req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -771,7 +808,7 @@ router.post("/:id/copy", async (req, res) => {
 
       const hasTargetAccess =
         targetFolder.owner.toString() === req.user.id ||
-        targetFolder.shared.includes(req.user.id);
+        hasSharedAccess(targetFolder.shared, req.user.id);
       if (!hasTargetAccess) {
         return res
           .status(403)
@@ -1025,7 +1062,7 @@ router.get("/download/:folderId", async (req, res) => {
     // Check if user has access to the folder
     const hasAccess =
       folder.owner.toString() === req.user.id ||
-      folder.shared.includes(req.user.id);
+      hasSharedAccess(folder.shared, req.user.id);
 
     if (!hasAccess) {
       logger.warn("Folder download failed - access denied", {

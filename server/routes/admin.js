@@ -1,17 +1,23 @@
 const express = require("express");
+const fs = require("fs").promises;
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const File = require("../models/File");
 const Folder = require("../models/Folder");
 const UploadSession = require("../models/UploadSession");
 const logger = require("../utils/logger");
 const { requireRole } = require("../middleware/roleAuth");
-const { formatBytes, getDirectorySize } = require("../utils/storageHelpers");
+const {
+  formatBytes,
+  getDirectorySize,
+  getFilesystemStats,
+} = require("../utils/storageHelpers");
 const { getUserUploadDir } = require("../utils/fileHelpers");
 const redisCache = require("../utils/redisCache");
 
 const router = express.Router();
 
-// All routes require admin role
+// All routes below require admin role and authentication
 router.use(requireRole("admin"));
 
 /**
@@ -19,6 +25,7 @@ router.use(requireRole("admin"));
  * Get system-wide statistics
  */
 router.get("/stats", async (req, res) => {
+  const startedAt = Date.now();
   try {
     const { startDate, endDate, role } = req.query;
 
@@ -103,9 +110,9 @@ router.get("/stats", async (req, res) => {
     // Trash count (uses specific trash query)
     const trashQuery = { trash: true };
     if (startDate || endDate) {
-      trashQuery.createdAt = {}; // Use deletedAt if available, but for now createdAt
-      if (startDate) trashQuery.createdAt.$gte = new Date(startDate);
-      if (endDate) trashQuery.createdAt.$lte = new Date(endDate);
+      trashQuery.trashedAt = {};
+      if (startDate) trashQuery.trashedAt.$gte = new Date(startDate);
+      if (endDate) trashQuery.trashedAt.$lte = new Date(endDate);
     }
     const totalFilesInTrash = await File.countDocuments(trashQuery);
 
@@ -438,6 +445,13 @@ router.get("/stats", async (req, res) => {
       { $limit: 10 },
     ]);
 
+    const uploadDirPath = process.env.UPLOAD_DIR || "/mnt/drive-storage";
+    const serverStorageUsed = await getDirectorySize(uploadDirPath);
+    const filesystemStats =
+      typeof getFilesystemStats === "function"
+        ? await getFilesystemStats(uploadDirPath)
+        : null;
+
     const stats = {
       users: {
         total: totalUsers,
@@ -456,9 +470,10 @@ router.get("/stats", async (req, res) => {
       },
       storage: {
         totalUsed: storageStats[0]?.totalStorage || 0,
-        serverStorageUsed: await getDirectorySize(
-          process.env.UPLOAD_DIR || "/mnt/drive-storage",
-        ),
+        serverStorageUsed,
+        serverTotalCapacity: filesystemStats?.total || null,
+        serverFreeCapacity: filesystemStats?.free || null,
+        serverDiskUsed: filesystemStats?.used || null,
         averageFileSize: storageStats[0]?.avgFileSize || 0,
         largestFile: storageStats[0]?.maxFileSize || 0,
         smallestFile: storageStats[0]?.minFileSize || 0,
@@ -476,13 +491,22 @@ router.get("/stats", async (req, res) => {
       avgFileSizeByType: avgFileSizeByType,
     };
 
+    const durationMs = Date.now() - startedAt;
+
     logger.info("System stats fetched successfully", {
       adminId: req.user.id,
+      requestId: req.requestId,
+      durationMs,
       totalUsers,
       totalFiles,
     });
 
-    res.json(stats);
+    res.json({
+      ...stats,
+      requestId: req.requestId || null,
+      generatedAt: new Date().toISOString(),
+      durationMs,
+    });
   } catch (error) {
     logger.error("Error fetching system stats", {
       adminId: req.user.id,
@@ -519,7 +543,7 @@ router.get("/users", async (req, res) => {
     const query = {};
 
     // Filter by role
-    if (role && ["admin", "family", "guest"].includes(role)) {
+    if (role && ["admin", "family", "guest", "user"].includes(role)) {
       query.role = role;
     }
 
@@ -717,6 +741,70 @@ router.put("/users/:userId/role", async (req, res) => {
       stack: error.stack,
     });
     res.status(500).json({ error: "Failed to update user role" });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:userId/storage-limit
+ * Set user's storage limit
+ */
+router.put("/users/:userId/storage-limit", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { storageLimitBytes } = req.body;
+
+    if (!Number.isInteger(storageLimitBytes)) {
+      return res.status(400).json({
+        error: "storageLimitBytes must be an integer value in bytes",
+      });
+    }
+
+    const MAX_STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024 * 1024; // 10TB
+
+    if (
+      storageLimitBytes !== -1 &&
+      (storageLimitBytes <= 0 || storageLimitBytes > MAX_STORAGE_LIMIT_BYTES)
+    ) {
+      return res.status(400).json({
+        error: "storageLimitBytes must be -1 (unlimited) or between 1 byte and 10TB",
+      });
+    }
+
+    logger.info("Admin updating user storage limit", {
+      adminId: req.user.id,
+      targetUserId: userId,
+      storageLimitBytes,
+    });
+
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentLimit = user.storageLimit;
+
+    user.storageLimit = storageLimitBytes;
+    await user.save();
+
+    logger.info("User storage limit updated successfully", {
+      adminId: req.user.id,
+      targetUserId: userId,
+      oldStorageLimit: currentLimit,
+      newStorageLimit: user.storageLimit,
+    });
+
+    res.json({
+      message: "User storage limit updated successfully",
+      user: user.toObject(),
+    });
+  } catch (error) {
+    logger.error("Error updating user storage limit", {
+      adminId: req.user.id,
+      targetUserId: req.params.userId,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: "Failed to update user storage limit" });
   }
 });
 

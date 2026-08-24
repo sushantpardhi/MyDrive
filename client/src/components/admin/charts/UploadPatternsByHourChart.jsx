@@ -13,13 +13,23 @@ import {
   Area,
 } from "recharts";
 import GraphTypeSelector from "./GraphTypeSelector";
+import EmptyChartState from "./EmptyChartState";
 import styles from "./ChartCard.module.css";
 
 const UploadPatternsByHourChart = ({ uploadPatternData }) => {
   const [graphType, setGraphType] = useState("bar");
+  const chartData = Array.isArray(uploadPatternData) ? uploadPatternData : [];
 
-  if (!uploadPatternData || uploadPatternData.length === 0) {
-    return null;
+  if (chartData.length === 0) {
+    return (
+      <EmptyChartState
+        title="Upload Patterns by Hour"
+        message="No upload pattern data available."
+        selectedType={graphType}
+        onSelect={setGraphType}
+        validTypes={["bar", "line", "area", "table"]}
+      />
+    );
   }
 
   const renderChartContent = () => {
@@ -27,7 +37,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
       case "line":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={uploadPatternData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="hour"
@@ -67,7 +77,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
       case "area":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={uploadPatternData}>
+            <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="hour"
@@ -106,49 +116,23 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Hour
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Uploads
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {uploadPatternData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td style={{ padding: "8px" }}>{entry.hour}:00</td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                {chartData.map((entry, index) => (
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCell}>{entry.hour}:00</td>
+                    <td className={styles.tableCellRight}>
                       {entry.count}
                     </td>
                   </tr>
@@ -162,7 +146,7 @@ const UploadPatternsByHourChart = ({ uploadPatternData }) => {
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={uploadPatternData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis
                 dataKey="hour"

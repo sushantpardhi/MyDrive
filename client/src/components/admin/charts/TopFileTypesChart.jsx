@@ -46,6 +46,8 @@ const TopFileTypesChart = ({ fileTypes, getFileTypeLabel }) => {
     (acc, curr) => acc + curr.files,
     0,
   );
+  const getPercent = (value) =>
+    totalFiles > 0 ? ((value / totalFiles) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -81,91 +83,42 @@ const TopFileTypesChart = ({ fileTypes, getFileTypeLabel }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Type
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Files
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Size
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {fileTypeChartData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: entry.color,
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: entry.color }}
                       ></span>
                       {entry.name}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.files}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {formatFileSize(entry.size)}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.files / totalFiles) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.files)}%
                     </td>
                   </tr>
                 ))}

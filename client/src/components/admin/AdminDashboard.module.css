@@ -360,9 +360,9 @@
 
 /* Ensure charts fit within the grid item height */
 .gridItem > div:not(.dragHandle):not(.resizeHandle) {
-  height: 100%;
+  flex: 1;
+  min-height: 0; /* Critical: allows flex child to shrink below its content size */
   width: 100%;
-  padding: 1rem;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -667,3 +667,205 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── New classes for rebuilt AdminDashboard ─────────────────────────────── */
+
+/* Centred loading / error state */
+.centeredState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  gap: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.errorText {
+  color: var(--error-color, #ef4444);
+  text-align: center;
+}
+
+.retryBtn {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* Header title block */
+.headerTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+/* Primary accent button variant */
+.primaryBtn {
+  background: var(--accent-primary) !important;
+  color: #fff !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Spinning animation for refresh icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Metric card icon wrappers */
+.metricIconWrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconBlue   { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.iconGreen  { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.iconOrange { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.iconPurple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+.iconCyan   { background: rgba(6, 182, 212, 0.12);  color: #06b6d4; }
+
+/* Metric card footer row */
+.metricFooter {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Make metric card a proper button with text-align left */
+.metricCard {
+  text-align: left;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+/* Wide widget — spans 2 columns on desktop */
+.gridItemWide {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .gridItemWide {
+    grid-column: span 1;
+  }
+}
+
+/* Charts grid – responsive columns */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 769px) {
+  .chartsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .chartsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Grid item — must have a concrete height so recharts ResponsiveContainer resolves correctly */
+.gridItem {
+  height: 360px;
+  padding: 1.25rem;
+  /* Ensure inner chart divs also fill the full height */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Override wide items to be a bit taller for timeline/trend charts */
+.gridItemWide {
+  height: 380px;
+}
+
+/* Empty state when all widgets are hidden */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  gap: 0.75rem;
+}
+
+.emptyState h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+}
+
+.inlineBtn {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Stats row – 2 cols on mobile, up to 5 on wide desktop */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 769px) {
+  .statsRow {
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .statsRow {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+

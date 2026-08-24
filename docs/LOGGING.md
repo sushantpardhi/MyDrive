@@ -119,6 +119,22 @@ Request logs include:
 - Response time in milliseconds
 - User ID (if authenticated)
 - IP address
+- Request ID (`x-request-id`) for end-to-end correlation
+
+## Request Correlation IDs
+
+- Every incoming request now gets a correlation ID.
+- If the client sends `x-request-id`, it is reused.
+- If missing, the server generates one and returns it in the response header.
+- Error and slow-request logs include this ID so you can trace a request across logs.
+
+Example:
+
+```bash
+curl -H "x-request-id: debug-123" http://localhost:8080/health -i
+```
+
+Then grep logs by `RequestID: debug-123`.
 
 ## Log Format
 

@@ -108,6 +108,10 @@ exports.getZipStatus = async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    if (!req.user || !job.userId || job.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     res.json({
       jobId,
       status: job.status,
@@ -132,6 +136,10 @@ exports.downloadZip = async (req, res) => {
 
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (!req.user || !job.userId || job.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     if (job.status === 'FAILED') {

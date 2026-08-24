@@ -1,0 +1,8 @@
+{
+  "context_servers": {
+    "codebase-memo": {
+      "command": "/Users/sushantpardhi/.local/bin/codebase-memory-mcp",
+      "args": []
+    }
+  }
+}

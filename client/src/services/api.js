@@ -163,6 +163,9 @@ const api = {
 
     const config = {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000, // 120 second timeout for regular uploads (2 min) — allows slower networks
+      maxContentLength: 1024 * 1024 * 1024, // 1GB
+      maxBodyLength: 1024 * 1024 * 1024, // 1GB
     };
 
     if (onUploadProgress) {
@@ -279,9 +282,7 @@ const api = {
   searchUsers: (query) =>
     axios.get(`${API_URL}/users/search`, { params: { query } }),
 
-  // Verify password for permanent deletion
-  verifyPassword: (password) =>
-    axios.post(`${API_URL}/users/verify-password`, { password }),
+
 
   // Get shared items
   getSharedItems: (page = 1, limit = 50) =>
@@ -296,7 +297,10 @@ const api = {
   deleteItemPermanently: (type, id) =>
     axios.delete(`${API_URL}/${type}/${id}`, { params: { permanent: true } }),
 
-  emptyTrash: () => axios.delete(`${API_URL}/trash/empty`),
+  emptyTrash: (password) => axios.delete(`${API_URL}/trash/empty`, { data: { password } }),
+
+  verifyPassword: (password) =>
+    axios.post(`${API_URL}/users/verify-password`, { password }),
 
   // Search with advanced filters
   search: (query, page = 1, limit = 50, filters = {}, section = "drive") => {
@@ -413,7 +417,7 @@ const api = {
 
     const config = {
       headers: { "Content-Type": "multipart/form-data" },
-      timeout: 30000, // Optimized 30 second timeout for parallel uploads
+      timeout: 90000, // 90 second timeout per chunk (1.5 min) — accounts for slow networks and parallel uploads
       maxContentLength: 20 * 1024 * 1024, // 20MB max chunk size for larger chunks
       maxBodyLength: 20 * 1024 * 1024, // 20MB max body size
       maxRedirects: 0, // Disable redirects for performance
@@ -523,6 +527,10 @@ const api = {
     getUserDetails: (userId) => axios.get(`${API_URL}/admin/users/${userId}`),
     updateUserRole: (userId, role) =>
       axios.put(`${API_URL}/admin/users/${userId}/role`, { role }),
+    updateUserStorageLimit: (userId, storageLimitBytes) =>
+      axios.put(`${API_URL}/admin/users/${userId}/storage-limit`, {
+        storageLimitBytes,
+      }),
     deleteUser: (userId) => axios.delete(`${API_URL}/admin/users/${userId}`),
 
     // File management

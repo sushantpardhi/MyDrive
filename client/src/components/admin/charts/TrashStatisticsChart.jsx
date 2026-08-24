@@ -30,6 +30,8 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
 
   const trashedPercentage =
     totalFiles > 0 ? ((trashedFiles / totalFiles) * 100).toFixed(1) : 0;
+  const getPercent = (value) =>
+    totalFiles > 0 ? ((value / totalFiles) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -64,79 +66,36 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Status
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Files
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: entry.color,
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: entry.color }}
                       ></span>
                       {entry.name}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.value}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.value / totalFiles) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.value)}%
                     </td>
                   </tr>
                 ))}
@@ -198,15 +157,23 @@ const TrashStatisticsChart = ({ fileStats, storageStats }) => {
           validTypes={["pie", "donut", "bar", "table"]}
         />
       </div>
-      <div className={styles.chartContent}>
-        {renderChartContent()}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <div className={styles.chartContent}>{renderChartContent()}</div>
         <div
           style={{
-            marginTop: "1rem",
             padding: "1rem",
             backgroundColor: "var(--bg-secondary)",
             borderRadius: "8px",
             fontSize: "0.875rem",
+            flexShrink: 0,
           }}
         >
           <div

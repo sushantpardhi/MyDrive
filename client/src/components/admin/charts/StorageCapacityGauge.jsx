@@ -12,11 +12,16 @@ import { formatFileSize } from "../../../utils/formatters";
 import styles from "./ChartCard.module.css";
 
 const StorageCapacityGauge = ({ storageStats, maxCapacity = 107374182400 }) => {
-  // Default 100GB capacity
+  // Prefer dynamic filesystem capacity from backend, fallback to 100GB
+  const effectiveCapacity =
+    storageStats?.serverTotalCapacity && storageStats.serverTotalCapacity > 0
+      ? storageStats.serverTotalCapacity
+      : maxCapacity;
+
   const usedStorage =
     storageStats?.serverStorageUsed || storageStats?.totalUsed || 0;
-  const usedPercentage = (usedStorage / maxCapacity) * 100;
-  const freeStorage = maxCapacity - usedStorage;
+  const usedPercentage = (usedStorage / effectiveCapacity) * 100;
+  const freeStorage = Math.max(effectiveCapacity - usedStorage, 0);
 
   // Determine status color
   let statusColor = "#10b981"; // green
@@ -100,7 +105,7 @@ const StorageCapacityGauge = ({ storageStats, maxCapacity = 107374182400 }) => {
             {usedPercentage.toFixed(1)}%
           </div>
           <div style={{ marginTop: "0.5rem" }}>
-            {formatFileSize(usedStorage)} / {formatFileSize(maxCapacity)}
+            {formatFileSize(usedStorage)} / {formatFileSize(effectiveCapacity)}
           </div>
         </div>
       </div>

@@ -222,11 +222,12 @@ class DownloadHelpers {
         }
       }
 
-      // Calculate total size
-      const totalSize = allFiles.reduce((sum, file) => sum + (file.size || 0), 0);
-
       // Remove duplicates (in case of shared items)
       const uniqueFiles = this.deduplicateFiles(allFiles);
+      const totalSize = uniqueFiles.reduce(
+        (sum, file) => sum + (file.size || 0),
+        0
+      );
 
       logger.info("Download selection resolved", {
         userId,

@@ -1,0 +1,20 @@
+.
+├── main.go
+├── go.mod
+├── go.sum
+├── config/
+│   └── config.go
+├── handler/
+│   └── <resource>.go
+├── middleware/
+│   ├── auth.go
+│   ├── logger.go
+│   └── recovery.go
+├── service/
+│   └── <resource>.go
+├── repository/
+│   └── <resource>.go
+├── model/
+│   └── <resource>.go
+└── router/
+    └── router.go

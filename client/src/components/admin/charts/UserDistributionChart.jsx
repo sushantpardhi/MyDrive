@@ -38,6 +38,8 @@ const UserDistributionChart = ({ userStats }) => {
 
   // Calculate total for percentages
   const total = userRoleData.reduce((acc, curr) => acc + curr.value, 0);
+  const getPercent = (value) =>
+    total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
 
   const renderChartContent = () => {
     switch (graphType) {
@@ -66,7 +68,7 @@ const UserDistributionChart = ({ userStats }) => {
               </Pie>
               <Tooltip
                 formatter={(value, name) => [
-                  `${value} (${((value / total) * 100).toFixed(1)}%)`,
+                  `${value} (${getPercent(value)}%)`,
                   name,
                 ]}
               />
@@ -77,79 +79,36 @@ const UserDistributionChart = ({ userStats }) => {
 
       case "table":
         return (
-          <div
-            className={styles.tableContainer}
-            style={{ height: "100%", overflowY: "auto" }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.tableHeaderLeft}>
                     Role
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     Count
                   </th>
-                  <th
-                    style={{
-                      textAlign: "right",
-                      padding: "8px",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <th className={styles.tableHeaderRight}>
                     %
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {userRoleData.map((entry, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: "1px solid var(--border-color-light)",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                  <tr key={index} className={styles.tableRow}>
+                    <td className={styles.tableCellWithDot}>
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: COLORS[entry.name] || "#8b5cf6",
-                        }}
+                        className={styles.tableDot}
+                        style={{ backgroundColor: COLORS[entry.name] || "#8b5cf6" }}
                       ></span>
                       {entry.name}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
+                    <td className={styles.tableCellRight}>
                       {entry.value}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px" }}>
-                      {((entry.value / total) * 100).toFixed(1)}%
+                    <td className={styles.tableCellRight}>
+                      {getPercent(entry.value)}%
                     </td>
                   </tr>
                 ))}

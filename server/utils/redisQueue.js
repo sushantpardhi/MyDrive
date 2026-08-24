@@ -7,6 +7,10 @@ class RedisQueue {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this.imageQueueTTLSeconds = Number.parseInt(
+      process.env.IMAGE_QUEUE_TTL_SECONDS || "604800",
+      10,
+    );
   }
 
   async connect() {
@@ -122,6 +126,8 @@ class RedisQueue {
 
       // Push job to Redis queue using RPUSH (FIFO)
       await this.client.rPush("image:jobs", JSON.stringify(job));
+      // Keep queue around while active, auto-expire once idle.
+      await this.client.expire("image:jobs", this.imageQueueTTLSeconds);
 
       logger.info("Image processing job sent to queue", {
         jobId: job.jobId,
@@ -190,6 +196,7 @@ class RedisQueue {
         userId: jobData.userId,
         outputDir: path.join(getBaseDir(), "temp"),
         timestamp: Date.now(),
+        retryCount: 0,
       };
 
       // Set initial status
@@ -197,6 +204,8 @@ class RedisQueue {
         status: "PENDING",
         progress: "0",
         message: "Queued",
+        userId: job.userId,
+        itemCount: String(job.items.length),
       });
       // Set expiry for status key (e.g., 24 hours) to prevent clutter
       await this.client.expire(`zip:job:${job.jobId}`, 86400);

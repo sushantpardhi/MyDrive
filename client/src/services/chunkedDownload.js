@@ -15,6 +15,17 @@ const MAX_RETRIES = process.env.REACT_APP_MAX_RETRIES
 const RETRY_DELAY_BASE = 1000; // Base delay in ms
 const MAX_CONCURRENT_DOWNLOADS = 4; // Parallel chunk downloads
 
+const triggerBrowserDownload = (blob, fileName) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export class ChunkedDownloadService {
   constructor(api, onProgress = null, onChunkProgress = null) {
     this.api = api;
@@ -40,6 +51,117 @@ export class ChunkedDownloadService {
     }
 
     return Math.min(Math.max(concurrency, 2), MAX_CONCURRENT_DOWNLOADS);
+  }
+
+  supportsFileSystemAccess() {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.showSaveFilePicker === "function"
+    );
+  }
+
+  async createDownloadOutput(fileName, fileSize) {
+    if (!this.supportsFileSystemAccess()) {
+      return { mode: "memory", fileName, closed: false };
+    }
+
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: fileName,
+    });
+    const writable = await fileHandle.createWritable();
+
+    if (typeof writable.truncate === "function") {
+      await writable.truncate(fileSize);
+    }
+
+    return {
+      mode: "filesystem",
+      fileName,
+      fileHandle,
+      writable,
+      closed: false,
+    };
+  }
+
+  normalizeChunkData(data) {
+    if (data instanceof Uint8Array) {
+      return data;
+    }
+
+    if (ArrayBuffer.isView(data)) {
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    }
+
+    if (data instanceof ArrayBuffer) {
+      return new Uint8Array(data);
+    }
+
+    return data;
+  }
+
+  async persistChunk(downloadState, chunk, data) {
+    const normalizedData = this.normalizeChunkData(data);
+
+    if (downloadState.output?.mode === "filesystem") {
+      await downloadState.output.writable.write({
+        type: "write",
+        position: chunk.index * downloadState.chunkSize,
+        data: normalizedData,
+      });
+      chunk.data = null;
+    } else {
+      chunk.data = normalizedData;
+    }
+
+    chunk.downloaded = true;
+    chunk.size = normalizedData.byteLength || normalizedData.size || 0;
+
+    return chunk.size;
+  }
+
+  updateProgressState(downloadState, clientDownloadId) {
+    if (this.onProgress) {
+      this.onProgress(
+        clientDownloadId,
+        downloadState.downloadedBytes,
+        downloadState.fileSize,
+        downloadState.downloadedChunks,
+        downloadState.totalChunks,
+      );
+    }
+  }
+
+  async finalizeDownloadOutput(downloadState, fileName) {
+    const finalName = fileName || downloadState.preferredFileName;
+
+    if (downloadState.output?.mode === "filesystem") {
+      await downloadState.output.writable.close();
+      downloadState.output.closed = true;
+      return;
+    }
+
+    const orderedChunks = downloadState.chunks
+      .sort((a, b) => a.index - b.index)
+      .map((chunk) => chunk.data);
+
+    const blob = new Blob(orderedChunks);
+    triggerBrowserDownload(blob, finalName);
+  }
+
+  async discardDownloadOutput(downloadState) {
+    if (!downloadState?.output || downloadState.output.closed) {
+      return;
+    }
+
+    if (downloadState.output.mode === "filesystem") {
+      if (typeof downloadState.output.writable.abort === "function") {
+        await downloadState.output.writable.abort();
+      } else {
+        await downloadState.output.writable.close();
+      }
+    }
+
+    downloadState.output.closed = true;
   }
 
   /**
@@ -205,6 +327,7 @@ export class ChunkedDownloadService {
         downloadId: serverDownloadId,
         fileId,
         fileName: session.fileName,
+        preferredFileName: fileName || session.fileName,
         fileSize: session.fileSize,
         totalChunks: session.totalChunks,
         chunkSize: session.chunkSize,
@@ -212,11 +335,16 @@ export class ChunkedDownloadService {
         downloadedBytes: 0,
         downloadedChunks: 0,
         chunks: [],
+        output: null,
         startTime: Date.now(),
       };
 
       this.activeDownloads.set(uniqueDownloadId, downloadState);
       this.abortControllers.set(uniqueDownloadId, abortController);
+      downloadState.output = await this.createDownloadOutput(
+        downloadState.preferredFileName,
+        session.fileSize,
+      );
 
       // Step 2: Download chunks in parallel
       const chunks = [];
@@ -282,22 +410,16 @@ export class ChunkedDownloadService {
             throw new Error("Download paused or cancelled");
           }
 
-          // Store chunk data
-          chunk.data = result.data;
-          chunk.downloaded = true;
+          const persistedSize = await this.persistChunk(
+            downloadState,
+            chunk,
+            result.data,
+          );
           downloadedChunks++;
-          downloadedBytes += result.size;
-
-          // Update progress
-          if (this.onProgress) {
-            this.onProgress(
-              uniqueDownloadId,
-              downloadedBytes,
-              session.fileSize,
-              downloadedChunks,
-              session.totalChunks
-            );
-          }
+          downloadedBytes += persistedSize;
+          downloadState.downloadedChunks = downloadedChunks;
+          downloadState.downloadedBytes = downloadedBytes;
+          this.updateProgressState(downloadState, uniqueDownloadId);
 
           return result;
         } finally {
@@ -331,22 +453,7 @@ export class ChunkedDownloadService {
         throw failures[0].reason;
       }
 
-      // Step 3: Combine chunks into blob
-      const orderedChunks = chunks
-        .sort((a, b) => a.index - b.index)
-        .map((c) => c.data);
-
-      const blob = new Blob(orderedChunks);
-
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName || session.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await this.finalizeDownloadOutput(downloadState, downloadState.preferredFileName);
 
       // Update state
       downloadState.status = "completed";
@@ -366,7 +473,7 @@ export class ChunkedDownloadService {
         success: true,
         downloadId: serverDownloadId,
         clientDownloadId: uniqueDownloadId,
-        fileName: session.fileName,
+        fileName: downloadState.preferredFileName,
         fileSize: session.fileSize,
         duration: Date.now() - downloadState.startTime,
       };
@@ -376,6 +483,7 @@ export class ChunkedDownloadService {
       if (downloadState) {
         downloadState.status = "failed";
         downloadState.error = error.message;
+        await this.discardDownloadOutput(downloadState);
       }
 
       logger.logError(error, "Chunked download failed", {
@@ -407,24 +515,7 @@ export class ChunkedDownloadService {
         await this.api.pauseChunkedDownload(downloadState.downloadId);
         downloadState.status = "paused";
         downloadState.pausedAt = Date.now();
-
-        // Calculate current progress
-        const downloadedChunks = downloadState.chunks.filter(
-          (c) => c.downloaded
-        ).length;
-        downloadState.downloadedBytes = downloadState.chunks
-          .filter((c) => c.downloaded && c.data)
-          .reduce((sum, c) => sum + (c.data.byteLength || c.data.size || 0), 0);
-
-        if (this.onProgress) {
-          this.onProgress(
-            clientDownloadId,
-            downloadState.downloadedBytes,
-            downloadState.fileSize,
-            downloadedChunks,
-            downloadState.totalChunks
-          );
-        }
+        this.updateProgressState(downloadState, clientDownloadId);
       }
 
       logger.info("Download paused", {
@@ -542,24 +633,16 @@ export class ChunkedDownloadService {
         );
 
         if (result) {
-          chunks[chunkIndex].data = result.data;
-          chunks[chunkIndex].downloaded = true;
+          const chunk = chunks[chunkIndex];
+          const persistedSize = await this.persistChunk(
+            downloadState,
+            chunk,
+            result.data,
+          );
 
-          // Update progress
-          const downloadedChunks = chunks.filter((c) => c.downloaded).length;
-          const downloadedBytes = chunks
-            .filter((c) => c.downloaded && c.data)
-            .reduce((sum, c) => sum + (c.data.byteLength || c.data.size || 0), 0);
-
-          if (this.onProgress) {
-            this.onProgress(
-              clientDownloadId,
-              downloadedBytes,
-              fileSize,
-              downloadedChunks,
-              totalChunks
-            );
-          }
+          downloadState.downloadedChunks += 1;
+          downloadState.downloadedBytes += persistedSize;
+          this.updateProgressState(downloadState, clientDownloadId);
         }
 
         return result;
@@ -575,22 +658,10 @@ export class ChunkedDownloadService {
       const allDownloaded = chunks.every((c) => c.downloaded);
 
       if (allDownloaded) {
-        // Complete the download
-        const orderedChunks = chunks
-          .sort((a, b) => a.index - b.index)
-          .map((c) => c.data);
-
-        const blob = new Blob(orderedChunks);
-
-        // Trigger download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = downloadState.fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        await this.finalizeDownloadOutput(
+          downloadState,
+          downloadState.preferredFileName,
+        );
 
         downloadState.status = "completed";
         downloadState.completedAt = Date.now();
@@ -609,6 +680,7 @@ export class ChunkedDownloadService {
         downloadId,
         clientDownloadId,
       });
+      await this.discardDownloadOutput(downloadState);
     }
   }
 
@@ -641,6 +713,8 @@ export class ChunkedDownloadService {
         }
       }
 
+      await this.discardDownloadOutput(downloadState);
+
       // Cleanup local state
       this.activeDownloads.delete(clientDownloadId);
       this.abortControllers.delete(clientDownloadId);
@@ -653,6 +727,7 @@ export class ChunkedDownloadService {
       return true;
     } catch (error) {
       logger.logError(error, "Failed to cancel download", { clientDownloadId });
+      await this.discardDownloadOutput(downloadState);
       // Ensure cleanup happens even on error
       this.activeDownloads.delete(clientDownloadId);
       this.abortControllers.delete(clientDownloadId);

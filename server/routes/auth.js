@@ -10,10 +10,19 @@ const {
   generateRefreshToken,
   revokeAllUserTokens,
 } = require("../utils/refreshTokenHelpers");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
+const isProduction = process.env.NODE_ENV === "production";
+
+const getCookieOptions = (maxAge) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  maxAge,
+});
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required");
@@ -28,13 +37,13 @@ router.post("/logout", async (req, res) => {
   }
   res.clearCookie("accessToken", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   });
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   });
   res.json({ message: "Logged out successfully" });
 });
@@ -52,24 +61,24 @@ router.post("/refresh-token", async (req, res) => {
         .status(403)
         .json({ error: "Invalid or expired refresh token" });
     }
-    // Issue new access token
+    const user = await User.findById(payload.id).select("_id email name role");
+    if (!user) {
+      return res.status(401).json({ error: "Invalid session" });
+    }
+
+    // Issue new access token from current DB state to avoid stale claims
     const token = jwt.sign(
       {
-        id: payload.id,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRATION },
     );
     // Set access token as HTTP-only cookie
-    res.cookie("accessToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
+    res.cookie("accessToken", token, getCookieOptions(15 * 60 * 1000));
 
     res.json({ message: "Token refreshed successfully" });
   } catch (error) {
@@ -110,6 +119,7 @@ router.get("/me", authenticateToken, async (req, res) => {
 // Register route
 router.post(
   "/register",
+  authLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -147,9 +157,14 @@ router.post(
         });
       }
 
-      // Validate role if provided (default is 'user')
-      const validRoles = ["admin", "family", "user", "guest"];
-      const userRole = role && validRoles.includes(role) ? role : "user";
+      // Public registration always creates standard users.
+      if (role && role !== "user") {
+        logger.warn("Registration attempted with elevated role", {
+          ip,
+          email,
+          requestedRole: role,
+        });
+      }
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -159,7 +174,7 @@ router.post(
         name,
         email,
         password: hashedPassword,
-        role: userRole,
+        role: "user",
         settings: {
           theme: theme || "light",
         },
@@ -197,20 +212,10 @@ router.post(
       // Generate refresh token
       const refreshToken = await generateRefreshToken(user);
       // Set refresh token as HTTP-only cookie
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      res.cookie("refreshToken", refreshToken, getCookieOptions(30 * 24 * 60 * 60 * 1000));
 
       // Set access token as HTTP-only cookie
-      res.cookie("accessToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 15 * 60 * 1000, // 15 minutes
-      });
+      res.cookie("accessToken", token, getCookieOptions(15 * 60 * 1000));
 
       logger.logPerformance("register", Date.now() - startTime, {
         userId: user._id,
@@ -241,6 +246,7 @@ router.post(
 // Login route
 router.post(
   "/login",
+  authLimiter,
   [
     body("email").isEmail().withMessage("Valid email is required"),
     body("password").notEmpty().withMessage("Password is required"),
@@ -271,12 +277,9 @@ router.post(
           userAgent,
           email,
           success: false,
-          additionalInfo: "User not found",
+          additionalInfo: "Invalid credentials",
         });
-        return res.status(404).json({
-          error: "No account found with this email address",
-          errorType: "USER_NOT_FOUND",
-        });
+        return res.status(401).json({ error: "Invalid email or password" });
       }
 
       // Check password
@@ -287,12 +290,9 @@ router.post(
           userAgent,
           email,
           success: false,
-          additionalInfo: "Invalid password",
+          additionalInfo: "Invalid credentials",
         });
-        return res.status(401).json({
-          error: "Incorrect password. Please try again.",
-          errorType: "INVALID_PASSWORD",
-        });
+        return res.status(401).json({ error: "Invalid email or password" });
       }
 
       // Generate JWT access token
@@ -304,20 +304,10 @@ router.post(
       // Generate refresh token
       const refreshToken = await generateRefreshToken(user);
       // Set refresh token as HTTP-only cookie
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      res.cookie("refreshToken", refreshToken, getCookieOptions(30 * 24 * 60 * 60 * 1000));
 
       // Set access token as HTTP-only cookie
-      res.cookie("accessToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 15 * 60 * 1000, // 15 minutes
-      });
+      res.cookie("accessToken", token, getCookieOptions(15 * 60 * 1000));
 
       logger.logAuth("login", user._id, {
         ip,
@@ -482,6 +472,9 @@ router.post(
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
       await user.save();
+
+      // Invalidate all active refresh sessions after password reset.
+      await revokeAllUserTokens(user._id.toString());
 
       logger.logAuth("password-reset", user._id, {
         ip,

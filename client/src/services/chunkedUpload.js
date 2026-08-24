@@ -1,9 +1,15 @@
 /**
  * Chunked Upload Service
  * Handles file uploads in chunks with retry functionality
+ * Includes progress persistence using IndexedDB for resume capability
  */
 
 import logger from "../utils/logger";
+import {
+  saveUploadProgress,
+  deleteUploadProgress,
+  getUploadProgress,
+} from "../utils/indexedDB";
 
 const CHUNK_SIZE = process.env.REACT_APP_CHUNK_SIZE
   ? parseInt(process.env.REACT_APP_CHUNK_SIZE)
@@ -416,6 +422,29 @@ export class ChunkedUploadService {
             totalChunks,
           );
         }
+
+        // Persist progress to IndexedDB every 5 chunks or on last chunk
+        if (
+          progress.uploadedChunks % 5 === 0 ||
+          progress.uploadedChunks === totalChunks
+        ) {
+          saveUploadProgress(uploadId, {
+            fileName: file.name,
+            fileSize: file.size,
+            uploadedBytes: progress.uploadedBytes,
+            uploadedChunks: progress.uploadedChunks,
+            totalChunks,
+            chunkSize: CHUNK_SIZE,
+            parentFolder: uploadState.parentFolder,
+            startTime: uploadState.startTime,
+            status: uploadState.status,
+          }).catch((err) => {
+            logger.warn("Failed to persist upload progress to IndexedDB", {
+              uploadId,
+              error: err.message,
+            });
+          });
+        }
       };
 
       // Create upload promises for all chunks (fully parallel)
@@ -534,6 +563,14 @@ export class ChunkedUploadService {
       this.activeUploads.delete(uniqueFileId);
       this.abortControllers.delete(uniqueFileId);
       this.conflictStats.delete(uniqueFileId);
+
+      // Clear progress from IndexedDB on successful completion
+      deleteUploadProgress(uploadId).catch((err) => {
+        logger.warn("Failed to clear upload progress from IndexedDB", {
+          uploadId,
+          error: err.message,
+        });
+      });
 
       // Get conflict statistics
       const conflicts = this.conflictStats.get(uniqueFileId) || {
@@ -952,6 +989,47 @@ export class ChunkedUploadService {
     } catch (error) {
       console.error("Failed to resume upload:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Check for incomplete uploads from IndexedDB
+   * Useful for recovering uploads after browser crash/refresh
+   * @returns {Promise<Array>} - Array of incomplete upload sessions
+   */
+  async getIncompleteUploads() {
+    try {
+      const { getAllIncompleteUploads } = await import("../utils/indexedDB");
+      const incompleteUploads = await getAllIncompleteUploads();
+      return incompleteUploads;
+    } catch (error) {
+      logger.warn("Failed to retrieve incomplete uploads from IndexedDB", {
+        error: error.message,
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Clear upload progress from IndexedDB (e.g., for privacy)
+   * @param {string} uploadId - Optional. If provided, clears only this upload. Otherwise clears all.
+   * @returns {Promise<void>}
+   */
+  async clearUploadProgress(uploadId) {
+    try {
+      const { deleteUploadProgress, clearAllProgress } = await import(
+        "../utils/indexedDB"
+      );
+
+      if (uploadId) {
+        await deleteUploadProgress(uploadId);
+      } else {
+        await clearAllProgress();
+      }
+    } catch (error) {
+      logger.warn("Failed to clear upload progress from IndexedDB", {
+        error: error.message,
+      });
     }
   }
 }

@@ -10,7 +10,7 @@ const Folder = require("../models/Folder"); // Ensure Folder is imported
 const User = require("../models/User");
 const UploadSession = require("../models/UploadSession");
 const DownloadSession = require("../models/DownloadSession");
-const { ensureUserDir, getUserFilePath } = require("../utils/fileHelpers");
+const { ensureUserDir, getUserFilePath, validateFileMagicBytes } = require("../utils/fileHelpers");
 const emailService = require("../utils/emailService");
 const { requireNonTemporaryGuestFor } = require("../middleware/guestAuth");
 const {
@@ -34,10 +34,79 @@ const { checkLockStatus } = require("../utils/lockHelpers");
 const { cacheMiddleware } = require("../middleware/cache");
 const redisCache = require("../utils/redisCache");
 const jwt = require("jsonwebtoken");
+const {
+  uploadLimiter,
+  downloadLimiter,
+  chunkUploadLimiter,
+  shareLimiter,
+} = require("../middleware/rateLimiter");
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const STREAM_TOKEN_TTL = 5 * 60; // 5 minutes — enough for the player to establish the stream
+
+/**
+ * Calculate optimal chunk size based on file size and available memory
+ * Balances between fewer HTTP requests (larger chunks) and memory efficiency
+ */
+const calculateOptimalChunkSize = (fileSize) => {
+  const MIN_CHUNK = 1 * 1024 * 1024; // 1MB minimum
+  const MAX_CHUNK = 50 * 1024 * 1024; // 50MB maximum
+  const TARGET_CHUNKS = 10; // Aim for ~10 chunks per file
+
+  // Calculate ideal chunk size to achieve TARGET_CHUNKS
+  let optimalChunk = Math.ceil(fileSize / TARGET_CHUNKS);
+
+  // Small files (<100MB) benefit from larger chunks (less HTTP overhead)
+  if (fileSize < 100 * 1024 * 1024) {
+    optimalChunk = Math.min(10 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+  // Medium files (100MB-1GB) use medium chunks (good balance)
+  else if (fileSize < 1024 * 1024 * 1024) {
+    optimalChunk = Math.min(5 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+  // Large files (>1GB) use smaller chunks for better resumability
+  else {
+    optimalChunk = Math.min(2 * 1024 * 1024, Math.max(MIN_CHUNK, optimalChunk));
+  }
+
+  // Clamp to server limits
+  return Math.min(optimalChunk, MAX_CHUNK_SIZE);
+};
+
+const hasSharedAccess = (sharedList, userId) =>
+  Array.isArray(sharedList) &&
+  sharedList.some((sharedId) => sharedId.toString() === userId);
+
+const hasFileDownloadAccess = (file, userId) => {
+  if (!file || !userId || file.trash) {
+    return false;
+  }
+
+  return (
+    file.owner.toString() === userId ||
+    hasSharedAccess(file.shared, userId)
+  );
+};
+
+const getDownloadMimeType = (file) => {
+  const ext = path.extname(file.name || "").toLowerCase();
+  const mimeTypes = {
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogg": "video/ogg",
+    ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo",
+    ".mkv": "video/x-matroska",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".flac": "audio/flac",
+    ".m4a": "audio/mp4",
+    ".pdf": "application/pdf",
+  };
+
+  return mimeTypes[ext] || file.type || file.mimeType || "application/octet-stream";
+};
 
 const router = express.Router();
 
@@ -66,8 +135,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Upload file
-router.post("/upload", upload.single("file"), async (req, res) => {
+// Upload file (with rate limiting)
+router.post("/upload", uploadLimiter, upload.single("file"), async (req, res) => {
   const startTime = Date.now();
   try {
     // Get user to check storage limits
@@ -89,6 +158,29 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         fileSize: req.file.size,
       });
       return res.status(413).json(storageError);
+    }
+
+    // Validate file type using magic bytes (security)
+    const validationResult = await validateFileMagicBytes(
+      req.file.path,
+      req.file.mimetype
+    );
+    
+    if (!validationResult.valid) {
+      // Delete the uploaded file since it failed validation
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      logger.warn("Upload rejected - File validation failed", {
+        userId: req.user.id,
+        fileName: req.file.originalname,
+        reason: validationResult.reason,
+        detectedType: validationResult.detectedType,
+      });
+      return res.status(400).json({
+        error: "File validation failed",
+        details: validationResult.reason,
+      });
     }
 
     const { parent } = req.body;
@@ -157,12 +249,19 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 // Verify file download permissions and return metadata
 router.get("/verify-download/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       logger.warn(
         `Download verification failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`,
       );
       return res.status(404).json({ error: "File not found" });
+    }
+
+    const hasAccess =
+      file.owner.toString() === req.user.id ||
+      hasSharedAccess(file.shared, req.user.id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     // Return file metadata for frontend to initiate download
@@ -188,14 +287,14 @@ router.get("/verify-download/:fileId", async (req, res) => {
 // that cannot send cookies or Authorization headers).
 router.get("/stream-token/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
 
     // Verify the requesting user owns or has access to the file
     const isOwner = file.owner.toString() === req.user.id;
-    const isShared = file.shared && file.shared.includes(req.user.id);
+    const isShared = hasSharedAccess(file.shared, req.user.id);
     if (!isOwner && !isShared) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -216,6 +315,21 @@ router.get("/stream-token/:fileId", async (req, res) => {
 
 // Stream file with Range request support (for progressive PDF loading etc.)
 router.get("/stream/:fileId", async (req, res) => {
+  let fileStream = null;
+  let isAborted = false;
+
+  const handleDisconnect = () => {
+    if (isAborted) return;
+    isAborted = true;
+
+    if (fileStream && !fileStream.destroyed) {
+      fileStream.destroy();
+    }
+  };
+
+  req.on("close", handleDisconnect);
+  req.on("aborted", handleDisconnect);
+
   try {
     // Accept a short-lived ?token= query param for mobile/native video players that
     // cannot send cookies cross-origin. The authenticateToken middleware already ran,
@@ -230,8 +344,8 @@ router.get("/stream/:fileId", async (req, res) => {
         ) {
           return res.status(403).json({ error: "Invalid stream token" });
         }
-        // Token is valid — use it as the authoritative user even on mobile
-        req.user = req.user || { id: decoded.userId };
+        // Token is valid — use it as the authoritative user even on mobile.
+        req.user = { id: decoded.userId };
       } catch {
         return res
           .status(403)
@@ -239,9 +353,13 @@ router.get("/stream/:fileId", async (req, res) => {
       }
     }
 
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
+    }
+
+    if (!hasFileDownloadAccess(file, req.user.id)) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     // Verify file exists on disk
@@ -251,7 +369,7 @@ router.get("/stream/:fileId", async (req, res) => {
 
     const stat = fs.statSync(file.path);
     const fileSize = stat.size;
-    const mimeType = file.type || "application/octet-stream";
+    const mimeType = getDownloadMimeType(file);
     const range = req.headers.range;
 
     if (range) {
@@ -269,7 +387,7 @@ router.get("/stream/:fileId", async (req, res) => {
       }
 
       const chunkSize = end - start + 1;
-      const stream = fs.createReadStream(file.path, { start, end });
+      fileStream = fs.createReadStream(file.path, { start, end });
 
       res.status(206).set({
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -279,7 +397,7 @@ router.get("/stream/:fileId", async (req, res) => {
         "Cache-Control": "public, max-age=31536000",
       });
 
-      stream.pipe(res);
+      fileStream.pipe(res);
     } else {
       // No Range header — return full file with Accept-Ranges hint
       res.set({
@@ -289,8 +407,24 @@ router.get("/stream/:fileId", async (req, res) => {
         "Cache-Control": "public, max-age=31536000",
       });
 
-      fs.createReadStream(file.path).pipe(res);
+      fileStream = fs.createReadStream(file.path);
+      fileStream.pipe(res);
     }
+
+    fileStream.on("error", (err) => {
+      if (!isAborted) {
+        logger.logError(err, {
+          operation: "stream",
+          userId: req.user.id,
+          ip: req.ip,
+          additionalInfo: req.params.fileId,
+        });
+
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error streaming file" });
+        }
+      }
+    });
   } catch (error) {
     logger.logError(error, {
       operation: "stream",
@@ -305,10 +439,11 @@ router.get("/stream/:fileId", async (req, res) => {
   }
 });
 
-// Download file with proper client disconnect handling
-router.get("/download/:fileId", async (req, res) => {
+// Download file with proper client disconnect handling (with rate limiting)
+router.get("/download/:fileId", downloadLimiter, async (req, res) => {
   const startTime = Date.now();
   let fileStream = null;
+  let conversionStream = null;
   let isAborted = false;
 
   // Handle client disconnect
@@ -326,18 +461,35 @@ router.get("/download/:fileId", async (req, res) => {
     if (fileStream && !fileStream.destroyed) {
       fileStream.destroy();
     }
+
+    if (conversionStream && !conversionStream.destroyed) {
+      conversionStream.destroy();
+    }
   };
 
   req.on("close", handleDisconnect);
   req.on("aborted", handleDisconnect);
 
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       logger.warn(
         `Download failed - File not found: ${req.params.fileId} - User: ${req.user.id} - IP: ${req.ip}`,
       );
       return res.status(404).json({ error: "File not found" });
+    }
+
+    if (!hasFileDownloadAccess(file, req.user.id)) {
+      logger.warn("Download failed - access denied", {
+        fileId: req.params.fileId,
+        userId: req.user.id,
+        ip: req.ip,
+      });
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    if (!fs.existsSync(file.path)) {
+      return res.status(404).json({ error: "File not found on disk" });
     }
 
     // Check if conversion to JPEG is requested (for HEIC/HEIF files)
@@ -346,32 +498,21 @@ router.get("/download/:fileId", async (req, res) => {
     const isHeicFormat = [".heic", ".heif"].includes(ext);
 
     if (convertToJpeg && isHeicFormat) {
-      // Convert HEIC/HEIF to JPEG on the server
+      // Convert HEIC/HEIF to JPEG as a stream to avoid buffering large files.
       try {
-        const buffer = await sharp(file.path).jpeg({ quality: 90 }).toBuffer();
-
-        if (isAborted) {
-          logger.info("Download cancelled during HEIC conversion", {
-            fileId: req.params.fileId,
-            userId: req.user.id,
-          });
-          return;
-        }
-
-        res.set({
-          "Content-Type": "image/jpeg",
-          "Content-Length": buffer.length,
-          "Cache-Control": "public, max-age=31536000",
-        });
-
-        logger.logFileOperation("download-converted", file, req.user.id, {
-          fileSize: buffer.length,
-          mimeType: "image/jpeg",
-          duration: Date.now() - startTime,
-          ip: req.ip,
-        });
-
-        res.send(buffer);
+        await streamConvertedFileWithDisconnectHandling(
+          res,
+          file,
+          (sourceStream, transformStream) => {
+            fileStream = sourceStream;
+            conversionStream = transformStream;
+          },
+          () => isAborted,
+          logger,
+          req.user.id,
+          req.ip,
+          startTime,
+        );
       } catch (conversionError) {
         if (isAborted) return;
 
@@ -385,7 +526,9 @@ router.get("/download/:fileId", async (req, res) => {
           await streamFileWithDisconnectHandling(
             res,
             file,
-            isAborted,
+            (stream) => {
+              fileStream = stream;
+            },
             () => isAborted,
             logger,
             req.user.id,
@@ -399,7 +542,9 @@ router.get("/download/:fileId", async (req, res) => {
       await streamFileWithDisconnectHandling(
         res,
         file,
-        fileStream,
+        (stream) => {
+          fileStream = stream;
+        },
         () => isAborted,
         logger,
         req.user.id,
@@ -427,7 +572,7 @@ router.get("/download/:fileId", async (req, res) => {
 async function streamFileWithDisconnectHandling(
   res,
   file,
-  streamRef,
+  setStreamRef,
   isAbortedFn,
   logger,
   userId,
@@ -441,11 +586,11 @@ async function streamFileWithDisconnectHandling(
     }
 
     const stream = fs.createReadStream(file.path);
-    streamRef = stream;
+    setStreamRef(stream);
 
     // Set headers
     res.set({
-      "Content-Type": file.mimeType || "application/octet-stream",
+      "Content-Type": getDownloadMimeType(file),
       "Content-Length": file.size,
       "Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"`,
     });
@@ -479,10 +624,114 @@ async function streamFileWithDisconnectHandling(
   });
 }
 
+async function streamConvertedFileWithDisconnectHandling(
+  res,
+  file,
+  setStreamRefs,
+  isAbortedFn,
+  logger,
+  userId,
+  ip,
+  startTime,
+) {
+  return new Promise((resolve, reject) => {
+    if (isAbortedFn()) {
+      resolve();
+      return;
+    }
+
+    const sourceStream = fs.createReadStream(file.path);
+    const transformStream = sharp().jpeg({ quality: 90 });
+    const convertedName = `${path.parse(file.name).name}.jpg`;
+    let convertedBytes = 0;
+    let settled = false;
+
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
+      resolve(convertedBytes);
+    };
+
+    const rejectOnce = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const handleError = (error, operation) => {
+      if (isAbortedFn()) {
+        resolveOnce();
+        return;
+      }
+
+      logger.logError(error, {
+        operation,
+        userId,
+        additionalInfo: file.name,
+      });
+
+      if (!sourceStream.destroyed) {
+        sourceStream.destroy();
+      }
+      if (!transformStream.destroyed) {
+        transformStream.destroy(error);
+      }
+
+      rejectOnce(error);
+    };
+
+    setStreamRefs(sourceStream, transformStream);
+
+    res.set({
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=31536000",
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(convertedName)}"`,
+    });
+
+    transformStream.on("data", (chunk) => {
+      convertedBytes += chunk.length;
+    });
+
+    sourceStream.on("error", (error) => {
+      handleError(error, "HEIC-read-stream");
+    });
+
+    transformStream.on("error", (error) => {
+      handleError(error, "HEIC-conversion-stream");
+    });
+
+    res.on("finish", () => {
+      if (!isAbortedFn()) {
+        logger.logFileOperation("download-converted", file, userId, {
+          fileSize: convertedBytes,
+          mimeType: "image/jpeg",
+          duration: Date.now() - startTime,
+          ip,
+        });
+      }
+      resolveOnce();
+    });
+
+    sourceStream.on("close", () => {
+      if (isAbortedFn()) {
+        resolveOnce();
+      }
+    });
+
+    transformStream.on("close", () => {
+      if (isAbortedFn()) {
+        resolveOnce();
+      }
+    });
+
+    sourceStream.pipe(transformStream).pipe(res);
+  });
+}
+
 // Get thumbnail for preview (from worker-processed images)
 router.get("/thumbnail/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -568,7 +817,7 @@ router.get("/thumbnail/:fileId", async (req, res) => {
 // Get blur image for progressive loading
 router.get("/blur/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -614,7 +863,7 @@ router.get("/blur/:fileId", async (req, res) => {
 // Get low-quality image for progressive loading
 router.get("/low-quality/:fileId", async (req, res) => {
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(req.params.fileId).lean();
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
@@ -672,6 +921,17 @@ router.get(
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
+
+      const ownerId =
+        typeof file.owner?._id?.toString === "function"
+          ? file.owner._id.toString()
+          : file.owner.toString();
+      const hasAccess =
+        ownerId === req.user.id || hasSharedAccess(file.shared, req.user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
       res.json(file);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -679,10 +939,11 @@ router.get(
   },
 );
 
-// Share file - Updated to accept email instead of userId
+// Share file - Updated to accept email instead of userId (with rate limiting)
 router.post(
   "/:id/share",
   requireNonTemporaryGuestFor("Sharing files"),
+  shareLimiter,
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -712,12 +973,12 @@ router.post(
       }
 
       // Add user to shared array if not already shared
-      if (!item.shared.includes(userToShareWith._id)) {
+      if (!hasSharedAccess(item.shared, userToShareWith._id.toString())) {
         item.shared.push(userToShareWith._id);
         await item.save();
 
         // Send email notification to the user (non-blocking)
-        const owner = await User.findById(req.user.id);
+        const owner = await User.findById(req.user.id).lean();
         emailService
           .sendFileSharedEmail(userToShareWith, owner, item.name, "file")
           .catch(() => {
@@ -725,8 +986,11 @@ router.post(
           });
       }
 
-      // Invalidate user cache on file share
-      redisCache.invalidateUserCache(req.user.id);
+      // Invalidate cache for both the owner and the newly shared user
+      redisCache.invalidateUsersCache([
+        req.user.id,
+        userToShareWith._id.toString(),
+      ]);
 
       res.json({
         message: "File shared successfully",
@@ -761,8 +1025,8 @@ router.delete("/:id/share/:userId", async (req, res) => {
     );
     await item.save();
 
-    // Invalidate user cache on file unshare
-    redisCache.invalidateUserCache(req.user.id);
+    // Invalidate cache for both the owner and the removed shared user
+    redisCache.invalidateUsersCache([req.user.id, userId]);
 
     res.json({
       message: "User removed from shared list",
@@ -1078,7 +1342,7 @@ router.post("/:id/copy", async (req, res) => {
     // Check if user has access to the source file
     const hasAccess =
       sourceFile.owner.toString() === req.user.id ||
-      sourceFile.shared.includes(req.user.id);
+      hasSharedAccess(sourceFile.shared, req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -1096,7 +1360,7 @@ router.post("/:id/copy", async (req, res) => {
     }
 
     // Get user to check storage limits
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -1122,7 +1386,7 @@ router.post("/:id/copy", async (req, res) => {
 
       const hasTargetAccess =
         targetFolder.owner.toString() === req.user.id ||
-        targetFolder.shared.includes(req.user.id);
+        hasSharedAccess(targetFolder.shared, req.user.id);
       if (!hasTargetAccess) {
         return res
           .status(403)
@@ -1306,8 +1570,54 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       });
     }
 
+    const requestedChunkSize = chunkSize
+      ? parseInt(chunkSize, 10)
+      : CHUNK_SIZE;
+
+    // Calculate optimal chunk size for this file
+    const optimalChunkSize = calculateOptimalChunkSize(fileSize);
+
+    // Validate client's requested chunk size against server limits
+    if (
+      !Number.isInteger(requestedChunkSize) ||
+      requestedChunkSize <= 0 ||
+      requestedChunkSize > MAX_CHUNK_SIZE
+    ) {
+      return res.status(400).json({
+        error: "Invalid chunkSize",
+        maxChunkSize: MAX_CHUNK_SIZE,
+        suggestedChunkSize: optimalChunkSize,
+      });
+    }
+
+    // Use optimal chunk size instead of client's request if significantly different
+    // Allows 25% variance from optimal (client may have better network knowledge)
+    let finalChunkSize = requestedChunkSize;
+    const variance = Math.abs(requestedChunkSize - optimalChunkSize) / optimalChunkSize;
+    
+    if (variance > 0.25) {
+      // Log when we override client's choice
+      logger.info("Overriding client chunk size", {
+        fileName,
+        fileSize,
+        clientChunkSize: requestedChunkSize,
+        optimalChunkSize,
+        variance: (variance * 100).toFixed(1) + "%",
+      });
+      finalChunkSize = optimalChunkSize;
+    }
+
+    const expectedTotalChunks = Math.ceil(fileSize / finalChunkSize);
+    if (totalChunks !== expectedTotalChunks) {
+      return res.status(400).json({
+        error: "totalChunks does not match fileSize and optimal chunk size",
+        expectedTotalChunks,
+        suggestedChunkSize: finalChunkSize,
+      });
+    }
+
     // Get user to check storage limits
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -1337,7 +1647,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       // Check if user has access to the folder
       if (
         folder.owner.toString() !== req.user.id &&
-        !folder.shared.includes(req.user.id)
+        !hasSharedAccess(folder.shared, req.user.id)
       ) {
         return res
           .status(403)
@@ -1355,7 +1665,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
       fileSize,
       fileType: fileType || "application/octet-stream",
       totalChunks,
-      chunkSize: CHUNK_SIZE,
+      chunkSize: finalChunkSize,
       parentFolder: parentFolder === "root" ? null : parentFolder,
       owner: req.user.id,
       tempDirectory: tempDir,
@@ -1375,7 +1685,7 @@ router.post("/chunked-upload/initiate", async (req, res) => {
         fileName,
         fileSize,
         totalChunks,
-        chunkSize: uploadSession.chunkSize,
+        chunkSize: finalChunkSize,
       },
     });
   } catch (error) {
@@ -1467,6 +1777,30 @@ router.post(
         return res.status(400).json({ error: "Chunk size mismatch" });
       }
 
+      const expectedStartByte = chunkIndex * session.chunkSize;
+      const expectedChunkSize = Math.min(
+        session.chunkSize,
+        session.fileSize - expectedStartByte,
+      );
+      const expectedEndByte = expectedStartByte + expectedChunkSize - 1;
+
+      if (
+        isNaN(startByte) ||
+        isNaN(endByte) ||
+        startByte !== expectedStartByte ||
+        endByte !== expectedEndByte ||
+        chunkSize !== expectedChunkSize
+      ) {
+        return res.status(400).json({
+          error: "Invalid chunk byte range",
+          expected: {
+            start: expectedStartByte,
+            end: expectedEndByte,
+            size: expectedChunkSize,
+          },
+        });
+      }
+
       // Check if chunk already exists to avoid duplicates
       const existingChunk = session.uploadedChunks.find(
         (c) => c.index === chunkIndex,
@@ -1493,6 +1827,27 @@ router.post(
           chunkFile.buffer,
         );
       } catch (storageError) {
+        if (storageError.code === "EEXIST") {
+          const latestSession = await UploadSession.findById(session._id, {
+            uploadedCount: 1,
+            totalChunks: 1,
+          });
+          const uploadedCount = latestSession?.uploadedCount ?? 0;
+          const progress =
+            latestSession && latestSession.totalChunks > 0
+              ? (uploadedCount / latestSession.totalChunks) * 100
+              : 0;
+
+          return res.json({
+            message: "Chunk already uploaded",
+            chunkIndex,
+            progress: Math.round(progress * 100) / 100,
+            uploadedChunks: uploadedCount,
+            totalChunks: session.totalChunks,
+            isComplete: uploadedCount === session.totalChunks,
+          });
+        }
+
         logger.logError(storageError, `Failed to store chunk ${chunkIndex}`);
         return res.status(500).json({ error: "Failed to store chunk" });
       }
@@ -1624,16 +1979,52 @@ router.post(
 router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
   try {
     const { uploadId } = req.params;
-    const { fileName, totalChunks, chunks } = req.body;
+    const { fileName } = req.body;
 
-    // Find upload session
-    const session = await UploadSession.findOne({
-      uploadId,
-      owner: req.user.id,
-    });
+    // Acquire an atomic finalization lock to avoid duplicate completion.
+    let session = await UploadSession.findOneAndUpdate(
+      {
+        uploadId,
+        owner: req.user.id,
+        status: { $in: ["initiated", "uploading", "paused", "failed"] },
+      },
+      {
+        $set: { status: "finalizing" },
+      },
+      { new: true },
+    );
 
     if (!session) {
-      return res.status(404).json({ error: "Upload session not found" });
+      const existingSession = await UploadSession.findOne({
+        uploadId,
+        owner: req.user.id,
+      });
+
+      if (!existingSession) {
+        return res.status(404).json({ error: "Upload session not found" });
+      }
+
+      if (existingSession.status === "finalizing") {
+        return res.status(409).json({
+          error: "Upload completion already in progress",
+          retryable: true,
+        });
+      }
+
+      if (existingSession.status === "completed" && existingSession.finalFileId) {
+        const existingFile = await File.findById(existingSession.finalFileId);
+        if (existingFile) {
+          return res.json({
+            message: "File already uploaded",
+            file: existingFile,
+          });
+        }
+      }
+
+      return res.status(409).json({
+        error: "Upload session is not in a completable state",
+        status: existingSession.status,
+      });
     }
 
     // Validate all chunks are uploaded
@@ -1708,7 +2099,7 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       });
 
       // Get updated user to send notification
-      const user = await User.findById(req.user.id);
+      const user = await User.findById(req.user.id).lean();
 
       // Send storage notification if threshold crossed (async, don't block response)
       handlePostUploadNotification(user, session.fileSize).catch((error) => {
@@ -1737,10 +2128,11 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
       }
 
       // Update session
-      session.status = "completed";
-      session.completedAt = new Date();
-      session.finalFileId = file._id;
-      await session.save();
+      await UploadSession.findByIdAndUpdate(session._id, {
+        status: "completed",
+        completedAt: new Date(),
+        finalFileId: file._id,
+      });
 
       // Invalidate user cache on successful upload
       redisCache.invalidateUserCache(req.user.id);
@@ -1763,8 +2155,9 @@ router.post("/chunked-upload/:uploadId/complete", async (req, res) => {
         fs.unlinkSync(finalFilePath);
       }
 
-      session.status = "failed";
-      await session.save();
+      await UploadSession.findByIdAndUpdate(session._id, {
+        status: "failed",
+      });
 
       throw combineError;
     }
@@ -2161,7 +2554,7 @@ router.post("/chunked-download/initiate", async (req, res) => {
     // Check if user has access to the file
     const hasAccess =
       file.owner.toString() === req.user.id ||
-      file.shared.includes(req.user.id);
+      hasSharedAccess(file.shared, req.user.id);
     if (!hasAccess) {
       return res.status(403).json({ error: "Access denied" });
     }
@@ -2623,122 +3016,6 @@ router.get("/chunked-download/sessions", async (req, res) => {
 });
 
 // ========== FILE STREAMING (Range Request Support) ==========
-
-/**
- * Stream file with HTTP Range request support
- * GET /files/stream/:fileId
- * Supports 206 Partial Content for video/audio seeking
- */
-router.get("/stream/:fileId", async (req, res) => {
-  let fileStream = null;
-  let isAborted = false;
-
-  const handleDisconnect = () => {
-    if (isAborted) return;
-    isAborted = true;
-    if (fileStream && !fileStream.destroyed) {
-      fileStream.destroy();
-    }
-  };
-
-  req.on("close", handleDisconnect);
-  req.on("aborted", handleDisconnect);
-
-  try {
-    const file = await File.findById(req.params.fileId);
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
-    }
-
-    // Verify file exists on disk
-    if (!fs.existsSync(file.path)) {
-      return res.status(404).json({ error: "File not found on disk" });
-    }
-
-    const stat = fs.statSync(file.path);
-    const fileSize = stat.size;
-
-    // Determine content type from extension
-    const ext = path.extname(file.name).toLowerCase();
-    const mimeTypes = {
-      ".mp4": "video/mp4",
-      ".webm": "video/webm",
-      ".ogg": "video/ogg",
-      ".mov": "video/quicktime",
-      ".avi": "video/x-msvideo",
-      ".mkv": "video/x-matroska",
-      ".mp3": "audio/mpeg",
-      ".wav": "audio/wav",
-      ".flac": "audio/flac",
-      ".m4a": "audio/mp4",
-      ".pdf": "application/pdf",
-    };
-    const contentType =
-      mimeTypes[ext] || file.type || "application/octet-stream";
-
-    const range = req.headers.range;
-
-    if (range) {
-      // Parse Range header
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-
-      // Validate range
-      if (start >= fileSize || end >= fileSize || start > end) {
-        res.status(416).set({
-          "Content-Range": `bytes */${fileSize}`,
-        });
-        return res.end();
-      }
-
-      const chunkSize = end - start + 1;
-
-      res.status(206).set({
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunkSize,
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600",
-      });
-
-      fileStream = fs.createReadStream(file.path, { start, end });
-    } else {
-      // No Range header — stream entire file
-      res.status(200).set({
-        "Content-Length": fileSize,
-        "Content-Type": contentType,
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=3600",
-      });
-
-      fileStream = fs.createReadStream(file.path);
-    }
-
-    fileStream.on("error", (err) => {
-      if (!isAborted) {
-        logger.logError(err, "Error streaming file", {
-          fileId: req.params.fileId,
-          userId: req.user.id,
-        });
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Error streaming file" });
-        }
-      }
-    });
-
-    fileStream.pipe(res);
-  } catch (error) {
-    if (isAborted) return;
-    logger.logError(error, "Error in stream route", {
-      fileId: req.params.fileId,
-      userId: req.user.id,
-    });
-    if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-});
 
 /**
  * Get file metadata (lightweight, no content streaming)

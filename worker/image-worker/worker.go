@@ -55,22 +55,13 @@ func (wp *WorkerPool) runWorker(ctx context.Context, workerID int) {
 		default:
 		}
 
-		job, err := wp.redisClient.FetchJob(ctx, QueueNameJobs)
+		job, err := wp.redisClient.FetchJob(ctx, QueueNameJobs, QueueNameRetry)
 		if err != nil {
-			if err.Error() == "timeout" {
-				job, err = wp.redisClient.FetchJob(ctx, QueueNameRetry)
-				if err != nil {
-					if err.Error() != "timeout" {
-						logger.Printf("Error fetching from retry queue: %v", err)
-						time.Sleep(1 * time.Second)
-					}
-					continue
-				}
-			} else {
+			if err.Error() != "timeout" {
 				logger.Printf("Error fetching job: %v", err)
 				time.Sleep(1 * time.Second)
-				continue
 			}
+			continue
 		}
 
 		wp.processJobSafe(ctx, logger, job)

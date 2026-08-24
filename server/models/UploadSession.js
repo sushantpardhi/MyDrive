@@ -70,6 +70,7 @@ const UploadSessionSchema = new mongoose.Schema({
       "initiated",
       "uploading",
       "paused",
+      "finalizing",
       "completed",
       "failed",
       "cancelled",
@@ -115,15 +116,26 @@ const UploadSessionSchema = new mongoose.Schema({
   },
 });
 
-// Index for cleanup of expired sessions
+// Index for cleanup of expired sessions (TTL index)
 UploadSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// Index for efficient lookups
-UploadSessionSchema.index({ uploadId: 1 });
+// Index for efficient lookups by uploadId (unique constraint)
+UploadSessionSchema.index({ uploadId: 1 }, { unique: true });
+
+// Composite index for owner+status queries (common filtering pattern)
 UploadSessionSchema.index({ owner: 1, status: 1 });
+
+// Composite index for owner+uploadId (fast session lookup)
+UploadSessionSchema.index({ owner: 1, uploadId: 1 });
+
+// Index for status filtering (pause/resume operations)
+UploadSessionSchema.index({ status: 1 });
 
 // Index for efficient chunk existence checks during parallel uploads
 UploadSessionSchema.index({ _id: 1, "uploadedChunks.index": 1 });
+
+// Index for cleanup queries
+UploadSessionSchema.index({ createdAt: 1 });
 
 // Virtual for upload progress
 UploadSessionSchema.virtual("progress").get(function () {

@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -22,16 +24,23 @@ type JobItem struct {
 }
 
 type Job struct {
-	JobId     string    `json:"jobId"`
-	Items     []JobItem `json:"items"`
-	UserId    string    `json:"userId"`
-	OutputDir string    `json:"outputDir"`
+	JobId      string    `json:"jobId"`
+	Items      []JobItem `json:"items"`
+	UserId     string    `json:"userId"`
+	OutputDir  string    `json:"outputDir"`
+	RetryCount int       `json:"retryCount"`
 }
 
-// Global context for graceful shutdown
-var ctx = context.Background()
+const (
+	zipQueueName      = "zip:jobs"
+	zipRetryQueueName = "zip:retry"
+	maxRetryAttempts  = 3
+)
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Initialize Redis
 	redisHost := os.Getenv("REDIS_HOST")
 	if redisHost == "" {
@@ -46,6 +55,15 @@ func main() {
 		Addr: fmt.Sprintf("%s:%s", redisHost, redisPort),
 		DB:   0,
 	})
+	defer rdb.Close()
+
+	workerCount := 2
+	if raw := os.Getenv("ZIP_WORKER_CONCURRENCY"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err == nil && parsed > 0 {
+			workerCount = parsed
+		}
+	}
 
 	// Check connection
 	_, err := rdb.Ping(ctx).Result()
@@ -58,79 +76,106 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Consumer loop
-	log.Println("Worker started. Waiting for jobs...")
-	go func() {
-		for {
-			// Blocking pop from list
-			// timeout 0 blocks indefinitely, but we can't cancel it easily in some clients?
-			// Actually go-redis BLPOP takes a timeout. We loop with 5 seconds to check for signals?
-			result, err := rdb.BLPop(ctx, 5*time.Second, "zip:jobs").Result()
-			if err != nil {
-				if err == redis.Nil {
-					continue // Timeout, loop again
-				}
-				// If context canceled (during shutdown)
-				if ctx.Err() != nil {
-					return
-				}
-				log.Printf("Redis error: %v", err)
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			// result[0] is key, result[1] is value
-			jobJSON := result[1]
-			var job Job
-			if err := json.Unmarshal([]byte(jobJSON), &job); err != nil {
-				log.Printf("Failed to unmarshal job: %v", err)
-				continue
-			}
-
-			log.Printf("Processing job: %s (Items: %d)", job.JobId, len(job.Items))
-			processJob(rdb, job)
-		}
-	}()
+	log.Printf("Zip worker started with concurrency=%d. Waiting for jobs...", workerCount)
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go runWorker(ctx, &wg, rdb, i+1)
+	}
 
 	// Wait for shutdown signal
 	<-quit
 	log.Println("Shutting down worker...")
-	// Cancel context if we used one for BLPOP
+	cancel()
+	wg.Wait()
+	log.Println("Zip worker shutdown complete")
 }
 
-func processJob(rdb *redis.Client, job Job) {
+func runWorker(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, workerID int) {
+	defer wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		result, err := rdb.BLPop(ctx, 5*time.Second, zipRetryQueueName, zipQueueName).Result()
+		if err != nil {
+			if err == redis.Nil {
+				continue
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			log.Printf("[worker-%d] Redis error: %v", workerID, err)
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		if len(result) < 2 {
+			continue
+		}
+
+		jobJSON := result[1]
+		var job Job
+		if err := json.Unmarshal([]byte(jobJSON), &job); err != nil {
+			log.Printf("[worker-%d] Failed to unmarshal job: %v", workerID, err)
+			continue
+		}
+
+		log.Printf("[worker-%d] Processing job: %s (Items: %d, Retry: %d)", workerID, job.JobId, len(job.Items), job.RetryCount)
+		if err := processJob(ctx, rdb, job); err != nil {
+			handleJobFailure(ctx, rdb, job, err)
+		}
+	}
+}
+
+func processJob(ctx context.Context, rdb *redis.Client, job Job) error {
 	statusKey := fmt.Sprintf("zip:job:%s", job.JobId)
 
-	// Update status to PROCESSING
-	rdb.HSet(ctx, statusKey, "status", "PROCESSING")
-	rdb.HSet(ctx, statusKey, "progress", "0")
+	if err := updateJobStatus(ctx, rdb, statusKey, map[string]any{
+		"status":    "PROCESSING",
+		"progress":  "0",
+		"message":   "Processing",
+		"updatedAt": strconv.FormatInt(time.Now().UnixMilli(), 10),
+	}); err != nil {
+		return fmt.Errorf("failed to set processing status: %w", err)
+	}
+
+	if len(job.Items) == 0 {
+		return fmt.Errorf("job has no items")
+	}
 
 	// Create output dir if not exists
 	if err := os.MkdirAll(job.OutputDir, 0755); err != nil {
-		failJob(rdb, statusKey, fmt.Sprintf("Failed to create output directory: %v", err))
-		return
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	outputPath := filepath.Join(job.OutputDir, fmt.Sprintf("%s.zip", job.JobId))
-	
+
 	// Create zip file
 	zipFile, err := os.Create(outputPath)
 	if err != nil {
-		failJob(rdb, statusKey, fmt.Sprintf("Failed to create zip file: %v", err))
-		return
+		return fmt.Errorf("failed to create zip file: %w", err)
 	}
-	defer zipFile.Close() // Ensure close if we error out, though we close explicitly later
+	defer zipFile.Close()
 
 	archive := zip.NewWriter(zipFile)
 	defer archive.Close()
 
 	totalItems := len(job.Items)
-	
+	successfulItems := 0
+
 	for i, item := range job.Items {
 		// Update progress
 		if i%10 == 0 || i == totalItems-1 {
-			progress := fmt.Sprintf("%d", (i * 100) / totalItems)
-			rdb.HSet(ctx, statusKey, "progress", progress)
+			progress := fmt.Sprintf("%d", (i*100)/totalItems)
+			_ = updateJobStatus(ctx, rdb, statusKey, map[string]any{
+				"progress":  progress,
+				"updatedAt": strconv.FormatInt(time.Now().UnixMilli(), 10),
+			})
 		}
 
 		// Open source file
@@ -155,29 +200,85 @@ func processJob(rdb *redis.Client, job Job) {
 			continue
 		}
 		f.Close()
+		successfulItems++
+	}
+
+	if successfulItems == 0 {
+		_ = archive.Close()
+		_ = zipFile.Close()
+		_ = os.Remove(outputPath)
+		return fmt.Errorf("no valid files were written to archive")
 	}
 
 	// Close archive to flush
 	if err := archive.Close(); err != nil {
-		zipFile.Close() // Close before removing
+		zipFile.Close()       // Close before removing
 		os.Remove(outputPath) // Cleanup
-		failJob(rdb, statusKey, fmt.Sprintf("Failed to finalize zip: %v", err))
-		return
+		return fmt.Errorf("failed to finalize zip: %w", err)
 	}
-	
+
 	// Ensure file is closed
 	zipFile.Close()
 
 	// Update status to READY
-	rdb.HSet(ctx, statusKey, "status", "READY")
-	rdb.HSet(ctx, statusKey, "progress", "100")
-	rdb.HSet(ctx, statusKey, "filePath", outputPath)
-	
+	if err := updateJobStatus(ctx, rdb, statusKey, map[string]any{
+		"status":      "READY",
+		"progress":    "100",
+		"message":     "Ready",
+		"filePath":    outputPath,
+		"totalItems":  strconv.Itoa(totalItems),
+		"itemsZipped": strconv.Itoa(successfulItems),
+		"updatedAt":   strconv.FormatInt(time.Now().UnixMilli(), 10),
+	}); err != nil {
+		return fmt.Errorf("failed to mark job ready: %w", err)
+	}
+
 	log.Printf("Job %s completed. File: %s", job.JobId, outputPath)
+	return nil
 }
 
-func failJob(rdb *redis.Client, key, message string) {
-	log.Printf("Job failed: %s", message)
-	rdb.HSet(ctx, key, "status", "FAILED")
-	rdb.HSet(ctx, key, "message", message)
+func handleJobFailure(ctx context.Context, rdb *redis.Client, job Job, err error) {
+	statusKey := fmt.Sprintf("zip:job:%s", job.JobId)
+	message := err.Error()
+	job.RetryCount++
+
+	if job.RetryCount < maxRetryAttempts {
+		payload, marshalErr := json.Marshal(job)
+		if marshalErr != nil {
+			log.Printf("Job %s marshal failed during retry: %v", job.JobId, marshalErr)
+			_ = markJobFailed(ctx, rdb, statusKey, "job marshal failed")
+			return
+		}
+
+		if pushErr := rdb.RPush(ctx, zipRetryQueueName, payload).Err(); pushErr != nil {
+			log.Printf("Job %s requeue failed: %v", job.JobId, pushErr)
+			_ = markJobFailed(ctx, rdb, statusKey, fmt.Sprintf("retry enqueue failed: %v", pushErr))
+			return
+		}
+
+		_ = updateJobStatus(ctx, rdb, statusKey, map[string]any{
+			"status":     "RETRY",
+			"message":    message,
+			"retryCount": strconv.Itoa(job.RetryCount),
+			"maxRetries": strconv.Itoa(maxRetryAttempts),
+			"updatedAt":  strconv.FormatInt(time.Now().UnixMilli(), 10),
+		})
+		log.Printf("Job %s failed and requeued (%d/%d): %v", job.JobId, job.RetryCount, maxRetryAttempts, err)
+		return
+	}
+
+	_ = markJobFailed(ctx, rdb, statusKey, message)
+	log.Printf("Job %s failed permanently after %d attempts: %v", job.JobId, job.RetryCount, err)
+}
+
+func markJobFailed(ctx context.Context, rdb *redis.Client, statusKey, message string) error {
+	return updateJobStatus(ctx, rdb, statusKey, map[string]any{
+		"status":    "FAILED",
+		"message":   message,
+		"updatedAt": strconv.FormatInt(time.Now().UnixMilli(), 10),
+	})
+}
+
+func updateJobStatus(ctx context.Context, rdb *redis.Client, statusKey string, updates map[string]any) error {
+	return rdb.HSet(ctx, statusKey, updates).Err()
 }

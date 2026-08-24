@@ -8,7 +8,7 @@ const validateRequiredEnvVars = () => {
   logger.info("Validating environment variables...");
 
   // Required environment variables
-  const required = ["JWT_SECRET", "MONGODB_URI"];
+  const required = ["JWT_SECRET", "REFRESH_TOKEN_SECRET", "MONGODB_URI"];
 
   // Check for missing required variables
   const missing = required.filter((key) => !process.env[key]);
@@ -23,34 +23,45 @@ const validateRequiredEnvVars = () => {
     );
   }
 
-  // Validate JWT_SECRET strength
-  if (process.env.JWT_SECRET) {
-    if (process.env.JWT_SECRET.length < 32) {
-      logger.warn("⚠️  JWT_SECRET should be at least 32 characters long", {
-        currentLength: process.env.JWT_SECRET.length,
+  // Validate token secret strength for both access and refresh tokens
+  const tokenSecrets = [
+    {
+      envKey: "JWT_SECRET",
+      value: process.env.JWT_SECRET,
+      defaultSecret: "your-secret-key-change-in-production",
+    },
+    {
+      envKey: "REFRESH_TOKEN_SECRET",
+      value: process.env.REFRESH_TOKEN_SECRET,
+      defaultSecret: "refresh-secret-key-change-in-production",
+    },
+  ];
+
+  tokenSecrets.forEach(({ envKey, value, defaultSecret }) => {
+    if (!value) {
+      return;
+    }
+
+    if (value.length < 32) {
+      logger.warn(`⚠️  ${envKey} should be at least 32 characters long`, {
+        currentLength: value.length,
         recommendation: "Generate a stronger secret for production",
       });
     }
 
-    // Check for default/weak secrets
-    const weakSecrets = [
-      "your-secret-key-change-in-production",
-      "secret",
-      "password",
-      "changeme",
-    ];
-    if (weakSecrets.includes(process.env.JWT_SECRET.toLowerCase())) {
-      logger.error("⛔ Insecure JWT_SECRET detected", {
-        error: "Using default or weak JWT secret",
-        action: "Change JWT_SECRET to a strong random string",
+    const weakSecrets = [defaultSecret, "secret", "password", "changeme"];
+    if (weakSecrets.includes(value.toLowerCase())) {
+      logger.error(`⛔ Insecure ${envKey} detected`, {
+        error: `Using default or weak ${envKey}`,
+        action: `Change ${envKey} to a strong random string`,
       });
       if (process.env.NODE_ENV === "production") {
         throw new Error(
-          "Cannot start in production with weak JWT_SECRET. Please update your .env file."
+          `Cannot start in production with weak ${envKey}. Please update your .env file.`
         );
       }
     }
-  }
+  });
 
   // Validate MongoDB URI format
   if (process.env.MONGODB_URI) {
@@ -71,6 +82,10 @@ const validateRequiredEnvVars = () => {
     "MAX_CHUNK_SIZE",
     "UPLOAD_TIMEOUT",
     "SESSION_LOOKUP_TIMEOUT",
+    "GUEST_SESSION_DURATION",
+    "GUEST_SESSION_EXTENSION",
+    "GUEST_MAX_EXTENSIONS",
+    "GUEST_STORAGE_LIMIT",
   ];
 
   numericVars.forEach((key) => {

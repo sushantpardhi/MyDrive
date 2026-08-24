@@ -34,7 +34,7 @@ const storeChunk = async (tempDir, chunkIndex, chunkBuffer) => {
   const startTime = Date.now();
 
   return new Promise((resolve, reject) => {
-    fs.writeFile(chunkPath, chunkBuffer, (err) => {
+    fs.writeFile(chunkPath, chunkBuffer, { flag: "wx" }, (err) => {
       if (err) {
         logger.logError(err, {
           operation: "storeChunk",
@@ -237,7 +237,8 @@ const getFinalFilePath = (userId, fileName) => {
     fs.mkdirSync(userDir, { recursive: true });
   }
 
-  const uniqueFileName = `${uuidv4()}-${fileName}`;
+  const safeFileName = path.basename(fileName || "upload.bin");
+  const uniqueFileName = `${uuidv4()}-${safeFileName}`;
   return path.join(userDir, uniqueFileName);
 };
 
@@ -245,7 +246,7 @@ const getFinalFilePath = (userId, fileName) => {
  * Validate chunk sequence and detect missing chunks
  */
 const validateChunkSequence = (chunks, totalChunks) => {
-  const sortedChunks = chunks.sort((a, b) => a.index - b.index);
+  const sortedChunks = [...chunks].sort((a, b) => a.index - b.index);
   const missingChunks = [];
   const duplicateChunks = [];
   const seenIndices = new Set();

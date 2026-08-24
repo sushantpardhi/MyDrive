@@ -109,12 +109,23 @@ const DownloadSessionSchema = new mongoose.Schema({
   },
 });
 
-// Index for cleanup of expired sessions
+// Index for cleanup of expired sessions (TTL index)
 DownloadSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// Index for efficient lookups
+// Index for downloadId lookups (unique constraint)
+DownloadSessionSchema.index({ downloadId: 1 }, { unique: true });
+
+// Composite index for owner+status queries (common filtering pattern)
 DownloadSessionSchema.index({ owner: 1, status: 1 });
+
+// Composite index for fileId+owner (fast file lookup)
 DownloadSessionSchema.index({ fileId: 1, owner: 1 });
+
+// Index for status filtering (pause/resume operations)
+DownloadSessionSchema.index({ status: 1 });
+
+// Index for cleanup queries
+DownloadSessionSchema.index({ createdAt: 1 });
 
 // Virtual for download progress
 DownloadSessionSchema.virtual("progress").get(function () {

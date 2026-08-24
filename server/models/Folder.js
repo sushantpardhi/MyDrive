@@ -22,5 +22,7 @@ FolderSchema.index({ name: "text" });
 
 // Compound indexes for search with filters
 FolderSchema.index({ owner: 1, trash: 1, createdAt: -1 });
+FolderSchema.index({ shared: 1, trash: 1, createdAt: -1 });
+FolderSchema.index({ shared: 1, parent: 1, trash: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Folder", FolderSchema);
