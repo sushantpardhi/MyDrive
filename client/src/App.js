@@ -224,22 +224,6 @@ const App = () => {
                   </AuthRoute>
                 }
               />
-              {/* <Route
-                path="/register"
-                element={
-                  <AuthRoute>
-                    <Register />
-                  </AuthRoute>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <AuthRoute>
-                    <Login />
-                  </AuthRoute>
-                }
-              /> */}
               <Route
                 path="/forgot-password"
                 element={

@@ -7,8 +7,6 @@ const DevelopmentBanner = () => {
     process.env.NODE_ENV === "development" ||
     process.env.REACT_APP_SHOW_DEV_BANNER === "true";
 
-  // No longer need to set body padding/margin as it's a floating badge now
-
   if (!showBanner) {
     return null;
   }

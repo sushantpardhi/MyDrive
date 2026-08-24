@@ -2,6 +2,10 @@ const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
 const authenticateToken = (req, res, next) => {
   if (!JWT_SECRET) {
     return res.status(500).json({ error: "Server auth configuration error" });

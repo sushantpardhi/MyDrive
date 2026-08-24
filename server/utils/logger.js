@@ -28,7 +28,7 @@ const format = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
-  winston.format.json()
+  winston.format.json(),
 );
 
 // Define console format with colors
@@ -36,8 +36,8 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.printf(
-    (info) => `${info.timestamp} ${info.level}: ${info.message}`
-  )
+    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
+  ),
 );
 
 // Determine log level based on environment
@@ -60,7 +60,7 @@ const transports = [
   // Error log file - daily rotation
   new winston.transports.DailyRotateFile({
     filename: path.join(logsDir, "error-%DATE%.log"),
-    datePattern: "YYYY-MM-DD",
+    datePattern: "YYYY-MM-DD-HH",
     level: "error",
     maxSize: "20m",
     maxFiles: "14d",
@@ -70,7 +70,7 @@ const transports = [
   // Combined log file - daily rotation
   new winston.transports.DailyRotateFile({
     filename: path.join(logsDir, "combined-%DATE%.log"),
-    datePattern: "YYYY-MM-DD",
+    datePattern: "YYYY-MM-DD-HH",
     maxSize: "20m",
     maxFiles: "14d",
     format: format,
@@ -104,7 +104,7 @@ logger.logRequest = (req, message) => {
       req.user?.id || "anonymous"
     } - IP: ${ip} - UA: ${userAgent}${
       requestId ? ` - RequestID: ${requestId}` : ""
-    }`
+    }`,
   );
 };
 

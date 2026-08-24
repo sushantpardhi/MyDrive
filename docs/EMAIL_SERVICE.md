@@ -388,16 +388,16 @@ const verifyEmailConfig = async () => {
   const transporter = createTransporter();
 
   if (!transporter) {
-    console.warn("⚠️  Email service not configured");
+    console.warn("Email service not configured");
     return false;
   }
 
   try {
     await transporter.verify();
-    console.log("✅ Email service configured successfully");
+    console.log("Email service configured successfully");
     return true;
   } catch (error) {
-    console.error("❌ Email verification failed:", error);
+    console.error("Email verification failed:", error);
     return false;
   }
 };

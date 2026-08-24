@@ -13,10 +13,7 @@ dotenv.config();
 const logger = require("./utils/logger");
 
 // Import and validate environment variables
-const {
-  validateRequiredEnvVars,
-  getConfigSummary,
-} = require("./utils/envValidator");
+const { validateRequiredEnvVars, getConfigSummary } = require("./utils/envValidator");
 try {
   validateRequiredEnvVars();
 } catch (error) {
@@ -233,15 +230,15 @@ mongoose.connection.on("reconnected", () => {
 const server = app.listen(PORT, "0.0.0.0", () => {
   const config = getConfigSummary();
   logger.info(
-    `🚀 Server started - Port: ${PORT} - Environment: ${
+    `Server started - Port: ${PORT} - Environment: ${
       process.env.NODE_ENV || "development"
     } - CORS: ${CORS_ORIGIN}`,
   );
-  logger.info(`📦 Upload timeout: ${UPLOAD_TIMEOUT}ms - JSON limit: 10mb`);
+  logger.info(`Upload timeout: ${UPLOAD_TIMEOUT}ms - JSON limit: 10mb`);
   logger.info(
-    `🔒 Security: Helmet, Rate Limiting, MongoDB Sanitization enabled`,
+    `Security: Helmet, Rate Limiting, MongoDB Sanitization enabled`,
   );
-  logger.info(`📧 Email configured: ${config.emailConfigured}`);
+  logger.info(`Email configured: ${config.emailConfigured}`);
 });
 
 // Graceful shutdown handlers

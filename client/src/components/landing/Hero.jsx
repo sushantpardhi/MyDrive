@@ -189,7 +189,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Guest Access",
-    desc: "Try the full experience instantly — no sign-up required",
+    desc: "Try the experience instantly — no sign-up required",
   },
   {
     icon: (
@@ -504,9 +504,8 @@ const Hero = () => {
           <span className={styles.titleHighlight}>Reimagined.</span>
         </h1>
         <p className={styles.heroSubtitle}>
-          A full-featured cloud drive you can self-host. Upload, organize,
-          preview, and manage your files from anywhere with a beautiful, fast,
-          and secure interface.
+          A full-featured cloud drive. Upload, organize, preview, and manage
+          your files from anywhere with a beautiful, fast, and secure interface.
         </p>
 
         {/* Feature grid */}

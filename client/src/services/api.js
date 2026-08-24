@@ -1,7 +1,7 @@
 import axios from "axios";
 import logger from "../utils/logger";
 
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
 // Ensure cookies are sent with every single request
 axios.defaults.withCredentials = true;

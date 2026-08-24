@@ -13,8 +13,7 @@ const {
 const { authLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -24,6 +23,10 @@ const getCookieOptions = (maxAge) => ({
   sameSite: isProduction ? "none" : "lax",
   maxAge,
 });
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 
 // Logout route (invalidate refresh token)
 router.post("/logout", async (req, res) => {
@@ -109,7 +112,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     });
     res.status(500).json({ error: error.message });
   } finally {
-    logger.logPerformance("profile-fetch", Date.now() - startTime);
+    // logger.logPerformance("profile-fetch", Date.now() - startTime);
   }
 });
 
